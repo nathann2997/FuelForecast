@@ -1,0 +1,465 @@
+<title>Sydney Pump Price Outlook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: servo price-board identity. Condensed signage type, a dark price board with amber digits for today's call,
+   then forecast strip, evidence chart, driver tips, station finder, brand premiums, model card, data freshness. */
+:root{
+  --bg:#fbfbfa; --surface:#f1f2f0; --line:#dfe1dd; --fg:#141618; --fg2:#45494d; --muted:#767b80;
+  --board:#16191c; --board-fg:#eef0f2; --board-muted:#9aa1a8; --digit:#ffb22e; --chip:#ffb22e; --on-chip:#141618;
+  --retail:#eb6834; --tgp:#2a78d6; --cheap:#1baf7a; --dear:#eb6834; --band:rgba(235,104,52,.12); --fan:rgba(235,104,52,.18);
+  --up:#b4361b; --down:#1f6e3a; --flat:#5e6266;
+  --display:"Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --body:"Barlow", "Helvetica Neue", Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101214; --surface:#181b1e; --line:#2a2e33; --fg:#eef0f2; --fg2:#c2c7cc; --muted:#8b9197;
+  --board:#05070a; --board-fg:#eef0f2; --board-muted:#8b9197; --digit:#ffb22e; --chip:#ffb22e; --on-chip:#141618;
+  --retail:#d95926; --tgp:#3987e5; --cheap:#199e70; --dear:#d95926; --band:rgba(217,89,38,.16); --fan:rgba(255,178,46,.16);
+  --up:#ff8a6b; --down:#8fdc9f; --flat:#a6abb0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101214; --surface:#181b1e; --line:#2a2e33; --fg:#eef0f2; --fg2:#c2c7cc; --muted:#8b9197;
+  --board:#05070a; --board-fg:#eef0f2; --board-muted:#8b9197; --digit:#ffb22e; --chip:#ffb22e; --on-chip:#141618;
+  --retail:#d95926; --tgp:#3987e5; --cheap:#199e70; --dear:#d95926; --band:rgba(217,89,38,.16); --fan:rgba(255,178,46,.16);
+  --up:#ff8a6b; --down:#8fdc9f; --flat:#a6abb0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:20px 64px;display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:clamp(26px,3vw,36px);font-weight:700;letter-spacing:0}
+h3{font-size:17px;font-weight:700}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lede{color:var(--fg2);max-width:68ch}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.wordmark{font-family:var(--display);font-weight:800;letter-spacing:.02em;font-size:18px}
+.wordmark span{font-weight:500;color:var(--muted);margin-left:10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.asof{font-size:13px;color:var(--muted)}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px;align-items:stretch}
+.hero h1{font-size:clamp(42px,6.4vw,78px);font-weight:800;line-height:.98;text-transform:uppercase;letter-spacing:.005em}
+.hero-left{display:flex;flex-direction:column;gap:18px;justify-content:space-between}
+.controls{display:flex;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;background:var(--surface);flex-wrap:wrap}
+.seg button{font:500 13px var(--body);border:0;background:transparent;color:var(--fg2);padding:7px 12px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.seg button:focus-visible,.finder input:focus-visible{outline:2px solid var(--tgp);outline-offset:2px}
+select.reg{font:500 14px var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 14px}
+.signal{background:var(--board);color:var(--board-fg);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px;border:1px solid var(--line)}
+.signal .eyebrow,.signal .meta{color:var(--board-muted)}
+.signal .meta b{color:var(--board-fg)}
+.signal .verdict{font-family:var(--display);font-weight:800;font-size:clamp(28px,3.6vw,40px);line-height:1.05}
+.signal .now{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.signal .price{font-family:var(--mono);font-weight:500;font-size:clamp(44px,6vw,72px);line-height:1;color:var(--digit);letter-spacing:-.03em;text-shadow:0 0 18px rgba(255,178,46,.25)}
+.signal .unit{font-weight:600}
+.signal .why{font-size:14px;max-width:52ch}
+.signal .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;border-top:1px solid rgba(0,0,0,.18);padding-top:12px}
+.signal .meta b{font-family:var(--mono);font-weight:500}
+/* horizon strip */
+.horizons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.hz{padding:16px;display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--line);min-width:0}
+.hz:last-child{border-right:0}
+.hz .v{font-family:var(--display);font-weight:700;font-size:26px}
+.hz .r{font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid currentColor;width:max-content}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--flat)}
+/* chart blocks */
+.block{display:flex;flex-direction:column;gap:16px}
+.chartbox{position:relative;height:380px;border:1px solid var(--line);border-radius:14px;padding:14px 10px 6px;background:var(--bg)}
+.chartbox.sm{height:300px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--fg2)}
+.legend i{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.legend i.band{height:10px;opacity:.9}
+.events{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.ev{font-size:13px;color:var(--fg2);border-left:2px solid var(--line);padding-left:10px}
+.ev b{display:block;color:var(--fg);font-weight:600}
+/* insights */
+.insights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.ins{background:var(--bg);padding:20px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ins .big{font-family:var(--display);font-weight:800;font-size:34px;line-height:1}
+.ins .big small{font-size:15px;font-weight:600;color:var(--fg2);margin-left:4px}
+.ins p{color:var(--fg2);font-size:14px}
+.ins .tag{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
+/* finder */
+.finder{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.finder input{font:15px var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:0;flex:1 1 240px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--surface)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.stale{color:var(--muted);font-size:12px}
+/* model */
+.modelgrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start}
+.note{font-size:13px;color:var(--muted);max-width:75ch}
+ul.clean{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--fg2);font-size:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+footer a{color:var(--fg2)}
+@media (max-width:900px){.hero,.two,.modelgrid{grid-template-columns:minmax(0,1fr)}.insights{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.horizons{grid-template-columns:repeat(2,minmax(0,1fr))}.hz{border-bottom:1px solid var(--line)}}
+@media (max-width:560px){.insights{grid-template-columns:minmax(0,1fr)}.chartbox{height:320px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>
+.range{display:inline-flex;gap:2px;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.range button{font:500 12px var(--body);border:0;background:transparent;color:var(--fg2);padding:5px 10px;border-radius:999px;cursor:pointer}
+.range button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.fresh{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.fresh div{background:var(--bg);padding:12px 14px;display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--fg2)}
+.fresh b{font-family:var(--mono);font-weight:500;color:var(--fg);font-size:13px}
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end;position:relative}
+.fgroup{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fgroup.grow{flex:1 1 260px}
+.fgroup label,.flabel{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.filters input[type=search],.filters select,.multi summary{font:15px var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:0}
+.multi{position:relative}
+.multi summary{list-style:none;cursor:pointer;min-width:180px}
+.multi summary::-webkit-details-marker{display:none}
+.multi summary::after{content:"▾";float:right;margin-left:10px;color:var(--muted)}
+.multi-panel{position:absolute;z-index:5;top:calc(100% + 6px);left:0;width:min(300px,86vw);max-height:320px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.multi-actions{display:flex;gap:8px;margin-bottom:8px}
+.multi-actions button{font:500 12px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--fg2);border-radius:999px;padding:4px 10px;cursor:pointer}
+#brandList label{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:14px;color:var(--fg);text-transform:none;letter-spacing:0;font-weight:400}
+#brandList label span{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fg2);padding-bottom:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--fg2)}
+.chip{border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface)}
+.chip.home{background:var(--chip);color:var(--on-chip);border-color:transparent;font-weight:600}
+.tag-m{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:1px 7px;margin-left:6px;color:var(--fg2)}
+.cheap{color:var(--down);font-weight:600}
+@media (max-width:560px){.multi{position:static}.multi-panel{left:0;right:0;width:auto}}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.ok{background:var(--down)} .warn{background:var(--up)}
+</style>
+<div class="wrap">
+  <header class="top">
+    <div class="wordmark">SYDNEY PUMP OUTLOOK<span>Daily forecast</span></div>
+    <div class="asof" id="asofLine"></div>
+  </header>
+
+  <section class="hero" aria-labelledby="h1">
+    <div class="hero-left">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="eyebrow">Sydney pump price outlook</div>
+        <h1 id="h1">Fill up now, or wait?</h1>
+        <p class="lede">A daily forecast for Sydney pump prices, trained on every FuelCheck price change in Sydney since 2019, wholesale terminal gate prices, Brent crude and the Australian dollar. Refreshed every morning from the live NSW feed.</p>
+      </div>
+      <div class="controls"><div class="seg" id="fuelSeg" role="group" aria-label="Fuel"></div></div>
+    </div>
+    <div class="signal" id="signal" aria-live="polite"></div>
+  </section>
+
+  <section class="block" aria-labelledby="fh">
+    <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
+      <div><div class="eyebrow">Forecast median price, c/L</div><h2 id="fh">Next 14 days</h2></div>
+      <p class="note" style="max-width:54ch" id="hzNote"></p>
+    </div>
+    <div class="horizons" id="horizons"></div>
+  </section>
+
+  <section class="block" aria-labelledby="ch">
+    <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
+      <div><div class="eyebrow">Evidence</div><h2 id="ch">Sydney pump price against wholesale</h2></div>
+      <div class="range" id="range" role="group" aria-label="Time range"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="chartbox"><canvas id="main" role="img" aria-label="Sydney pump price and wholesale price over time with forecast"></canvas></div>
+    <p class="note" id="gapNote"></p>
+  </section>
+
+  <section class="block" aria-labelledby="th">
+    <div><div class="eyebrow">What the data says for Sydney drivers</div><h2 id="th">Know the cycle, beat the bowser</h2></div>
+    <div class="insights" id="insights"></div>
+  </section>
+
+  <section class="block" aria-labelledby="sh">
+    <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
+      <div><div class="eyebrow" id="stEyebrow"></div><h2 id="sh">Cheapest stations today</h2></div>
+      <p class="note" style="max-width:52ch">Follows the fuel picked at the top. Search a suburb or postcode to include every station within the radius, so nearby suburbs show up too.</p>
+    </div>
+    <div class="filters">
+      <div class="fgroup grow"><label for="q">Suburb or postcode</label><input id="q" type="search" list="subList" placeholder="All of Sydney, or e.g. Parramatta, 2150" autocomplete="off"><datalist id="subList"></datalist></div>
+      <div class="fgroup"><label for="radius">Within</label><select id="radius"><option value="2">2 km</option><option value="5" selected>5 km</option><option value="10">10 km</option><option value="20">20 km</option></select></div>
+      <div class="fgroup"><span class="flabel" id="brandLabel">Brands</span>
+        <details class="multi" id="brandBox"><summary id="brandSummary">All brands</summary>
+          <div class="multi-panel"><div class="multi-actions"><button type="button" id="brandAll">Select all</button><button type="button" id="brandNone">Clear</button></div><div id="brandList" role="group" aria-labelledby="brandLabel"></div></div>
+        </details></div>
+      <label class="check"><input type="checkbox" id="members" checked> Include members-only sites</label>
+    </div>
+    <div class="chips" id="nearby" aria-live="polite"></div>
+    <div class="tablewrap" style="max-height:460px;overflow:auto"><table><thead><tr><th class="n">#</th><th>Station</th><th>Brand</th><th>Suburb</th><th class="n">Distance</th><th class="n">Price</th><th class="n">vs median</th><th>Updated</th></tr></thead><tbody id="stRows"></tbody></table></div>
+    <p class="note" id="stNote"></p>
+  </section>
+
+  <section class="block" aria-labelledby="bh">
+    <div><div class="eyebrow" id="brandEyebrow"></div><h3 id="bh">Brand premium vs the Sydney median</h3></div>
+    <div class="chartbox sm" id="brandBoxChart"><canvas id="brands" role="img" aria-label="Average price premium by brand today"></canvas></div>
+    <p class="note" id="brandNote"></p>
+  </section>
+
+  <section class="block" aria-labelledby="mh">
+    <div><div class="eyebrow">Model card</div><h2 id="mh">How the forecast works, and how good it is</h2></div>
+    <div class="modelgrid">
+      <div class="block">
+        <ul class="clean">
+          <li><b>Target.</b> Change in the Sydney median pump price over 1, 3, 7 and 14 days for U91, E10, Premium 98 and diesel, plus the chance of a 5c+ jump within 7 days.</li>
+          <li><b>Inputs.</b> Pump margin over the terminal gate price (TGP) and how it compares with the past year; wholesale moves over 1 to 28 days; Brent crude in Australian dollars and the AUD; how spread out station prices are and how many stations repriced recently; and cycle memory (recent momentum, distance from the 4-week high and low, days since the last price jump).</li>
+          <li><b>Model.</b> Gradient-boosted trees (LightGBM, Huber loss) pooled across the four fuels, with a separate classifier for price jumps.</li>
+          <li><b>Validation.</b> Walk-forward: retrained every month on all data before it, tested on each month from Jan 2021, including the 2022 and 2026 oil shocks. Ranges are 80% intervals from the past year of test errors.</li>
+          <li><b>Cycle memory</b> needs about four weeks of unbroken daily data. Until the daily refresh has built that up after the September gap, the live forecast uses the model without it, which tested almost as well.</li>
+          <li><b>Limits.</b> It reacts to oil and wholesale moves as they happen but cannot see wars, OPEC decisions or excise changes coming.</li>
+        </ul>
+      </div>
+      <div class="block">
+        <div class="tablewrap"><table><thead><tr><th>Horizon</th><th class="n">No change</th><th class="n">Model</th><th class="n">Gain</th><th class="n">Shock months</th><th class="n">Direction</th></tr></thead><tbody id="btTable"></tbody></table></div>
+        <p class="note" id="btNote"></p>
+      </div>
+    </div>
+    <div><h3 style="margin-bottom:10px">Backtest: Sydney U91, predicted vs actual 7-day change, last two years</h3>
+      <div class="legend"><span><i style="background:var(--fg)"></i>Actual change</span><span><i style="background:var(--retail)"></i>Model prediction (made 7 days earlier)</span></div>
+    </div>
+    <div class="chartbox sm"><canvas id="bt" role="img" aria-label="Backtest predicted versus actual seven day change"></canvas></div>
+  </section>
+
+  <section class="block" aria-labelledby="dh">
+    <div><div class="eyebrow">Data freshness</div><h3 id="dh">What this page was built from</h3></div>
+    <div class="fresh" id="fresh"></div>
+  </section>
+
+  <footer>
+    <div>Sources: NSW Government FuelCheck API (live) and monthly price history on data.nsw.gov.au; Australian Institute of Petroleum terminal gate prices; Brent crude (DCOILBRENTEU) and AUD/USD (DEXUSAL) from FRED, Federal Reserve Bank of St. Louis. Sydney means postcodes 2000 to 2234, 2555 to 2574 and 2740 to 2786. Prices in Australian cents per litre including GST.</div>
+    <div>Forecasts are statistical estimates for planning, not financial advice.</div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const D = __DATA__;
+const FUELS = [["U91","Unleaded 91"],["E10","E10"],["P98","Premium 98"],["DL","Diesel"]];
+const live = {}; D.live.forEach(r => live[r.fuel] = r);
+let state = {fuel:"U91", range:"1Y"};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v,d=1) => (v>0?"+":"")+v.toFixed(d);
+const day = (s,k) => new Date(Date.parse(s+"T00:00:00Z")+k*864e5).toISOString().slice(0,10);
+const nice = s => new Date(s+"T00:00:00Z").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});
+const daysBetween = (a,b) => Math.round((Date.parse(b)-Date.parse(a))/864e5);
+const fuelName = k => FUELS.find(f=>f[0]===k)[1];
+const ST = D.stats, CTX = D.ctx;
+
+document.getElementById("asofLine").textContent = `Live Sydney prices ${nice(CTX.asof)} · Wholesale to ${nice(CTX.tgp_last)} · Brent and AUD to ${nice(CTX.fred_last)}`;
+
+function verdict(r){
+  if (r.d3 >= 1.5 || r.p_jump7 >= 0.5) return {cls:"up", head:"Fill up today"};
+  if (r.d7 >= 2 || r.p_jump7 >= 0.35) return {cls:"up", head:"Fill up this week"};
+  if (r.d3 <= -1.5 || r.d7 <= -3) return {cls:"down", head:"Wait if you can"};
+  return {cls:"flat", head:"No rush either way"};
+}
+const seg = document.getElementById("fuelSeg");
+FUELS.forEach(([k,l]) => { const b = document.createElement("button"); b.type="button"; b.dataset.k=k; b.textContent=l; b.addEventListener("click",()=>{state.fuel=k;render();}); seg.appendChild(b); });
+
+function renderSignal(){
+  const r = live[state.fuel], v = verdict(r);
+  const tg = state.fuel==="DL" ? D.tgp.dl : D.tgp.ulp;
+  const ai = daysBetween(D.start, CTX.asof); const back = k => { for (let i=ai-k;i>=0;i--) if (tg[i]!=null) return tg[i]; return null; }; const t28 = back(0) - back(28);
+  const typ = ST.margin_typ;
+  let why;
+  if (state.fuel==="DL") why = `Pump diesel is ${r.margin.toFixed(0)}c above wholesale, and wholesale diesel moved ${fmt(t28,0)}c over the last four weeks.`;
+  else if (state.fuel==="P98") why = `Premium 98 carries a ${r.margin.toFixed(0)}c margin over the unleaded wholesale price, so it reacts less to the cycle than U91.`;
+  else why = `Retailers are selling ${r.margin.toFixed(1)}c above the wholesale price, against a typical ${typ.toFixed(0)}c, after wholesale moved ${fmt(t28,0)}c in four weeks. ${r.margin < typ-6 ? "Thin margins usually end in a price jump." : r.margin > typ+8 ? "Fat margins usually get discounted away." : ""}`;
+  const path = r.d7 > 0.9 ? `up about ${r.d7.toFixed(1)}c over 7 days` : r.d7 < -0.9 ? `down about ${Math.abs(r.d7).toFixed(1)}c over 7 days` : "roughly flat over the next week";
+  document.getElementById("signal").innerHTML = `
+    <div class="eyebrow">Sydney · ${fuelName(state.fuel)} · ${nice(CTX.asof)}</div>
+    <div class="now"><span class="price num">${r.now.toFixed(1)}</span><span class="unit">c/L median</span></div>
+    <div class="verdict">${v.head}</div>
+    <p class="why">Expected ${path}. ${why}</p>
+    <div class="meta"><span>Cheapest 10%: <b>${r.p10.toFixed(1)}c</b></span><span>Wholesale: <b>${r.tgp.toFixed(1)}c</b></span><span>Chance of 5c+ jump in 7 days: <b>${Math.round(r.p_jump7*100)}%</b></span></div>`;
+}
+function renderHorizons(){
+  const r = live[state.fuel];
+  const cells = [[1,"Tomorrow"],[3,"In 3 days"],[7,"In 7 days"],[14,"In 14 days"]].map(([h,l]) => {
+    const d = r["d"+h], cls = d>0.4?"up":d<-0.4?"down":"flat";
+    return `<div class="hz"><div class="eyebrow">${l}</div><div class="v num">${(r.now+d).toFixed(1)}</div>
+      <span class="pill ${cls}">${cls==="up"?"▲":cls==="down"?"▼":"■"} ${fmt(d)}c</span>
+      <div class="r num">80% range ${(r.now+r["lo"+h]).toFixed(0)} to ${(r.now+r["hi"+h]).toFixed(0)}</div></div>`; }).join("");
+  const p = Math.round(r.p_jump7*100);
+  document.getElementById("horizons").innerHTML = cells + `<div class="hz"><div class="eyebrow">Jump risk, 7 days</div><div class="v num">${p}%</div>
+    <span class="pill ${p>=50?"up":p<=15?"down":"flat"}">${p>=50?"High":p<=15?"Low":"Moderate"}</span><div class="r">Chance the median rises 5c or more</div></div>`;
+  document.getElementById("hzNote").textContent = `80% ranges come from the past year of out-of-sample errors. Live model: ${CTX.live_model}.`;
+}
+
+const RANGES = [["3M",92],["1Y",365],["3Y",1095],["All",99999]];
+const rg = document.getElementById("range");
+RANGES.forEach(([k]) => { const b=document.createElement("button"); b.type="button"; b.textContent=k; b.dataset.k=k; b.addEventListener("click",()=>{state.range=k; renderMain(); rg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.k===k)));}); rg.appendChild(b); });
+rg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.k===state.range)));
+
+let charts = {};
+const axis = () => ({grid:{color:css("--line"),drawTicks:false}, border:{display:false}, ticks:{color:css("--muted"),font:{family:"IBM Plex Mono",size:11},padding:6}});
+const tip = () => ({backgroundColor:css("--fg"),titleColor:css("--bg"),bodyColor:css("--bg"),titleFont:{family:"Barlow",weight:"600"},bodyFont:{family:"IBM Plex Mono",size:12},padding:10,cornerRadius:8,boxPadding:4});
+
+function renderMain(){
+  const h = D.hist[state.fuel], r = live[state.fuel];
+  const all = []; for (let i=0;i<h.med.length;i++) all.push(day(D.start,i));
+  const span = RANGES.find(x=>x[0]===state.range)[1];
+  const i0 = Math.max(0, all.length - span);
+  const labels = all.slice(i0); for (let k=1;k<=14;k++) labels.push(day(CTX.asof,k));
+  const N = labels.length, nul = () => new Array(N).fill(null);
+  const med = nul(), p10 = nul(), p90 = nul(), tg = nul(), fc = nul(), lo = nul(), hi = nul();
+  const ts = state.fuel==="DL" ? D.tgp.dl : D.tgp.ulp;
+  for (let i=i0;i<h.med.length;i++){ med[i-i0]=h.med[i]; p10[i-i0]=h.p10[i]; p90[i-i0]=h.p90[i]; tg[i-i0]=ts[i]; }
+  const a = labels.indexOf(CTX.asof);
+  const pts = [[0,0,0,0],[1,r.d1,r.lo1,r.hi1],[3,r.d3,r.lo3,r.hi3],[7,r.d7,r.lo7,r.hi7],[14,r.d14,r.lo14,r.hi14]];
+  for (let k=0;k<pts.length-1;k++){ const [h0,d0,l0,u0]=pts[k],[h1,d1,l1,u1]=pts[k+1];
+    for (let s=h0;s<=h1;s++){ const t=(s-h0)/(h1-h0); fc[a+s]=+(r.now+d0+(d1-d0)*t).toFixed(1); lo[a+s]=+(r.now+l0+(l1-l0)*t).toFixed(1); hi[a+s]=+(r.now+u0+(u1-u0)*t).toFixed(1);} }
+  document.getElementById("legend").innerHTML = `<span><i style="background:var(--retail)"></i>Sydney ${fuelName(state.fuel)} median</span>
+    <span><i class="band" style="background:var(--band)"></i>Cheapest to dearest 10% of stations</span>
+    <span><i style="background:var(--tgp)"></i>Wholesale ${state.fuel==="DL"?"diesel":"petrol"} TGP</span>
+    <span><i style="background:repeating-linear-gradient(90deg,var(--retail) 0 4px,transparent 4px 7px)"></i>Forecast</span>
+    <span><i class="band" style="background:var(--fan)"></i>80% range</span>`;
+  const short = span <= 400;
+  const cfg = {type:"line", data:{labels, datasets:[
+      {label:"Dearest 10%", data:p90, borderWidth:0, pointRadius:0, fill:false, spanGaps:false},
+      {label:"Cheapest 10%", data:p10, borderWidth:0, pointRadius:0, backgroundColor:css("--band"), fill:"-1", spanGaps:false},
+      {label:"Median pump price", data:med, borderColor:css("--retail"), borderWidth:short?2:1.5, pointRadius:c=>c.dataIndex===a?5:0, pointBackgroundColor:css("--retail"), pointBorderColor:css("--bg"), pointBorderWidth:2, tension:.1, spanGaps:false},
+      {label:"Wholesale TGP", data:tg, borderColor:css("--tgp"), borderWidth:short?2:1.5, pointRadius:0, tension:.1, spanGaps:true},
+      {label:"Forecast high", data:hi, borderWidth:0, pointRadius:0, fill:false},
+      {label:"Forecast low", data:lo, borderWidth:0, pointRadius:0, backgroundColor:css("--fan"), fill:"-1"},
+      {label:"Forecast", data:fc, borderColor:css("--retail"), borderDash:[5,4], borderWidth:2, pointRadius:0}]},
+    options:{responsive:true, maintainAspectRatio:false, interaction:{mode:"index",intersect:false}, animation:false,
+      plugins:{legend:{display:false}, tooltip:{...tip(), filter:i=>i.raw!==null && !["Forecast high","Forecast low","Dearest 10%"].includes(i.dataset.label),
+        callbacks:{title:it=>nice(it[0].label), label:i=>` ${i.dataset.label}: ${i.raw.toFixed(1)}c`}}},
+      scales:{x:{...axis(), grid:{display:false}, ticks:{...axis().ticks, maxRotation:0, autoSkip:false, callback:(v,i)=>{const l=labels[i]; if(span<=100) return l.endsWith("-01")||l.endsWith("-15")?nice(l).replace(/ \d{4}$/,""):null; if(span<=400) return l.endsWith("-01")?new Date(l+"T00:00:00Z").toLocaleDateString("en-AU",{month:"short",timeZone:"UTC"}):null; return l.endsWith("-01-01")?l.slice(0,4):null;}}},
+              y:{...axis(), ticks:{...axis().ticks, callback:v=>v+"c"}}}}};
+  if (charts.main) charts.main.destroy();
+  charts.main = new Chart(document.getElementById("main"), cfg);
+  const gapDays = daysBetween(CTX.history_last, CTX.asof) - CTX.snapshot_days;
+  document.getElementById("gapNote").textContent = gapDays > 3
+    ? `Why the gap: the live NSW feed only gives today's prices, so daily history comes from NSW's monthly files, published about a month late (latest: ${nice(CTX.history_last)}). The daily refresh adds a point each morning from today, and fills the gap automatically when NSW publishes each new month.`
+    : `History to ${nice(CTX.history_last)} from NSW monthly files, then daily live snapshots.`;
+}
+
+function renderInsights(){
+  const sinceJump = ST.last_restore ? daysBetween(ST.last_restore, CTX.asof) : null;
+  const dow = ST.dow, names=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const lo = dow.indexOf(Math.min(...dow)), hi = dow.indexOf(Math.max(...dow));
+  const y = ST.cycles_by_year, ly = y.at(-1);
+  const I = [
+    ["The Sydney cycle", `${Math.round(ST.cycle_gap_calm/7)} weeks`, `In normal times Sydney unleaded jumps about ${ST.cycle_amp_calm.toFixed(0)}c every ${ST.cycle_gap_calm.toFixed(0)} days, then slides back a cent or so a day. ${ly.year} so far: ${ly.n} jumps, typically ${ly.amp.toFixed(0)}c.`],
+    ["Where we are now", sinceJump!=null?`${sinceJump} days`:"n/a", `since the last price jump on ${ST.last_restore?nice(ST.last_restore):"record"}. ${sinceJump!=null && sinceJump > ST.cycle_gap_calm ? "That is longer than a normal cycle, though a data gap means a jump in September may be missing." : "Prices usually keep sliding until the next jump."}`],
+    ["Margin today", `${ST.margin_now.toFixed(1)}c`, `U91 is selling ${ST.margin_now.toFixed(1)}c above wholesale. The 2019 to 2025 typical margin was ${ST.margin_typ.toFixed(0)}c. When margins get this thin, the next jump is usually close.`],
+    ["Day of week", "under 1c", `${names[lo]} averaged ${Math.abs(dow[lo]).toFixed(1)}c below its weekly average and ${names[hi]} was dearest, in normal periods since 2019. The cycle matters far more than the weekday.`],
+    ["Shop around", `${ST.shop_around.toFixed(0)}c`, `The cheapest 10% of Sydney stations sit about ${ST.shop_around.toFixed(0)}c below the median on an average day since 2023. That is about $${(ST.shop_around*0.5).toFixed(0)} on a 50L tank.`],
+    ["Diesel premium", `${ST.dl_gap_now.toFixed(0)}c`, `Diesel costs ${ST.dl_gap_now.toFixed(0)}c more than U91 today, against ${ST.dl_gap_2019_25.toFixed(0)}c on average from 2019 to 2025.`],
+    ["E10 and Premium", `${ST.e10_disc.toFixed(0)}c / ${ST.p98_prem.toFixed(0)}c`, `Since 2023, E10 has averaged ${ST.e10_disc.toFixed(1)}c a litre below U91 in Sydney and Premium 98 ${ST.p98_prem.toFixed(0)}c above.`],
+    ["Since 2019", `${ST.low_2019.toFixed(0)}c → ${ST.high_all.toFixed(0)}c`, `Sydney's U91 median has ranged from ${ST.low_2019.toFixed(1)}c (2020 COVID low) to ${ST.high_all.toFixed(1)}c on ${nice(ST.high_date)}.`],
+    ["Oil today", `US$${CTX.brent_usd.toFixed(0)}`, `Brent crude is US$${CTX.brent_usd.toFixed(1)} a barrel, about A$${CTX.brent_aud.toFixed(0)} at ${CTX.audusd.toFixed(3)} US cents per Australian dollar (as at ${nice(CTX.fred_last)}).`],
+  ];
+  document.getElementById("insights").innerHTML = I.map(([t,b,p])=>`<div class="ins"><div class="tag">${t}</div><div class="big num">${b}</div><p>${p}</p></div>`).join("");
+}
+
+function brandStats(){
+  const f = state.fuel, med = live[f].now, by = {};
+  D.stations.forEach(s => { const p = s.p[f]; if (!p || p[0]==null) return; (by[s.b] = by[s.b] || []).push(p[0]); });
+  return Object.entries(by).filter(([b,a]) => a.length >= 3).map(([b,a]) => ({brand:b, n:a.length, prem:+(a.reduce((x,y)=>x+y,0)/a.length - med).toFixed(1)})).sort((x,y)=>x.prem-y.prem);
+}
+function renderBrands(){
+  const b = brandStats();
+  document.getElementById("brandEyebrow").textContent = `Sydney ${fuelName(state.fuel)}, ${nice(D.snap_asof)}`;
+  document.getElementById("brandBoxChart").style.height = Math.max(220, 26*b.length + 60) + "px";
+  const costco = D.stations.filter(s=>s.b==="Costco");
+  const cNote = costco.length ? ` Costco's ${costco.length} Sydney sites are members-only and only report E10 and Premium 98, so they appear for those fuels and not for U91 or diesel.` : "";
+  document.getElementById("brandNote").textContent = `Average price at each brand's Sydney stations today minus the Sydney median (${live[state.fuel].now.toFixed(1)}c). Brands with 3+ stations selling this fuel. Negative is cheaper.` + cNote;
+  const cfg = {type:"bar", data:{labels:b.map(x=>x.brand), datasets:[{data:b.map(x=>x.prem), backgroundColor:b.map(x=>x.prem<0?css("--cheap"):css("--dear")), borderRadius:4, borderSkipped:false, barThickness:12}]},
+    options:{indexAxis:"y", responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false}, tooltip:{...tip(), displayColors:false, callbacks:{label:i=>` ${fmt(i.raw)}c vs median · ${b[i.dataIndex].n} stations`}}},
+      scales:{x:{...axis(), ticks:{...axis().ticks, callback:v=>fmt(v,0)+"c"}}, y:{...axis(), grid:{display:false}, ticks:{...axis().ticks, autoSkip:false, font:{family:"Barlow",size:13}, color:css("--fg2")}}}}};
+  if (charts.brands) charts.brands.destroy();
+  charts.brands = new Chart(document.getElementById("brands"), cfg);
+}
+
+function renderBT(){
+  const b = D.bt.bt7;
+  const cfg = {type:"line", data:{labels:b.dates, datasets:[
+      {label:"Actual", data:b.actual, borderColor:css("--fg"), borderWidth:1.25, pointRadius:0, tension:.1},
+      {label:"Predicted", data:b.pred, borderColor:css("--retail"), borderWidth:1.75, pointRadius:0, tension:.1}]},
+    options:{responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:"index",intersect:false},
+      plugins:{legend:{display:false}, tooltip:{...tip(), callbacks:{title:it=>nice(it[0].label), label:i=>` ${i.dataset.label}: ${fmt(i.raw)}c`}}},
+      scales:{x:{...axis(), grid:{display:false}, ticks:{...axis().ticks, maxRotation:0, autoSkip:false, callback:(v,i)=>{const l=b.dates[i]; return /-(01|04|07|10)-01$/.test(l)?new Date(l+"T00:00:00Z").toLocaleDateString("en-AU",{month:"short",year:"2-digit",timeZone:"UTC"}):null;}}},
+              y:{...axis(), ticks:{...axis().ticks, callback:v=>fmt(v,0)+"c"}}}}};
+  if (charts.bt) charts.bt.destroy();
+  charts.bt = new Chart(document.getElementById("bt"), cfg);
+}
+function renderBTTable(){
+  const S = D.bt.summary, f = state.fuel, prod = D.bt.prod;
+  document.getElementById("btTable").innerHTML = [1,3,7,14].map(h => { const r = S[f+"|"+h];
+    return `<tr><td>${h} day${h>1?"s":""}</td><td class="n">${r.naive.toFixed(1)}c</td><td class="n">${r[prod].toFixed(1)}c</td><td class="n"><b>${Math.round((1-r[prod]/r.naive)*100)}%</b></td><td class="n">${r.model_shock.toFixed(1)} vs ${r.naive_shock.toFixed(1)}</td><td class="n">${Math.round(r.dir*100)}%</td></tr>`; }).join("");
+  const auc = D.bt.auc[f];
+  document.getElementById("btNote").textContent = `${fuelName(f)}, mean absolute error in c/L, tested ${D.bt.test_from} to ${D.bt.test_to.slice(0,7)}. "Shock months" are the 2022 and 2026 oil shocks (model vs no change). Direction counts moves of 1c or more. Price-jump classifier AUC ${auc.toFixed(2)} (0.5 is a coin toss).`;
+}
+function renderFresh(){
+  const age = s => daysBetween(s, CTX.asof);
+  const items = [
+    ["Live Sydney prices", CTX.asof, 1], ["Wholesale TGP (AIP)", CTX.tgp_last, 5], ["Brent and AUD (FRED)", CTX.fred_last, 10],
+    ["Full NSW price history", CTX.history_last, 60]];
+  document.getElementById("fresh").innerHTML = items.map(([l,d,ok])=>`<div><span><span class="dot ${age(d)<=ok?"ok":"warn"}"></span>${l}</span><b>${nice(d)}</b></div>`).join("")
+    + `<div><span>Daily snapshots stored</span><b>${CTX.snapshot_days}</b></div>`;
+}
+// ---- station finder
+const qEl = document.getElementById("q"), radEl = document.getElementById("radius"), memEl = document.getElementById("members");
+const SUBS = {}; D.stations.forEach(s => { const k = s.s+"|"+s.pc; (SUBS[k] = SUBS[k] || {s:s.s, pc:s.pc, la:[], lo:[]}); SUBS[k].la.push(s.la); SUBS[k].lo.push(s.lo); });
+const SUBLIST = Object.values(SUBS).map(x => ({s:x.s, pc:x.pc, la:x.la.reduce((a,b)=>a+b,0)/x.la.length, lo:x.lo.reduce((a,b)=>a+b,0)/x.lo.length})).sort((a,b)=>a.s.localeCompare(b.s));
+document.getElementById("subList").innerHTML = SUBLIST.map(x=>`<option value="${x.s} ${x.pc}"></option>`).join("");
+const km = (a,b,c,d) => { const r=Math.PI/180, x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2; return 12742*Math.asin(Math.sqrt(x)); };
+let brandSel = null;   // null = all brands
+function brandOptions(){
+  const counts = {}; D.stations.forEach(s => { if (s.p[state.fuel]) counts[s.b] = (counts[s.b]||0)+1; });
+  const list = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("brandList").innerHTML = list.map(([b,n]) => `<label><input type="checkbox" value="${b.replace(/"/g,'&quot;')}" ${!brandSel||brandSel.has(b)?"checked":""}> ${b}<span>${n}</span></label>`).join("");
+  document.querySelectorAll("#brandList input").forEach(cb => cb.addEventListener("change", () => {
+    const on = [...document.querySelectorAll("#brandList input")].filter(x=>x.checked).map(x=>x.value);
+    brandSel = on.length === list.length ? null : new Set(on); renderStations(); }));
+  document.getElementById("brandSummary").textContent = !brandSel ? "All brands" : brandSel.size === 0 ? "No brands" : brandSel.size <= 2 ? [...brandSel].join(", ") : `${brandSel.size} brands`;
+}
+document.getElementById("brandAll").addEventListener("click", () => { brandSel = null; brandOptions(); renderStations(); });
+document.getElementById("brandNone").addEventListener("click", () => { brandSel = new Set(); brandOptions(); renderStations(); });
+function findSuburb(q){
+  q = q.trim().toLowerCase(); if (!q) return null;
+  const m = q.match(/(\d{4})/); const name = q.replace(/\d{4}/,"").trim();
+  let hits = SUBLIST.filter(x => (!m || String(x.pc)===m[1]) && (!name || x.s.toLowerCase()===name));
+  if (!hits.length) hits = SUBLIST.filter(x => (!m || String(x.pc)===m[1]) && (!name || x.s.toLowerCase().startsWith(name)));
+  if (!hits.length && name) hits = SUBLIST.filter(x => x.s.toLowerCase().includes(name));
+  if (!hits.length) return null;
+  const la = hits.reduce((a,h)=>a+h.la,0)/hits.length, lo = hits.reduce((a,h)=>a+h.lo,0)/hits.length;
+  return {label: hits.length===1 ? `${hits[0].s} ${hits[0].pc}` : hits.map(h=>h.s).filter((v,i,a)=>a.indexOf(v)===i).slice(0,3).join(", "), la, lo};
+}
+function renderStations(){
+  const f = state.fuel, med = live[f].now, home = findSuburb(qEl.value), R = +radEl.value;
+  document.getElementById("stEyebrow").textContent = `${fuelName(f)} · ${nice(D.snap_asof)}`;
+  let rows = D.stations.filter(s => s.p[f] && s.p[f][0]!=null && (memEl.checked || !s.m) && (!brandSel || brandSel.has(s.b)))
+    .map(s => ({...s, price:s.p[f][0], age:s.p[f][1], d: home ? km(home.la, home.lo, s.la, s.lo) : null}));
+  if (home) rows = rows.filter(s => s.d <= R);
+  rows.sort((a,b) => a.price - b.price || (a.d??0) - (b.d??0));
+  const shown = rows.slice(0, 60);
+  document.getElementById("stRows").innerHTML = shown.map((s,i) => `<tr><td class="n">${i+1}</td><td>${s.n.replace(/\s*\(members only\)/i,"")}${s.m?'<span class="tag-m">Members only</span>':""}</td><td>${s.b}</td><td>${s.s} <span class="stale">${s.pc}</span></td><td class="n">${s.d!=null?s.d.toFixed(1)+" km":"–"}</td><td class="n"><b>${s.price.toFixed(1)}</b></td><td class="n ${s.price<med?"cheap":""}">${fmt(s.price-med)}</td><td>${s.age==null?"–":s.age===0?"Today":s.age===1?"1 day ago":s.age+" days ago"}${s.age>7?' <span class="stale">· check before driving</span>':""}</td></tr>`).join("")
+    || `<tr><td colspan="8">${qEl.value && !home ? `No Sydney suburb matches “${qEl.value}”. Try a postcode.` : "No stations match these filters."}</td></tr>`;
+  const near = home ? [...new Set(rows.map(s=>s.s))] : [];
+  document.getElementById("nearby").innerHTML = home ? `<span class="chip home">${home.label}</span>` + near.filter(n=>!home.label.startsWith(n)).slice(0,24).map(n=>`<span class="chip">${n}</span>`).join("") + (near.length>25?`<span class="chip">+${near.length-25} more</span>`:"") : "";
+  document.getElementById("stNote").textContent = home
+    ? `${rows.length} station${rows.length===1?"":"s"} within ${R} km of ${home.label}, across ${near.length} suburb${near.length===1?"":"s"}, cheapest first${rows.length>60?" (top 60 shown)":""}. Distance is straight-line from the suburb's centre.`
+    : `Cheapest ${shown.length} of ${rows.length} Sydney stations selling ${fuelName(f)} today. Prices are as last reported to FuelCheck; check stations not updated for over a week before driving there.`;
+}
+[qEl, radEl, memEl].forEach(el => el.addEventListener(el===qEl?"input":"change", renderStations));
+document.addEventListener("click", e => { const box = document.getElementById("brandBox"); if (box.open && !box.contains(e.target)) box.open = false; });
+function render(){ seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===state.fuel))); renderSignal(); renderHorizons(); renderMain(); renderBTTable(); brandOptions(); renderStations(); renderBrands(); }
+render(); renderInsights(); renderBT(); renderFresh();
+const rerender = () => { renderMain(); renderBrands(); renderBT(); };
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerender);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
+new MutationObserver(rerender).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+</script>
