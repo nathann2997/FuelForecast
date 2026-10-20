@@ -1,0 +1,5 @@
+pipeline/
+inbox/
+out/
+__pycache__/
+store/stations_today.json
