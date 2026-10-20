@@ -11,6 +11,7 @@ for f in "$INBOX"/syd_events_[0-9][0-9][0-9][0-9][0-9][0-9]*.csv; do
   if [ ! -f "$BASE/store/events/$b" ] || [ "$f" -nt "$BASE/store/events/$b" ]; then cp "$f" "$BASE/store/events/$b"; NEW=1; echo "new history file: $b"; fi
 done
 if [ "$NEW" = 1 ]; then python3 "$BASE/pipeline/build_history.py" "$BASE/store/events" "$BASE/store" 2>/dev/null | tail -1; fi
+if [ "$NEW" = 1 ] || [ ! -f "$BASE/store/station_profile.json" ]; then python3 "$BASE/pipeline/station_profile.py" "$BASE" 2>/dev/null | tail -1; fi
 python3 "$BASE/pipeline/update.py" "$BASE" "$INBOX"
 python3 "$BASE/pipeline/model.py" "$BASE" "$@" | tail -1 | cut -c1-200
 python3 "$BASE/pipeline/build.py" "$BASE" | cut -c1-120

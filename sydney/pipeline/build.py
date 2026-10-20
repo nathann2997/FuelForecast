@@ -69,6 +69,45 @@ stats = {
     "margin_now": r1(margin.iloc[-1]), "margin_typ": r1(margin.loc["2019":"2025"].median()),
     "low_2019": r1(u.loc["2019":].min()), "high_all": r1(u.max()), "high_date": str(u.idxmax().date()),
 }
+
+# ---- per-station "when to fill" advice: Sydney forecast path for the fuel, adjusted for how this
+# station usually behaves (its typical premium, how fast it follows price-jump waves, whether it cycles at all)
+PF = json.load(open(f"{STORE}/station_profile.json")) if os.path.exists(f"{STORE}/station_profile.json") else {"stations": {}, "lag_median": 48}
+LIVE = {r["fuel"]: r for r in FC["live"]}
+dow = lambda k: (asof + pd.Timedelta(days=int(k))).strftime("%a %-d %b")
+def market(f):
+    r = LIVE[f]; hs = np.arange(15)
+    d = np.interp(hs, [0, 1, 3, 7, 14], [0, r["d1"], r["d3"], r["d7"], r["d14"]])
+    J = next((int(h) for h in hs[1:] if d[h] >= 5), None)            # first day the median is expected 5c+ higher
+    # jump classifier: P(5c+ jump within 7 days) -> constant daily hazard -> first day the cumulative risk passes 25%
+    p7 = min(max(r["p_jump7"], 1e-3), 0.99); lam = 1 - (1 - p7) ** (1 / 7)
+    k = int(np.floor(np.log(0.75) / np.log(1 - lam))) + 1
+    if k <= 14: J = min(J or 99, k)
+    return r, d, J
+MK = {f: market(f) for f in LIVE}
+def advise(f, price, age, key):
+    r, d, J = MK[f]; p = PF["stations"].get(key, {})
+    typ = p.get("typ", {}).get(f); xs = None if typ is None else price - r["now"] - typ
+    if age is not None and age > 10:
+        return ["chk", "Check price", f"Not updated for {age} days"]
+    if p.get("n", 0) >= 5 and p.get("part", 1) < 0.25:
+        return ["any", "Any time", "Steady pricer, rarely joins price jumps" + (f"; usually {abs(typ):.0f}c under the median" if typ is not None and typ < -2 else "")]
+    if J is not None:
+        lag = p.get("lag"); shift = 0 if lag is None else int(np.clip(round((lag - PF["lag_median"]) / 24), -1, 2))
+        by = max(J - 1 + shift, 0)
+        if xs is not None and xs >= 8:
+            return ["hi", "Skip for now", f"Already {xs:.0f}c above its usual vs the median"]
+        why = f"Sydney {f} likely to rise from {dow(J)}" + (f", about +{d[14]:.0f}c by {dow(14)}" if d[14] >= 3 else "") + \
+              ("; this station is usually slow to follow" if shift > 0 else "; this station is usually quick to rise" if shift < 0 else "")
+        if xs is not None and xs <= -6:
+            return ["now", "Fill now", f"{abs(xs):.0f}c below its usual, and prices are set to rise"]
+        if by <= 1: return ["now", "Fill now", why]
+        return ["by", f"Fill by {dow(by)}", why]
+    if xs is not None and xs >= 8:
+        return ["wait", "Wait", f"{xs:.0f}c above its usual vs the median; likely to ease"]
+    if d[7] <= -2:
+        return ["wait", "Wait", f"Sydney {f} expected about {abs(d[7]):.0f}c lower by {dow(7)}"]
+    return ["ok", "No rush", "No rise expected in the next 2 weeks"]
 sta = []
 for code, g in S.groupby("code"):
     r0 = g.iloc[0]
@@ -76,7 +115,7 @@ for code, g in S.groupby("code"):
     sub = r0.suburb if isinstance(r0.suburb, str) and r0.suburb.strip() else f"Postcode {int(r0.postcode)}"
     sta.append({"n": r0["name"], "b": r0.brand if isinstance(r0.brand, str) else "Independent", "s": sub, "pc": int(r0.postcode), "la": round(float(r0.lat), 5), "lo": round(float(r0.lon), 5),
                 "m": int("members only" in str(r0["name"]).lower()),
-                "p": {f: [r1(x.price), int(x.age) if pd.notna(x.age) else None] for f, x in g.set_index("fueltype").iterrows()}})
+                "p": {f: [r1(x.price), int(x.age) if pd.notna(x.age) else None] + advise(f, float(x.price), int(x.age) if pd.notna(x.age) else None, r0.get("key")) for f, x in g.set_index("fueltype").iterrows()}})
 data = {"stations": sta, "start": str(start.date()), "hist": hist, "tgp": tgp, "live": FC["live"], "ctx": FC["ctx"], "bt": BT,
         "stats": stats, "brands": [{"brand": b, "n": int(r.n), "prem": r1(r.prem)} for b, r in brands.iterrows()],
         "suburbs": subs, "snap_asof": ST["asof"]}

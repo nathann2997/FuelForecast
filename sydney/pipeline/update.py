@@ -26,7 +26,8 @@ if snap:
     st["suburb"] = st.address.str.extract(r",\s*([^,]+?)\s+NSW\s+\d{4}\s*$")[0].str.title()
     st = st[st.postcode.fillna(0).astype(int).map(is_syd)]
     pr["code"] = pr.stationcode.astype(str); st["code"] = st.code.astype(str)
-    pr = pr.merge(st[["code", "name", "brand", "postcode", "suburb", "location"]], on="code")
+    st["key"] = st.address.str.upper().str.replace(",", " ").str.replace(r"\s+", " ", regex=True).str.strip()
+    pr = pr.merge(st[["code", "name", "brand", "postcode", "suburb", "location", "key"]], on="code")
     pr = pr[pr.fueltype.isin(FUELS) & pr.price.between(50, 600)].copy()
     pr["ts"] = pd.to_datetime(pr.lastupdated, dayfirst=True, errors="coerce")
     asof = pd.Timestamp(re.search(r"(\d{8})", os.path.basename(snap)).group(1)) if re.search(r"(\d{8})", os.path.basename(snap)) else pr.ts.max().normalize()
@@ -46,7 +47,7 @@ if snap:
     D = D.drop_duplicates(["date", "fuel"], keep="first")  # history rows win over a snapshot for the same day
     D.to_csv(f"{STORE}/daily.csv", index=False)
     pr["lat"] = pr.location.map(lambda l: (l or {}).get("latitude")); pr["lon"] = pr.location.map(lambda l: (l or {}).get("longitude"))
-    keep = pr[["code", "name", "brand", "postcode", "suburb", "lat", "lon", "fueltype", "price", "age"]]
+    keep = pr[["code", "key", "name", "brand", "postcode", "suburb", "lat", "lon", "fueltype", "price", "age"]]
     json.dump({"asof": str(asof.date()), "rows": keep.to_dict(orient="records")}, open(f"{STORE}/stations_today.json", "w"))
     # station-level archive: today's Sydney stations and prices, gzipped (kept in the repo)
     import gzip

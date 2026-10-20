@@ -95,6 +95,7 @@ th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);whit
 th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--surface)}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 tr:last-child td{border-bottom:0}
+.tablewrap thead th{position:sticky;top:0;z-index:1}
 .stale{color:var(--muted);font-size:12px}
 /* model */
 .modelgrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start}
@@ -134,6 +135,7 @@ footer a{color:var(--fg2)}
 .chip.home{background:var(--chip);color:var(--on-chip);border-color:transparent;font-weight:600}
 .tag-m{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:1px 7px;margin-left:6px;color:var(--fg2)}
 .cheap{color:var(--down);font-weight:600}
+#stRows .why{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35;white-space:normal}.when{min-width:190px}.when .why{max-width:30ch}
 @media (max-width:560px){.multi{position:static}.multi-panel{left:0;right:0;width:auto}}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .ok{background:var(--down)} .warn{background:var(--up)}
@@ -194,7 +196,7 @@ footer a{color:var(--fg2)}
       <label class="check"><input type="checkbox" id="members" checked> Include members-only sites</label>
     </div>
     <div class="chips" id="nearby" aria-live="polite"></div>
-    <div class="tablewrap" style="max-height:460px;overflow:auto"><table><thead><tr><th class="n">#</th><th>Station</th><th>Brand</th><th>Suburb</th><th class="n">Distance</th><th class="n">Price</th><th class="n">vs median</th><th>Updated</th></tr></thead><tbody id="stRows"></tbody></table></div>
+    <div class="tablewrap" style="max-height:460px;overflow:auto"><table><thead><tr><th class="n">#</th><th>Station</th><th>Brand</th><th>Suburb</th><th class="n">Distance</th><th class="n">Price</th><th class="n">vs median</th><th>When to fill</th></tr></thead><tbody id="stRows"></tbody></table></div>
     <p class="note" id="stNote"></p>
   </section>
 
@@ -438,21 +440,23 @@ function findSuburb(q){
   const la = hits.reduce((a,h)=>a+h.la,0)/hits.length, lo = hits.reduce((a,h)=>a+h.lo,0)/hits.length;
   return {label: hits.length===1 ? `${hits[0].s} ${hits[0].pc}` : hits.map(h=>h.s).filter((v,i,a)=>a.indexOf(v)===i).slice(0,3).join(", "), la, lo};
 }
+const ADV = {now:"up", by:"up", hi:"down", wait:"down", any:"flat", ok:"flat", chk:"flat"};
+const WHEN = "When to fill combines the model's Sydney forecast for this fuel (the day the chance of a 5c+ jump passes 25%, or the expected path is 5c higher) with how each station has behaved since 2024: its usual price vs the median, how quickly it follows price-jump waves, and whether it cycles at all.";
 function renderStations(){
   const f = state.fuel, med = live[f].now, home = findSuburb(qEl.value), R = +radEl.value;
   document.getElementById("stEyebrow").textContent = `${fuelName(f)} · ${nice(D.snap_asof)}`;
   let rows = D.stations.filter(s => s.p[f] && s.p[f][0]!=null && (memEl.checked || !s.m) && (!brandSel || brandSel.has(s.b)))
-    .map(s => ({...s, price:s.p[f][0], age:s.p[f][1], d: home ? km(home.la, home.lo, s.la, s.lo) : null}));
+    .map(s => ({...s, price:s.p[f][0], age:s.p[f][1], adv:s.p[f].slice(2), d: home ? km(home.la, home.lo, s.la, s.lo) : null}));
   if (home) rows = rows.filter(s => s.d <= R);
   rows.sort((a,b) => a.price - b.price || (a.d??0) - (b.d??0));
   const shown = rows.slice(0, 60);
-  document.getElementById("stRows").innerHTML = shown.map((s,i) => `<tr><td class="n">${i+1}</td><td>${s.n.replace(/\s*\(members only\)/i,"")}${s.m?'<span class="tag-m">Members only</span>':""}</td><td>${s.b}</td><td>${s.s} <span class="stale">${s.pc}</span></td><td class="n">${s.d!=null?s.d.toFixed(1)+" km":"–"}</td><td class="n"><b>${s.price.toFixed(1)}</b></td><td class="n ${s.price<med?"cheap":""}">${fmt(s.price-med)}</td><td>${s.age==null?"–":s.age===0?"Today":s.age===1?"1 day ago":s.age+" days ago"}${s.age>7?' <span class="stale">· check before driving</span>':""}</td></tr>`).join("")
+  document.getElementById("stRows").innerHTML = shown.map((s,i) => `<tr><td class="n">${i+1}</td><td>${s.n.replace(/\s*\(members only\)/i,"")}${s.m?'<span class="tag-m">Members only</span>':""}<div class="why">${s.age==null?"":s.age===0?"Updated today":s.age===1?"Updated 1 day ago":"Updated "+s.age+" days ago"}${s.age>7?" · check before driving":""}</div></td><td>${s.b}</td><td>${s.s} <span class="stale">${s.pc}</span></td><td class="n">${s.d!=null?s.d.toFixed(1)+" km":"–"}</td><td class="n"><b>${s.price.toFixed(1)}</b></td><td class="n ${s.price<med?"cheap":""}">${fmt(s.price-med)}</td><td class="when"><span class="pill ${ADV[s.adv[0]]||"flat"}">${s.adv[1]}</span><div class="why">${s.adv[2]}</div></td></tr>`).join("")
     || `<tr><td colspan="8">${qEl.value && !home ? `No Sydney suburb matches “${qEl.value}”. Try a postcode.` : "No stations match these filters."}</td></tr>`;
   const near = home ? [...new Set(rows.map(s=>s.s))] : [];
   document.getElementById("nearby").innerHTML = home ? `<span class="chip home">${home.label}</span>` + near.filter(n=>!home.label.startsWith(n)).slice(0,24).map(n=>`<span class="chip">${n}</span>`).join("") + (near.length>25?`<span class="chip">+${near.length-25} more</span>`:"") : "";
   document.getElementById("stNote").textContent = home
-    ? `${rows.length} station${rows.length===1?"":"s"} within ${R} km of ${home.label}, across ${near.length} suburb${near.length===1?"":"s"}, cheapest first${rows.length>60?" (top 60 shown)":""}. Distance is straight-line from the suburb's centre.`
-    : `Cheapest ${shown.length} of ${rows.length} Sydney stations selling ${fuelName(f)} today. Prices are as last reported to FuelCheck; check stations not updated for over a week before driving there.`;
+    ? `${rows.length} station${rows.length===1?"":"s"} within ${R} km of ${home.label}, across ${near.length} suburb${near.length===1?"":"s"}, cheapest first${rows.length>60?" (top 60 shown)":""}. Distance is straight-line from the suburb's centre. ${WHEN}`
+    : `Cheapest ${shown.length} of ${rows.length} Sydney stations selling ${fuelName(f)} today. Prices are as last reported to FuelCheck; check stations not updated for over a week before driving there. ${WHEN}`;
 }
 [qEl, radEl, memEl].forEach(el => el.addEventListener(el===qEl?"input":"change", renderStations));
 document.addEventListener("click", e => { const box = document.getElementById("brandBox"); if (box.open && !box.contains(e.target)) box.open = false; });
