@@ -12,7 +12,7 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 ## Plan status
 - [x] Phase 1 — headless pipeline (`fetch.py`, `.github/workflows/daily.yml`)
 - [x] Phase 2 — static JSON API (`export_api.py`)
-- [ ] Go-live: [x] QA audit + fixes → [x] commits (local) → [x] repo secrets → [x] Pages enabled (build_type=workflow) → [ ] push (blocked: `gh` token lacks `workflow` scope; owner runs `gh auth refresh -h github.com -s workflow`) → [ ] first manual run (`gh workflow run daily-forecast`) → [ ] verify `data` branch + Pages URL
+- [x] Go-live (2026-10-21): QA audit + fixes, pushed to main, secrets set, Pages enabled, first run passed in 94 s (run 39513415528), `data` branch seeded, API live
 - [ ] Phase 3 — Expo app in `/app`: tabs Today / Stations / History / About; expo-router, @tanstack/react-query (offline cache), expo-location, victory-native, AsyncStorage; haversine on device; stale banner from `meta.asof`
 - [ ] Phase 4 — EAS Build preview APK, EAS Update, CI typecheck/lint for `/app`
 
@@ -24,6 +24,6 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Secrets never in git: `sydney/pipeline/credentials.py`, `sydney/pipeline/pull_nsw.js`, `fuel-api-credentials.md` are gitignored.
 
 ## Open risks
-- AIP / FRED could block GitHub runner IPs; both are best-effort (model forward-fills).
+- AIP / FRED worked from GitHub runners on the first run; both stay best-effort (model forward-fills, `meta.warnings` flags staleness).
 - GitHub cron can start 10–30 min late; scheduled workflows pause after 60 days of no repo activity (daily `data` commits count).
 - NSW FuelCheck licence terms matter only if the app goes public.
