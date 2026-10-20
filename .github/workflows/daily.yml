@@ -1,0 +1,105 @@
+# Daily Sydney fuel forecast, fully headless. Runs alongside the Claude scheduled task without touching main:
+#   code   <- main (sydney/pipeline)
+#   state  <- `data` branch (store/ + archive/), seeded from main's sydney/store and sydney/archive on first run
+#   output -> GitHub Pages: /api/v1/{meta,forecast,stations,history}.json and the dashboard at /
+name: daily-forecast
+
+on:
+  schedule:
+    - cron: "30 19 * * *"   # 06:30 AEDT / 05:30 AEST (GitHub cron is UTC only)
+  workflow_dispatch:
+    inputs:
+      backtest:
+        description: "Rerun the walk-forward backtest (~8 min)"
+        type: boolean
+        default: false
+
+permissions:
+  actions: write       # keep-alive: re-enable this schedule (public repos pause crons after 60 idle days)
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-forecast
+  cancel-in-progress: false
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      TZ: Australia/Sydney
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: src/sydney/requirements.txt
+
+      - run: pip install -q -r src/sydney/requirements.txt
+
+      - name: Check out state (data branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir state && cd state
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git fetch -q --depth 1 origin data
+            git checkout -q -b data FETCH_HEAD
+          else
+            echo "No data branch yet: seeding from main"
+            git checkout -q --orphan data
+            cp -r ../src/sydney/store ../src/sydney/archive .
+            printf 'pipeline/\ninbox/\nout/\n__pycache__/\nstore/stations_today.json\n' > .gitignore
+          fi
+          rm -rf pipeline && cp -r ../src/sydney/pipeline pipeline   # code always comes from main
+
+      - name: Fetch NSW, FRED, AIP, monthly history
+        id: fetch
+        env:
+          NSW_API_KEY: ${{ secrets.NSW_API_KEY }}
+          NSW_API_SECRET: ${{ secrets.NSW_API_SECRET }}
+        run: python state/pipeline/fetch.py state state/inbox
+
+      - name: Update store, model, dashboard
+        run: |
+          BT=""
+          if [ "${{ inputs.backtest }}" = "true" ] || { [ "$(date +%u)" = 1 ] && [ "$(date +%-d)" -le 7 ]; }; then BT="--backtest"; fi
+          bash state/pipeline/run_daily.sh "$PWD/state" "$PWD/state/inbox" $BT
+
+      - name: Export app API (fails on stale or broken output)
+        run: python state/pipeline/export_api.py state site
+
+      # Saved whenever the fetch worked, even if a later step failed: a day's live snapshot can't be re-fetched later.
+      # Pages only deploys when everything passed.
+      - name: Save state to data branch
+        if: always() && steps.fetch.outcome == 'success'
+        run: |
+          cd state
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -q -m "data: $(date +%F)"
+          git push -q origin data
+
+      - name: Keep schedule enabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/daily.yml/enable" || true
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

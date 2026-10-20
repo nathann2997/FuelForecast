@@ -2,3 +2,4 @@ inbox/
 __pycache__/
 *.pyc
 .DS_Store
+out/site/
