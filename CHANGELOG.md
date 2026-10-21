@@ -2,6 +2,24 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Fix: blank home-screen widget (OTA to 0.3.0)
+
+On a device the widget was transparent and only opened the app when tapped.
+
+### Cause
+- `app.json` has `experiments.reactCompiler: true`. The React Compiler rewrote the widget components (`src/widget/widgets.tsx`) to use React's memo-cache hook.
+- `react-native-android-widget` builds widgets by calling components as plain functions outside React. The hook therefore threw "Invalid hook call", the headless task failed before its first draw, and the in-app refresh failed silently too.
+- Web, jest and `expo export` don't run that code path, so the earlier checks couldn't catch it.
+
+### Fixed
+- `'use no memo'` in `src/widget/widgets.tsx`, which is the library's documented opt-out.
+- The widget task always draws: from the cache if a fetch throws, otherwise the "Open Bowser" prompt. It no longer leaves a never-drawn widget transparent.
+- Render and refresh failures are now logged with `console.error`, so they show in `adb logcat`.
+- Regression test `src/lib/__tests__/widget-render.test.ts` compiles `widgets.tsx` the way Metro does with the React Compiler and asserts no compiler runtime. It also builds both widgets through the library's `buildWidgetTree`. The test fails if the directive is removed.
+- Jest maps `@/assets/*` to `assets/`, matching `tsconfig`.
+
+QA audited, with no blockers. Shipped as an OTA update on channel `preview` (JS only; runtime 0.3.0). Testers open Bowser, close it fully and reopen it, and the widget then redraws. Any new widget component file needs `'use no memo'` too.
+
 ## 2026-10-21 — Bowser 0.3.0: rebrand, pinned stations, filters, directions, station page, Android widget
 
 Plan and specs: `docs/BOWSER_PLAN.md`. Brand: `docs/BRAND.md`. Ships together with the v0.2 redesign below as one commit. **Needs a new APK** (native widget code, new launcher name and icon); `version` 0.1.0 → 0.3.0, so 0.1.0 installs don't get it over the air.

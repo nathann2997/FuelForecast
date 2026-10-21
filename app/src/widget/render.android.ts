@@ -28,7 +28,7 @@ export function requestWidgetRefresh(): void {
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     timer = null;
-    const run = (running ?? Promise.resolve()).then(() => refreshNow()).catch(() => {});
+    const run = (running ?? Promise.resolve()).then(() => refreshNow()).catch((e) => console.error('Bowser widget refresh failed', e));
     running = run;
   }, DEBOUNCE_MS);
 }

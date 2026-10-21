@@ -1,3 +1,8 @@
+// The library builds widgets by calling these components as plain functions, outside React. The React Compiler
+// (app.json experiments.reactCompiler) would insert a memo-cache hook into them, which throws "Invalid hook call"
+// there and leaves the widget blank, so it must stay off for this file.
+'use no memo';
+
 // The two home-screen widgets, drawn with react-native-android-widget's primitives (Android only; never import this
 // from code that runs on web or iOS). Layout follows the app's hero card and station rows; colours come from theme.ts.
 import { FlexWidget, ImageWidget, TextWidget, type ColorProp, type WidgetInfo, type WidgetRepresentation } from 'react-native-android-widget';
