@@ -7,7 +7,7 @@ import { AreaPicker } from '@/components/area-picker';
 import { Button, Card, Disclosure, FuelPicker, Loading, Screen, Section, Segmented, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { DASHBOARD_URL, useForecast, useMeta, useStations } from '@/lib/api';
+import { useForecast, useMeta, useStations } from '@/lib/api';
 import { backtestNote, backtestRows, plainWarnings, widgetLocationCopy } from '@/lib/copy';
 import { daysBetween, fuelName, nice } from '@/lib/format';
 import { bgRequestOpensSettings, openLocationSettings, useBackgroundLocation } from '@/lib/location';
@@ -137,9 +137,6 @@ export default function More() {
           NSW Government FuelCheck API (live) and monthly price history on data.nsw.gov.au; Australian Institute of Petroleum terminal gate prices; Brent crude (DCOILBRENTEU) and AUD/USD (DEXUSAL) from FRED, Federal Reserve Bank of St. Louis. Prices in cents per litre including GST. Sydney is postcodes 2000–2234, 2555–2574 and 2740–2786.
         </T>
         <T kind="small">Forecasts are statistical estimates for planning, not financial advice.</T>
-        <Pressable onPress={() => Linking.openURL(DASHBOARD_URL).catch(() => {})} accessibilityRole="link">
-          <T color={c.tgp} style={{ fontWeight: '700' }}>Open the full web dashboard →</T>
-        </Pressable>
       </Section>
     </Screen>
   );

@@ -19,6 +19,7 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
   }
   let fetch = widgetAction !== 'WIDGET_RESIZED';   // a resize only re-lays out, so reuse what's cached
   const tapped: { mode?: StationMode; fuel?: Fuel } = {};
+  let saving: Promise<void> | null = null;
   // Location: a last-known read on added/periodic updates (no GPS wake-up), a fresh fix on ⟳, nothing otherwise
   let locate: { fresh?: boolean; skip?: boolean } = { skip: widgetAction === 'WIDGET_RESIZED' };
   if (widgetAction === 'WIDGET_CLICK') {
@@ -29,29 +30,24 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
     const fuel = clickAction === FUEL_ACTION ? parseFuel(clickActionData?.fuel) : null;
     if (mode) {
       tapped.mode = mode;
-      await saveMode(id, mode);
+      saving = saveMode(id, mode);   // awaited after the redraw: the tap draws `tapped`, not the saved value
       locate = { skip: true };
     } else if (fuel) {
       tapped.fuel = fuel;
-      await saveFuel(id, fuel);
+      saving = saveFuel(id, fuel);
       locate = { skip: true };
     } else if (clickAction === LOCATE_ACTION) {
       locate = { fresh: true };
     } else return;
-    fetch = readCache() == null;
+    fetch = false;
   }
-  let loc = { bgGranted: false };
-  try {
-    loc = await prepareLocation(locate);
-  } catch {
-    // no location: the saved area is used
-  }
-  let snap = null;
-  try {
-    snap = await loadSnapshot({ allowFetch: fetch });
-  } catch {
-    snap = readCache();
-  }
+  const load = (allowFetch: boolean) => loadSnapshot({ allowFetch }).catch(() => readCache());
+  // Location and data don't depend on each other, so read them side by side
+  const [loc, cached] = await Promise.all([
+    prepareLocation(locate).catch(() => ({ bgGranted: false })),   // no location: the saved area is used
+    load(fetch),
+  ]);
+  const snap = cached ?? (widgetAction === 'WIDGET_CLICK' ? await load(true) : null);   // a tap fetches only when nothing is cached
   // Always draw: a null snapshot means nothing was ever loaded, so there is no earlier state to keep and the
   // "Open Bowser" prompt beats a transparent widget.
   try {
@@ -59,6 +55,8 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
   } catch (e) {
     console.error(`Bowser widget ${widgetInfo.widgetName} (${widgetAction}) failed to render`, e);   // adb logcat
     throw e;
+  } finally {
+    await saving;   // never rejects (saveKey swallows errors)
   }
 };
 

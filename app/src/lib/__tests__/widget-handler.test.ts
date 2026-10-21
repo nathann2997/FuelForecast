@@ -94,6 +94,33 @@ describe('widget task handler', () => {
     }
   });
 
+  it('finishes only after the tapped choice is saved, but draws first', async () => {
+    const storage = (jest.requireMock('@/lib/storage') as { default: { setItem: unknown } }).default;
+    const orig = storage.setItem;
+    let commit!: () => void;
+    storage.setItem = (k: string, v: string) => new Promise<void>((ok) => { commit = () => { mockStore.set(k, v); ok(); }; });
+    try {
+      const renderWidget = jest.fn();
+      let done = false;
+      const task = widgetTaskHandler({ widgetInfo: INFO, widgetAction: 'WIDGET_CLICK', clickAction: 'MODE', clickActionData: { mode: 'cheapest' }, renderWidget })
+        .then(() => { done = true; });
+      for (let i = 0; i < 10 && !renderWidget.mock.calls.length; i++) await Promise.resolve();
+      expect(renderWidget).toHaveBeenCalledTimes(1);
+      expect(done).toBe(false);
+      commit();
+      await task;
+      expect(mockStore.get(`widget.mode.${ID}`)).toBe('cheapest');
+    } finally {
+      storage.setItem = orig;
+    }
+  });
+
+  it('re-reads the cache when another writer replaces it', async () => {
+    expect(readCache()?.stations?.stations).toHaveLength(2);
+    mockStore.set(CACHE_KEY, JSON.stringify({ ...SNAP, stations: { ...SNAP.stations!, stations: SNAP.stations!.stations.slice(0, 1) } }));
+    expect(readCache()?.stations?.stations).toHaveLength(1);
+  });
+
   it('fetches on a tap only when nothing is cached', async () => {
     mockStore.delete(CACHE_KEY);
     const render = await run({ clickAction: 'MODE', clickActionData: { mode: 'pinned' } });

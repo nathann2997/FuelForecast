@@ -2,6 +2,23 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — More tab without the dashboard link; faster widget taps
+
+### Removed
+- **"Open the full web dashboard →"** link in More → About, and the unused `DASHBOARD_URL` constant (`app/src/lib/api.ts`).
+
+### Changed
+- **Widget taps (mode row, fuel chip, ⟳) do less work before redrawing** (`app/src/widget/register.android.ts`, `data.ts`):
+  - The tapped mode or fuel is drawn first and saved to SQLite in parallel. The task still ends only after the save commits.
+  - Location prep and the snapshot load run side by side instead of one after the other.
+  - The cached snapshot (a few hundred KB of JSON) was parsed twice per tap. It's now parsed once and reused while the stored text is unchanged.
+  - While the app is alive, the app's station data (~900 stations) was re-compacted on every redraw. That's now reused until the app refetches.
+  - The old v1 cache key is removed once per run instead of on every cache write.
+- QA notes, accepted: a tap made within a few ms of another tap can briefly show the previous choice until the next redraw. A tap with an empty cache uses the backgrounded app's data, even if it's old, rather than fetching.
+
+### Device checks
+- Most of the delay left is native and isn't touched here. Each tap goes broadcast → WorkManager expedited job → headless JS task, and if Android has killed the app process, the JS runtime has to cold-start first. Time a tap with the app recently open against one after the app has been closed for a while.
+
 ## 2026-10-21 — New logo: the price-drop fuel drop (concept C)
 
 ### Changed

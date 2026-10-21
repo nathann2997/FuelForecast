@@ -19,11 +19,20 @@ export const OLD_CACHE_KEY = 'widget.cache.v1';
 const SCHEMA = 1;
 const TIMEOUT_MS = 15_000;
 
+// The last parse of each key, reused while the stored text is unchanged: the snapshot is a few hundred KB, and a warm
+// widget task (or the app) would otherwise re-parse it on every tap. Nothing mutates a parsed snapshot.
+const parsed = new Map<string, { raw: string; v: WidgetSnapshot | null }>();
+
 function readSnapshot(key: string): WidgetSnapshot | null {
   try {
     const raw = Storage.getItemSync(key);
-    const v = raw ? (JSON.parse(raw) as WidgetSnapshot) : null;
-    return v && typeof v.fetchedAt === 'number' ? v : null;
+    if (!raw) return null;
+    const hit = parsed.get(key);
+    if (hit?.raw === raw) return hit.v;
+    const j = JSON.parse(raw) as WidgetSnapshot;
+    const v = j && typeof j.fetchedAt === 'number' ? j : null;
+    parsed.set(key, { raw, v });
+    return v;
   } catch {
     return null;
   }
@@ -33,11 +42,19 @@ function readSnapshot(key: string): WidgetSnapshot | null {
  *  yesterday's data. v1 prices are 4-item tuples with no forecast, which render as "no forecast". */
 export const readCache = (): WidgetSnapshot | null => readSnapshot(CACHE_KEY) ?? readSnapshot(OLD_CACHE_KEY);
 
+let oldCacheGone = false;
+
 /** Async write: the stations part is ~900 entries, so keep it off the UI thread. */
 async function writeCache(s: WidgetSnapshot) {
   try {
-    await Storage.setItem(CACHE_KEY, JSON.stringify(s));
-    await Storage.removeItem(OLD_CACHE_KEY);   // the pre-forecast cache, if any
+    const raw = JSON.stringify(s);
+    await Storage.setItem(CACHE_KEY, raw);
+    parsed.set(CACHE_KEY, { raw, v: s });
+    if (!oldCacheGone) {
+      await Storage.removeItem(OLD_CACHE_KEY);   // the pre-forecast cache, if any (once per run)
+      parsed.delete(OLD_CACHE_KEY);
+      oldCacheGone = true;
+    }
   } catch {
     // the widget still renders this time; the next refresh tries again
   }
@@ -60,8 +77,22 @@ async function getJson<T extends { schema: number }>(name: string): Promise<T> {
 // ---- the app registers its query cache here (src/widget/sync.ts), so in-app refreshes don't refetch
 type AppData = () => { forecast?: Forecast; stations?: Stations };
 let appData: AppData | null = null;
+let lastApp: { prev: WidgetSnapshot | null; f?: Forecast; s?: Stations; today: string; out: ReturnType<typeof fromAppData> } | null = null;
 export function setWidgetDataSource(fn: AppData | null) {
   appData = fn;
+  lastApp = null;
+}
+
+// fromAppData compacts ~900 stations; while the app is alive every widget redraw would redo it. The inputs are the
+// same objects until the app refetches or the cache changes (readCache reuses its parse), so keep the last result.
+
+function appSnapshot(prev: WidgetSnapshot | null, today: string) {
+  const data = appData?.();
+  const f = data?.forecast, s = data?.stations;
+  if (lastApp && lastApp.prev === prev && lastApp.f === f && lastApp.s === s && lastApp.today === today) return lastApp.out;
+  const out = fromAppData(prev, data, today);
+  lastApp = { prev, f, s, today, out };
+  return out;
 }
 
 /**
@@ -72,7 +103,7 @@ export async function loadSnapshot(opts: { allowFetch: boolean }): Promise<Widge
   const now = Date.now();
   const today = sydneyToday();
   let cache = readCache();
-  const app = fromAppData(cache, appData?.(), today);
+  const app = appSnapshot(cache, today);
   if (app) {
     if (app.changed) await writeCache(app.snap);
     if (app.use) return app.snap;
