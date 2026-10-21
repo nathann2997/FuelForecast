@@ -20,7 +20,7 @@ No Expo account is needed on Android.
 - **Today**: does "Fill up today / this week / Wait" and the "likely to rise from" date match what you see at the pump over the next few days? Is the dollar saving believable for your tank (set the size under **More**)?
 - **Stations**: are the nearby stations and prices right? The arrow button on each row should open Google Maps directions straight away. Try **Filters** (brand, when to fill, max price) and the pin button; pinned stations stay at the top and on Today.
 - **Station page**: tap a station. Does the price chart (1W to 1Y, drag along it) and the station's own forecast make sense? Does the page scroll normally when you swipe up from the chart?
-- **Widget**: long-press your home screen → Widgets → **Bowser**. Add the small and the wide one. On the wide one, tap **Pinned · Nearest · Cheapest**: does the list switch, and does each widget remember its own choice? Does tapping a station open its page? Tell us if any tap does nothing. Does it update the next morning?
+- **Widget**: long-press your home screen → Widgets → **Bowser**. Add the small and the wide one. Tap the fuel chip (e.g. **U91 ▾**) to switch fuel on that widget. On the wide one, scroll the station list and tap **Pinned · Nearest · Cheapest**: does the list switch, and does each widget remember its own choice? Does tapping a station open its page? Tell us if any tap does nothing. Does it update the next morning?
 - **Trends**: does the chart read well; can you drag along it?
 - **More**: change fuel, tank size and area; do the other tabs follow?
 - Anything confusing, slow or broken: send a screenshot and what you tapped.

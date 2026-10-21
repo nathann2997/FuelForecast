@@ -2,6 +2,32 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Widget: scrollable station list and per-widget fuel chip (OTA to 0.3.0)
+
+### Added
+- **Scrollable station list** in the medium widget (the library's `ListWidget`). It shows every pinned station (up to 10), and up to 10 in Nearest and Cheapest.
+  - Android widgets can't animate or auto-scroll, so the list scrolls by finger.
+  - The header and the mode row stay fixed above it.
+- Station taps in the list go through the list's shared fill-in intent, not the per-area timestamp PendingIntent, so they avoid the library's tap-collision issue. Nothing tappable is nested inside an item.
+- **Fuel chip** ("U91 ▾") on both sizes. Tapping cycles U91 → E10 → P98 → Diesel for that widget only.
+  - Stored per widget under kv `widget.fuel.<id>`, and cleared when the widget is removed or set back to the app's fuel.
+  - The verdict, rise date, median gaps, rows, messages and default mode all follow the widget's fuel.
+  - The header says "No outlook for {fuel}" when the forecast has no row for it.
+
+### QA audit: 1 blocker, fixed; re-verified safe to ship
+- **Blocker:** on a short widget (landscape minimum height, large fonts) the list could measure 0 dp high. The library's native "ListWidget width and height must be > 0" exception, or a zero-height item bitmap, would then blank the widget after JS had finished.
+- **Fix:**
+  - Header and row text no longer scale with the system font.
+  - The fixed block above the list is budgeted from the styles: compact 80 dp (measures 78), regular 112 (measures 108), caption +18.
+  - The list gets a numeric height of min(room, rows × 28) and is drawn only when that is ≥ 28 dp. Otherwise one static station row is shown.
+  - A short list leaves the space below it tappable ("open Today").
+- Render tests cover heights 0–220 dp for every mode, fuel and data state. 188 tests in total.
+
+### Device checks
+- Landscape at the minimum size with a large display size: check that the fallback row shows.
+- Station taps from the list on Android 14+.
+- Chip and tab taps after many redraws (library issue #154 still applies to areas outside the list).
+
 ## 2026-10-21 — Widget: Pinned · Nearest · Cheapest (OTA to 0.3.0)
 
 ### Added

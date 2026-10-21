@@ -7,7 +7,7 @@ import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 
 import { compactForecast, compactStations, type WidgetSnapshot } from '../../widget/logic';
 import { widgetTaskHandler } from '../../widget/register.android';
-import { MEDIUM } from '../../widget/widgets';
+import { MEDIUM, SMALL } from '../../widget/widgets';
 import type { Forecast, Station } from '../types';
 import fixture from './forecast.fixture.json';
 
@@ -44,10 +44,18 @@ const selectedTab = (rep: unknown) =>
     .filter((n) => n.props?.clickAction === 'MODE' && String(n.props?.accessibilityLabel).endsWith('selected'))
     .map((n) => (n.props?.clickActionData as { mode: string }).mode);
 
+/** The fuel chip in a rendered widget: its label and the fuel a tap switches to */
+const chip = (rep: unknown) => {
+  const node = walk(buildWidgetTree((rep as { light: never }).light) as Node).find((n) => n.props?.clickAction === 'FUEL')!;
+  return { label: (node.children?.[0]?.props as { text: string }).text, next: (node.props?.clickActionData as { fuel: string }).fuel };
+};
+
+const INFO = { widgetName: MEDIUM, widgetId: ID, width: 320, height: 180, screenInfo: { screenHeightDp: 800, screenWidthDp: 400, density: 2, densityDpi: 320 } };
+
 function run(over: Partial<WidgetTaskHandlerProps>) {
   const renderWidget = jest.fn();
   const props: WidgetTaskHandlerProps = {
-    widgetInfo: { widgetName: MEDIUM, widgetId: ID, width: 320, height: 180, screenInfo: { screenHeightDp: 800, screenWidthDp: 400, density: 2, densityDpi: 320 } },
+    widgetInfo: INFO,
     widgetAction: 'WIDGET_CLICK',
     renderWidget,
     ...over,
@@ -106,13 +114,66 @@ describe('widget task handler', () => {
     expect(mockStore.has(`widget.mode.${ID}`)).toBe(false);
   });
 
-  it('WIDGET_DELETED clears the saved mode and draws nothing', async () => {
+  it('WIDGET_DELETED clears the saved mode and fuel and draws nothing', async () => {
     mockStore.set(`widget.mode.${ID}`, 'nearest');
+    mockStore.set(`widget.fuel.${ID}`, 'E10');
     mockStore.set('widget.mode.8', 'cheapest');
+    mockStore.set('widget.fuel.8', 'P98');
     const render = await run({ widgetAction: 'WIDGET_DELETED' });
     expect(mockStore.has(`widget.mode.${ID}`)).toBe(false);
+    expect(mockStore.has(`widget.fuel.${ID}`)).toBe(false);
     expect(mockStore.get('widget.mode.8')).toBe('cheapest');
+    expect(mockStore.get('widget.fuel.8')).toBe('P98');
     expect(render).not.toHaveBeenCalled();
+  });
+
+  it('FUEL {fuel: E10} saves the fuel for that widget and redraws it in E10, without fetching', async () => {
+    const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'E10' } });
+    expect(mockStore.get(`widget.fuel.${ID}`)).toBe('E10');
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(chip(render.mock.calls[0][0])).toEqual({ label: 'E10 ▾', next: 'P98' });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    // the app's fuel is untouched
+    expect(JSON.parse(mockStore.get('settings.v1')!).fuel).toBe('U91');
+  });
+
+  it('draws the tapped fuel even if saving it fails, on the small widget too', async () => {
+    const storage = (jest.requireMock('@/lib/storage') as { default: { setItem: unknown } }).default;
+    const orig = storage.setItem;
+    storage.setItem = async () => { throw new Error('disk full'); };
+    try {
+      const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'DL' }, widgetInfo: { ...INFO, widgetName: SMALL } });
+      expect(mockStore.has(`widget.fuel.${ID}`)).toBe(false);
+      expect(chip(render.mock.calls[0][0])).toEqual({ label: 'Diesel ▾', next: 'U91' });
+    } finally {
+      storage.setItem = orig;
+    }
+  });
+
+  it("tapping back to the app's fuel removes the widget's own, so it follows the app again", async () => {
+    mockStore.set(`widget.fuel.${ID}`, 'DL');
+    const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'U91' } });
+    expect(mockStore.has(`widget.fuel.${ID}`)).toBe(false);
+    expect(chip(render.mock.calls[0][0]).label).toBe('U91 ▾');
+    mockStore.set('settings.v1', JSON.stringify({ fuel: 'E10', home, radiusKm: 5 }));
+    const again = await run({ widgetAction: 'WIDGET_UPDATE' });
+    expect(chip(again.mock.calls[0][0]).label).toBe('E10 ▾');
+  });
+
+  it('a bad or missing fuel neither saves nor renders', async () => {
+    for (const clickActionData of [{ fuel: 'LPG' }, {}, undefined]) {
+      const render = await run({ clickAction: 'FUEL', clickActionData });
+      expect(render).not.toHaveBeenCalled();
+    }
+    expect(mockStore.has(`widget.fuel.${ID}`)).toBe(false);
+  });
+
+  it('a redraw uses the saved fuel, else the app\'s', async () => {
+    let render = await run({ widgetAction: 'WIDGET_UPDATE' });
+    expect(chip(render.mock.calls[0][0]).label).toBe('U91 ▾');
+    mockStore.set(`widget.fuel.${ID}`, 'P98');
+    render = await run({ widgetAction: 'WIDGET_UPDATE' });
+    expect(chip(render.mock.calls[0][0]).label).toBe('P98 ▾');
   });
 
   it('a periodic update draws the saved mode, defaulting to Pinned when a pin sells the fuel', async () => {

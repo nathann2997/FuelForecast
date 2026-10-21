@@ -5,11 +5,11 @@ import { sydneyToday } from '@/lib/format';
 import { readPinsFromStorage } from '@/lib/pins';
 import { getSettings, normalize } from '@/lib/settings';
 import Storage from '@/lib/storage';
-import type { Forecast, Stations } from '@/lib/types';
+import type { Forecast, Fuel, Stations } from '@/lib/types';
 
 import {
-  compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, modeKey, parseMode, type StationMode, type WidgetPrefs,
-  type WidgetSnapshot,
+  compactForecast, compactStations, fromAppData, fuelKey, isFresh, mergeSnapshot, modeKey, parseFuel, parseMode, type StationMode,
+  type WidgetPrefs, type WidgetSnapshot,
 } from './logic';
 
 const CACHE_KEY = 'widget.cache.v1';
@@ -96,29 +96,42 @@ export function readPrefs(): WidgetPrefs {
 
 export const readPins = () => readPinsFromStorage();
 
-// ---- the medium widget's list mode, saved per widget id (src/widget/logic.ts resolveMode applies the default)
+// ---- per-widget choices: the medium widget's list mode and each widget's fuel, saved under the widget id
+// (src/widget/logic.ts resolveMode / resolveFuel apply the defaults)
 
-export function readMode(widgetId: number): StationMode | null {
+function readKey(key: string): string | null {
   try {
-    return parseMode(Storage.getItemSync(modeKey(widgetId)));
+    return Storage.getItemSync(key);
   } catch {
     return null;
   }
 }
 
-export async function saveMode(widgetId: number, mode: StationMode) {
+async function saveKey(key: string, value: string) {
   try {
-    await Storage.setItem(modeKey(widgetId), mode);
+    await Storage.setItem(key, value);
   } catch {
-    // not saved: this tap still draws the tapped mode (the handler passes it to modelFor), but the next redraw
-    // falls back to the previously saved or default mode
+    // not saved: this tap still draws the tapped choice (the handler passes it to modelFor), but the next redraw
+    // falls back to the previously saved or default one
   }
 }
 
-export async function clearMode(widgetId: number) {
+async function clearKey(key: string) {
   try {
-    await Storage.removeItem(modeKey(widgetId));
+    await Storage.removeItem(key);
   } catch {
     // a stray key for a deleted widget is harmless
   }
+}
+
+export const readMode = (widgetId: number): StationMode | null => parseMode(readKey(modeKey(widgetId)));
+export const saveMode = (widgetId: number, mode: StationMode) => saveKey(modeKey(widgetId), mode);
+export const readFuel = (widgetId: number): Fuel | null => parseFuel(readKey(fuelKey(widgetId)));
+/** Save the widget's fuel; tapping back to the app's own fuel removes it, so the widget follows the app again. */
+export const saveFuel = (widgetId: number, fuel: Fuel) =>
+  fuel === readPrefs().fuel ? clearKey(fuelKey(widgetId)) : saveKey(fuelKey(widgetId), fuel);
+
+/** A removed widget's saved mode and fuel. */
+export async function clearWidget(widgetId: number) {
+  await Promise.all([clearKey(modeKey(widgetId)), clearKey(fuelKey(widgetId))]);
 }

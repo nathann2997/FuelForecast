@@ -7,7 +7,8 @@ import type { AdviceCode, Forecast, Fuel, LiveRow, Station, Stations } from '@/l
 
 /** Prices older than this many days are not "fresh" (same rule as the Stations list and Today's "Best near you"). */
 export const STALE_DAYS = 7;
-export const MAX_ROWS = 3;
+/** Stations in the medium widget's scrollable list: every pin (lib/pins.ts MAX_PINS = 10), or the top 10 nearby. */
+export const MAX_ROWS = 10;
 /** Deep links: the scheme stays `fuelforecast` (see BOWSER_PLAN §1). */
 export const TODAY_URI = 'fuelforecast://';
 export const stationUri = (id: string) => `fuelforecast://station/${encodeURIComponent(id)}`;
@@ -87,6 +88,8 @@ export type ListMode = 'pinned' | 'nearby' | 'nearest' | 'no-pins' | 'no-area' |
 
 export type WidgetModel = {
   fuel: string;                 // short fuel label, "U91"
+  fuelCode: Fuel;               // the fuel this widget shows
+  nextFuel: Fuel;               // what a tap on the fuel chip switches to
   tone: Tone;
   head: string;                 // verdict headline, or a prompt when there is no data
   rise: string | null;          // "Likely to rise from Sat 24 Oct"
@@ -227,26 +230,54 @@ export function chooseRows(
 export function buildModel(
   snap: WidgetSnapshot | null, prefs: WidgetPrefs, pins: string[], today: string, max = MAX_ROWS, mode?: StationMode,
 ): WidgetModel {
-  const fuel = FUEL_SHORT[prefs.fuel] ?? prefs.fuel;
+  const fuel = fuelLabel(prefs.fuel);
   const f = snap?.forecast;
   const r = f?.live.find((x) => x.fuel === prefs.fuel);
   // Show the older of the two dates, so a stale stations file isn't hidden behind today's forecast
   const dates = [f?.asof, snap?.stations?.asof].filter((d): d is string => !!d).sort();
   const base = r && f
     ? { tone: toneOf(r.verdict.cls), head: r.verdict.head, rise: riseText(r, f.asof, today) }
-    : { tone: 'calm' as Tone, head: 'Open Bowser', rise: "to load today's outlook" };
-  return { fuel, ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...chooseRows(snap, prefs, pins, max, mode) };
+    : f
+      ? { tone: 'calm' as Tone, head: `No outlook for ${fuel}`, rise: null }
+      : { tone: 'calm' as Tone, head: 'Open Bowser', rise: "to load today's outlook" };
+  return { fuel, fuelCode: prefs.fuel, nextFuel: nextFuel(prefs.fuel), ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...chooseRows(snap, prefs, pins, max, mode) };
 }
 
 /**
- * The medium widget's layout for its height (dp): padding 20, the verdict header (one line when compact), the mode
- * row, an optional caption, then 22 dp per station row. At the 110 dp minimum: compact header + mode row + 1 row.
+ * The medium widget's fixed block above the station list, in dp, from the styles in widgets.tsx (all header text has
+ * allowFontScaling={false}, so these don't grow with the system font size). Rounded up, so the list never overlaps.
+ *   compact: padding 10+10, header 4+22+4 (chip 22), mode row 4+22, list margin 2  = 78
+ *   regular: padding 10+10, header 7+40+7 (chip 26 + "as of" 14), mode row 4+28, list margin 2 = 108, budget 112 (header text doesn't font-scale)
+ *   caption: +4 margin +14 text = 18
  */
-export const MEDIUM_LAYOUT = { pad: 20, header: 50, headerCompact: 30, modes: 32, modesCompact: 26, caption: 16, row: 22 } as const;
-export function rowsThatFit(heightDp: number): { rows: number; caption: boolean; compact: boolean } {
-  const L = MEDIUM_LAYOUT;
+export const MEDIUM_FIXED = { compact: 80, regular: 112, caption: 18 } as const;   // compact measures 78; 2 dp spare
+/** One list item: 4+4 padding around 14 sp price text, rounded up. */
+export const LIST_ROW_H = 28;
+/** Below this the list isn't drawn (a ListWidget under ~1 dp throws natively and blanks the widget). */
+export const MIN_LIST_H = 28;
+
+/**
+ * The medium widget's layout for its height (dp): one-line header when compact (the 110 dp minimum), a caption once
+ * there is room, and the station list's height. `listH` is null when the list must not be drawn (too short, or an
+ * unknown 0 height): the widget then shows the first row as a plain row instead. Otherwise the list is only as tall as
+ * its rows, so taps below a short list reach the "open Today" area.
+ */
+export function mediumLayout(heightDp: number, rows = 0): { compact: boolean; caption: boolean; listH: number | null } {
   const compact = heightDp < 150;
   const caption = heightDp >= 190;
-  const avail = heightDp - L.pad - (compact ? L.headerCompact + L.modesCompact : L.header + L.modes) - (caption ? L.caption : 0);
-  return { rows: Math.max(1, Math.min(MAX_ROWS, Math.floor(avail / L.row))), caption, compact };
+  const room = Math.floor(heightDp - (compact ? MEDIUM_FIXED.compact : MEDIUM_FIXED.regular) - (caption ? MEDIUM_FIXED.caption : 0));
+  const listH = Math.min(room, Math.max(rows, 1) * LIST_ROW_H);
+  return { compact, caption, listH: Number.isFinite(listH) && listH >= MIN_LIST_H ? listH : null };
 }
+
+// ---- the per-widget fuel chip (tap cycles U91 -> E10 -> P98 -> DL -> U91)
+
+export const FUEL_CYCLE: readonly Fuel[] = ['U91', 'E10', 'P98', 'DL'];
+/** Custom click action the fuel chip sends (clickActionData: { fuel }, the fuel to switch to). */
+export const FUEL_ACTION = 'FUEL';
+export const fuelKey = (widgetId: number) => `widget.fuel.${widgetId}`;
+export const fuelLabel = (f: Fuel) => FUEL_SHORT[f] ?? f;
+export const parseFuel = (v: unknown): Fuel | null => (FUEL_CYCLE.includes(v as Fuel) ? (v as Fuel) : null);
+export const nextFuel = (f: Fuel): Fuel => FUEL_CYCLE[(FUEL_CYCLE.indexOf(f) + 1) % FUEL_CYCLE.length];
+/** The widget's own fuel once the user has tapped the chip, else the app's settings fuel. */
+export const resolveFuel = (saved: unknown, settingsFuel: Fuel): Fuel => parseFuel(saved) ?? settingsFuel;

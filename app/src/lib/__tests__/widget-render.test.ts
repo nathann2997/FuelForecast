@@ -5,7 +5,9 @@ import { transformFileSync } from '@babel/core';
 
 import { buildWidgetTree } from 'react-native-android-widget/src/api/build-widget-tree';
 
-import { buildModel, compactStations, MAX_ROWS, MODE_ACTION, STATION_MODES, type StationMode, type WidgetPrefs, type WidgetSnapshot } from '../../widget/logic';
+import {
+  buildModel, compactStations, FUEL_ACTION, mediumLayout, MAX_ROWS, MODE_ACTION, nextFuel, STATION_MODES, type StationMode, type WidgetPrefs, type WidgetSnapshot,
+} from '../../widget/logic';
 import { MEDIUM, SMALL, renderWidgetFor } from '../../widget/widgets';
 import type { Forecast, Station, Stations } from '../types';
 import fixture from './forecast.fixture.json';
@@ -49,36 +51,61 @@ describe('widget rendering', () => {
   const prefs: WidgetPrefs = { fuel: 'U91', home, radiusKm: 5, members: true };
   const cases: [string, WidgetSnapshot | null, WidgetPrefs, string[]][] = [
     ['no data', null, prefs, []],
-    ['with data', full, prefs, ['2']],
+    ['U91 with data', full, prefs, ['2']],
+    ['P98, no station sells it', full, { ...prefs, fuel: 'P98' }, ['2']],
     ['no area, no pins', full, { ...prefs, home: null }, []],
   ];
 
   const build = (name: string, height: number, snap: WidgetSnapshot | null, p: WidgetPrefs, pins: string[], mode?: StationMode) => {
     const model = buildModel(snap, p, pins, asof, MAX_ROWS, mode);
     const rep = renderWidgetFor(name, { height }, model) as { light: never; dark: never };
-    return { light: buildWidgetTree(rep.light) as Node, dark: buildWidgetTree(rep.dark) as Node };
+    return { model, light: buildWidgetTree(rep.light) as Node, dark: buildWidgetTree(rep.dark) as Node };
   };
+  const chipOf = (nodes: Node[]) => nodes.filter((n) => n.props?.clickAction === FUEL_ACTION);
 
   for (const [label, snap, p, pins] of cases) {
-    it(`${SMALL} builds a tree outside React (${label})`, () => {
+    it(`${SMALL} builds a tree outside React, with a fuel chip (${label})`, () => {
       const t = build(SMALL, 180, snap, p, pins);
-      expect(t.light.children?.length).toBeGreaterThan(0);
-      expect(t.dark.children?.length).toBeGreaterThan(0);
+      for (const tree of [t.light, t.dark]) {
+        expect(tree.children?.length).toBeGreaterThan(0);
+        expect(chipOf(walk(tree)).map((n) => n.props?.clickActionData)).toEqual([{ fuel: nextFuel(p.fuel) }]);
+        expect(walk(tree).some((n) => n.type === 'ListWidget')).toBe(false);
+      }
     });
     for (const [mode] of STATION_MODES)
-      for (const height of [110, 180])
+      for (const height of [0, 60, 80, 110, 150, 180, 220])
         it(`${MEDIUM} builds in ${mode} mode at ${height} dp (${label})`, () => {
           const t = build(MEDIUM, height, snap, p, pins, mode);
+          const { listH } = mediumLayout(height, t.model.rows.length);
           for (const tree of [t.light, t.dark]) {
             const nodes = walk(tree);
             // the mode row: three MODE tabs, the selected one labelled as such
             const tabs = nodes.filter((n) => n.props?.clickAction === MODE_ACTION);
             expect(tabs.map((n) => (n.props?.clickActionData as { mode: string }).mode)).toEqual(STATION_MODES.map(([m]) => m));
             expect(tabs.filter((n) => String(n.props?.accessibilityLabel).endsWith('selected'))).toHaveLength(1);
-            // station rows deep-link; at least one fits at the 110 dp minimum when there is data
-            const rows = nodes.filter((n) => String((n.props?.clickActionData as { uri?: string })?.uri ?? '').includes('/station/'));
-            if (snap && p.home) expect(rows.length).toBeGreaterThanOrEqual(1);
-            if (height === 110) expect(rows.length).toBeLessThanOrEqual(1);
+            // the fuel chip cycles to the next fuel
+            expect(chipOf(nodes).map((n) => n.props?.clickActionData)).toEqual([{ fuel: nextFuel(p.fuel) }]);
+            const lists = nodes.filter((n) => n.type === 'ListWidget');
+            const links = nodes.filter((n) => String((n.props?.clickActionData as { uri?: string })?.uri ?? '').includes('/station/'));
+            if (t.model.rows.length && listH != null) {
+              // one scrollable list with a numeric height >= 28, holding every row; each item deep-links on its own
+              // root (no nested clicks)
+              expect(lists).toHaveLength(1);
+              expect(typeof lists[0].props?.height).toBe('number');
+              expect(lists[0].props?.height as number).toBeGreaterThanOrEqual(28);
+              const items = lists[0].children ?? [];
+              expect(items.map((n) => (n.props?.clickActionData as { uri: string }).uri)).toEqual(t.model.rows.map((r) => r.uri));
+              for (const item of items) expect(walk(item).slice(1).some((n) => n.props?.clickAction)).toBe(false);
+            } else if (t.model.rows.length) {
+              // too short for a list: the first station as a plain row that still deep-links
+              expect(lists).toHaveLength(0);
+              expect(links.map((n) => (n.props?.clickActionData as { uri: string }).uri)).toEqual([t.model.rows[0].uri]);
+            } else {
+              expect(lists).toHaveLength(0);
+              expect(nodes.some((n) => n.props?.text === t.model.message)).toBe(true);
+            }
+            if (height <= 80) expect(lists).toHaveLength(0);
+            if (snap && p.home && p.fuel === 'U91') expect(t.model.rows.length).toBeGreaterThanOrEqual(1);
           }
         });
   }

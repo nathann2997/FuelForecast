@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { Place } from '../geo';
 import type { Forecast, Station, Stations } from '../types';
 import {
-  asOfLabel, buildModel, chooseRows, compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, modeKey, parseMode, resolveMode, riseText, rowsThatFit,
+  asOfLabel, buildModel, chooseRows, compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, modeKey, parseMode, resolveMode, riseText, mediumLayout, fuelKey, nextFuel, parseFuel, resolveFuel, fuelLabel, MAX_ROWS,
   stationUri,
   type WidgetPrefs, type WidgetSnapshot,
 } from '../../widget/logic';
@@ -62,6 +62,11 @@ describe('widget verdict and rise text', () => {
     expect(buildModel(old, prefs(), [], TODAY).asOf).toBe('as of 19 Oct');
     expect(buildModel(snap(), prefs({ fuel: 'DL' }), [], TODAY).fuel).toBe('Diesel');
   });
+  it('says there is no outlook when the forecast has no row for the fuel', () => {
+    const s = snap();
+    s.forecast = { ...s.forecast!, live: s.forecast!.live.filter((r) => r.fuel !== 'E10') };
+    expect(buildModel(s, prefs({ fuel: 'E10' }), [], TODAY)).toMatchObject({ head: 'No outlook for E10', rise: null, tone: 'calm' });
+  });
   it('prompts to open the app with no data', () => {
     const m = buildModel(null, prefs(), [], TODAY);
     expect(m.head).toBe('Open Bowser');
@@ -71,7 +76,7 @@ describe('widget verdict and rise text', () => {
 
 describe('widget station rows', () => {
   it('shows pinned stations first, in pin order, skipping pins without the fuel or no longer listed', () => {
-    const r = chooseRows(snap(), prefs(), ['4', '7', 'gone', '1', '3', '8']);
+    const r = chooseRows(snap(), prefs(), ['4', '7', 'gone', '1', '3', '8'], 3);
     expect(r.mode).toBe('pinned');
     expect(r.rows.map((x) => x.id)).toEqual(['4', '1', '3']);
     expect(r.rows[0]).toMatchObject({ price: '245.9', note: '+8.0c', noteTone: 'dear', uri: 'fuelforecast://station/4' });
@@ -82,12 +87,12 @@ describe('widget station rows', () => {
     expect(chooseRows(snap(), prefs(), ['8']).rows[0]).toMatchObject({ note: 'at median', noteTone: 'flat' });
   });
   it('falls back to the 3 cheapest fresh stations near home, respecting radius and members', () => {
-    const r = chooseRows(snap(), prefs(), []);
+    const r = chooseRows(snap(), prefs(), [], 3);
     expect(r.mode).toBe('nearby');
     expect(r.caption).toBe('Cheapest near Parramatta 2150');
     expect(r.rows.map((x) => x.id)).toEqual(['6', '1', '3']);
     expect(r.rows[0].name).toBe('Members Club');
-    expect(chooseRows(snap(), prefs({ members: false }), []).rows.map((x) => x.id)).toEqual(['1', '3', '8']);
+    expect(chooseRows(snap(), prefs({ members: false }), [], 3).rows.map((x) => x.id)).toEqual(['1', '3', '8']);
     expect(chooseRows(snap(), prefs({ radiusKm: 200 }), []).rows[0].id).toBe('5');
   });
   it('falls back to nearby when no pin sells the fuel', () => {
@@ -126,13 +131,17 @@ describe('widget cache', () => {
     expect(isFresh({ ...old, fetchedAt: now - 60_000 }, TODAY, now)).toBe(true);
     expect(isFresh(null, TODAY, now)).toBe(false);
   });
-  it('fits fewer rows on a short medium widget', () => {
-    // the 4x2 minimum (110 dp): compact header + mode row + 1 station row
-    expect(rowsThatFit(110)).toEqual({ rows: 1, caption: false, compact: true });
-    expect(rowsThatFit(150)).toEqual({ rows: 2, caption: false, compact: false });
-    expect(rowsThatFit(180)).toEqual({ rows: 3, caption: false, compact: false });
-    expect(rowsThatFit(220)).toEqual({ rows: 3, caption: true, compact: false });
-    expect(rowsThatFit(60).rows).toBe(1);
+  it('compacts the medium header on a short widget', () => {
+    // the list scrolls and fills whatever is left; only the header changes with height
+    expect(mediumLayout(110, 3)).toEqual({ compact: true, caption: false, listH: 30 });   // 110 - 80
+    expect(mediumLayout(150, 10)).toEqual({ compact: false, caption: false, listH: 38 });   // 150 - 112
+    expect(mediumLayout(180, 10)).toEqual({ compact: false, caption: false, listH: 68 });
+    expect(mediumLayout(220, 10)).toEqual({ compact: false, caption: true, listH: 90 });   // 220 - 112 - 18
+    // only as tall as the rows, so taps below a short list reach "open Today"
+    expect(mediumLayout(400, 2).listH).toBe(56);
+    expect(mediumLayout(400, 0).listH).toBe(28);
+    // never a list under 28 dp, nor for an unknown (0) or nonsense height
+    for (const h of [0, 60, 80, 105, NaN, -5]) expect(mediumLayout(h, 3).listH).toBeNull();
   });
 });
 
@@ -239,5 +248,46 @@ describe('medium widget list modes', () => {
   it('carries the selected mode on the model (null for the small widget)', () => {
     expect(buildModel(s, prefs(), [], TODAY, 3, 'nearest').stationMode).toBe('nearest');
     expect(buildModel(s, prefs(), [], TODAY).stationMode).toBeNull();
+  });
+});
+
+describe('widget list length and fuel chip', () => {
+  const many: Stations = {
+    schema: 1, asof: TODAY, suburbs: [],
+    stations: Array.from({ length: 14 }, (_, i) => st(`m${i}`, `M${i}`, 220 + i, 0, { la: home.la + 0.001 * i })),
+  };
+  const s = snap({ stations: compactStations(many) });
+  it('lists up to 10 stations nearby, and every pin', () => {
+    expect(MAX_ROWS).toBe(10);
+    expect(buildModel(s, prefs(), [], TODAY, MAX_ROWS, 'cheapest').rows).toHaveLength(10);
+    expect(buildModel(s, prefs(), [], TODAY, MAX_ROWS, 'nearest').rows.map((r) => r.id)).toEqual(many.stations.slice(0, 10).map((x) => x.id));
+    const pins = many.stations.slice(0, 10).map((x) => x.id).reverse();
+    expect(buildModel(s, prefs(), pins, TODAY, MAX_ROWS, 'pinned').rows.map((r) => r.id)).toEqual(pins);
+  });
+  it('cycles U91 -> E10 -> P98 -> DL -> U91', () => {
+    expect([nextFuel('U91'), nextFuel('E10'), nextFuel('P98'), nextFuel('DL')]).toEqual(['E10', 'P98', 'DL', 'U91']);
+    expect(fuelLabel('DL')).toBe('Diesel');
+    expect(fuelKey(3)).toBe('widget.fuel.3');
+  });
+  it('uses the widget\'s saved fuel, else the app\'s', () => {
+    expect(resolveFuel('P98', 'U91')).toBe('P98');
+    expect(resolveFuel(null, 'E10')).toBe('E10');
+    expect(resolveFuel('LPG', 'E10')).toBe('E10');
+    expect(parseFuel('DL')).toBe('DL');
+    expect(parseFuel(undefined)).toBeNull();
+  });
+  it('builds everything for the widget\'s fuel: verdict, median gap, rows, chip', () => {
+    const m = buildModel(snap(), prefs({ fuel: 'P98' }), ['1'], TODAY, MAX_ROWS, 'cheapest');
+    expect(m).toMatchObject({ fuel: 'P98', fuelCode: 'P98', nextFuel: 'DL', head: 'No rush either way', tone: 'calm' });
+    expect(m.message).toBe('No fresh P98 prices within 5 km');   // the fixture stations only sell U91
+    const u = buildModel(snap(), prefs({ fuel: 'U91' }), [], TODAY, MAX_ROWS, 'cheapest');
+    expect(u).toMatchObject({ head: 'Fill up today', nextFuel: 'E10' });
+    expect(u.rows[1]).toMatchObject({ id: '1', note: '−8.0c' });   // 229.9 vs the U91 median 237.9
+  });
+  it('Pinned names the widget\'s fuel when no pin sells it, and the default mode follows the widget\'s fuel', () => {
+    expect(chooseRows(snap(), prefs({ fuel: 'E10' }), ['1'], 10, 'pinned').message).toBe("Your pinned stations don't list E10");
+    expect(resolveMode(null, snap(), prefs({ fuel: 'U91' }), ['1'])).toBe('pinned');
+    expect(resolveMode(null, snap(), prefs({ fuel: 'DL' }), ['1'])).toBe('cheapest');
+    expect(resolveMode(null, snap(), prefs({ fuel: 'DL' }), ['7'])).toBe('pinned');
   });
 });
