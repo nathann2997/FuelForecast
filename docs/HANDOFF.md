@@ -5,12 +5,13 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 ## Product decisions (from the owner, 2026-10-21)
 - Audience: the owner plus a handful of friends. Android POC first, iOS later.
 - MVP: "fill now / wait" signal + 1/3/7/14-day outlook, price history charts, station **list** (nearest within a radius; no map), same as the dashboard.
-- Data freshness: once daily (as now). No accounts, no push alerts. Sydney only.
+- Data freshness: was once daily; since 0.6.0 the pipeline runs five times a day (owner asked for data as early as possible, 2026-10-22; see CHANGELOG 0.6.0 §4). No accounts, no push alerts. Sydney only.
 - Stack: React Native + Expo (TypeScript), EAS Build APK via internal distribution link.
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
 - [~] **iOS build** (2026-10-22, see `docs/IOS.md` and the CHANGELOG 0.6.0 "iOS build" section): the app plus an iOS WidgetKit widget (`expo-widgets`) and background refresh. EAS iOS simulator build 46497e9c compiled with the widget extension. Not pushed or OTA'd. **Blocked on the owner:** an Apple Developer Program account, plus a choice of TestFlight (recommended) or ad hoc. Then run `npx eas-cli build -p ios --profile production --auto-submit` interactively once so EAS can create the certificates, both bundle IDs and the app group. **Next:** the device checks in `docs/IOS.md`.
+- [~] **Bowser 0.6.0 Android: owner's feedback round** (2026-10-22, session fuel-dco-05; commits 7b22aaa, a835960, 95440fc, f1e6ac8, 0efa78f, a101c08; CHANGELOG 0.6.0 §1–5): faster widget taps (native patch), fuel chip step dots, ⟳ and "pull down to refresh" removed, five pipeline runs a day plus intraday widget refetch, Stations "Near you in <suburb>" with live/last-known. QA audited and fixed. Preview APK: EAS build 4ae2119b, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/4ae2119b-9c0a-4f3e-92fb-3673d9b6df9d (native patch compiled). **Not pushed** (main also carries the iOS commit 46ffb0d; the owner decides). The five-runs schedule only starts once pushed. **Next:** owner pushes; device checks: time mode/fuel taps warm and cold, station-row taps open the app, chip dots in light/dark, no ⟳ on the widget, Stations line at home, after moving, and with location permission withdrawn; after the first day of runs, check the `data` branch for five commits and that `store/backtest_ran` was written.
 - [x] Phase 1 — headless pipeline (`fetch.py`, `.github/workflows/daily.yml`)
 - [x] Phase 2 — static JSON API (`export_api.py`)
 - [x] Go-live (2026-10-21): QA audit + fixes, pushed to main, secrets set, Pages enabled, first run passed in 94 s (run 39513415528), `data` branch seeded, API live

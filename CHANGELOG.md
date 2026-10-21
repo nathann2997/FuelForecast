@@ -37,6 +37,7 @@ All notable changes to the FuelForecast pipeline and app. Newest first.
   - The iOS widget has no buttons (fuel or mode) yet.
 
 ### 1. Faster widget taps (native: needs the 0.6.0 APK)
+Preview APK (Android 0.6.0, all of §1–5): EAS build 4ae2119b, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/4ae2119b-9c0a-4f3e-92fb-3673d9b6df9d
 All of this is in the widget library patch (`app/patches/react-native-android-widget+0.23.0.patch`).
 - **Pinned/Nearest/Cheapest and fuel-chip taps skip WorkManager while Bowser is running.** If the app is open or was used recently, the tap's redraw starts at once. WorkManager's enqueue and job scheduling had been most of a warm tap's delay.
   - Only `MODE` and `FUEL` take this path; ⟳ (which can wait on GPS) still goes through WorkManager.
