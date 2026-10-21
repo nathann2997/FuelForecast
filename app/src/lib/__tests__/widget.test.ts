@@ -87,6 +87,16 @@ describe('widget station rows', () => {
     expect(r.rows[0]).toMatchObject({ price: '245.9', note: '+8.0c', noteTone: 'dear', uri: 'fuelforecast://station/4' });
     expect(r.rows[1]).toMatchObject({ note: '−8.0c', noteTone: 'cheap' });
   });
+  it('pinned rows have no caption (the mode row says Pinned) and tidy ALL-CAPS names', () => {
+    const r = chooseRows(snap(), prefs(), ['8'], 3, 'pinned');
+    expect(r.mode).toBe('pinned');
+    expect(r.caption).toBeNull();
+    const caps = { ...STATIONS, stations: [st('9', 'SHELL NORTH ROCKS', 230, 0)] };
+    expect(chooseRows(snap({ stations: compactStations(caps) }), prefs(), ['9']).rows[0].name).toBe('Shell North Rocks');
+  });
+  it('gives pinned mode the caption row when there is no caption', () => {
+    expect(mediumLayout(220, 10, false)).toEqual({ compact: false, caption: false, rowH: 44, listH: 98 });
+  });
   it('shows a pinned stale price as its age, and "at median"', () => {
     expect(chooseRows(snap(), prefs(), ['2']).rows[0]).toMatchObject({ note: '12 days old', noteTone: 'flat' });
     expect(chooseRows(snap(), prefs(), ['8']).rows[0]).toMatchObject({ note: 'at median', noteTone: 'flat' });
@@ -94,7 +104,7 @@ describe('widget station rows', () => {
   it('falls back to the 3 cheapest fresh stations near home, respecting radius and members', () => {
     const r = chooseRows(snap(), prefs(), [], 3);
     expect(r.mode).toBe('nearby');
-    expect(r.caption).toBe('Cheapest near Parramatta 2150');
+    expect(r.caption).toBe('Near Parramatta 2150');
     expect(r.rows.map((x) => x.id)).toEqual(['6', '1', '3']);
     expect(r.rows[0].name).toBe('Members Club');
     expect(chooseRows(snap(), prefs({ members: false }), [], 3).rows.map((x) => x.id)).toEqual(['1', '3', '8']);
@@ -227,7 +237,7 @@ describe('medium widget list modes', () => {
   it('Nearest: fresh stations in the radius, closest first, with the distance as the note', () => {
     const r = chooseRows(s, prefs(), [], 3, 'nearest');
     expect(r.mode).toBe('nearest');
-    expect(r.caption).toBe('Nearest to Parramatta 2150');
+    expect(r.caption).toBe('Near Parramatta 2150');
     expect(r.rows.map((x) => x.id)).toEqual(['a', 'b', 'c']);
     // the distance follows the advice; without a forecast the right-hand note is the gap (not the distance again)
     expect(r.rows[0]).toMatchObject({ advice: 'Fill by Fri', dist: '1.1 km', adviceTone: 'act', note: '+2.0c', fc: null, price: '239.9', uri: 'fuelforecast://station/a' });

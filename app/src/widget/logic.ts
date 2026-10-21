@@ -1,7 +1,7 @@
 // Pure logic for the Android home-screen widget: what the small and medium widgets say and which stations they list.
 // No React Native or widget-library imports here, so it runs under jest and on every platform.
 import { km, type Place } from '@/lib/geo';
-import { addDays, nice } from '@/lib/format';
+import { addDays, nice, stationName } from '@/lib/format';
 import { dayLabel, riseDay, toneOf, type Tone } from '@/lib/outlook';
 import type { AdviceCode, Forecast, Fuel, LiveRow, Station, Stations } from '@/lib/types';
 
@@ -113,7 +113,7 @@ export type WidgetModel = {
   stationMode: StationMode | null;   // the medium widget's selected mode row tab (null for the small widget)
   canLocate: boolean;           // show the ⟳ (LOCATE) button: background location granted and the area is GPS or unset
   mode: ListMode;
-  caption: string | null;       // "Your stations" / "Cheapest near Parramatta 2150"
+  caption: string | null;       // "Near Parramatta 2150" (none for pinned: the mode row says it)
   rows: WidgetRow[];
   message: string | null;       // shown instead of rows
 };
@@ -146,7 +146,6 @@ export function asOfLabel(asof: string | null | undefined, today: string): strin
   return `as of ${nice(asof, false)}`;
 }
 
-const cleanName = (n: string) => n.replace(/\s*\(members only\)/i, '').trim();
 
 function gapNote(price: number, median: number | undefined, adv: WPrice): { note: string; noteTone: NoteTone } {
   // No median: nothing to compare with (the advice is already on the left line), so the note stays blank
@@ -165,7 +164,7 @@ export const fcTone = (now: number, fc: number): NoteTone => (fc - now >= 0.5 ? 
 function toRow(s: WStation, fuel: Fuel, median: number | undefined): WidgetRow | null {
   const adv = s.p[fuel];
   if (!adv || adv[0] == null) return null;
-  const name = cleanName(s.n);
+  const name = stationName(s.n);
   const stale = adv[1] != null && adv[1] > STALE_DAYS;
   const { note, noteTone } = stale ? { note: `${adv[1]} days old`, noteTone: 'flat' as const } : gapNote(adv[0], median, adv);
   const f7 = typeof adv[4] === 'number' && Number.isFinite(adv[4]) ? adv[4] : null;
@@ -251,7 +250,7 @@ export function chooseRows(
 
   if (mode === 'pinned' || (!mode && pins.length)) {
     const rows = pinnedRows(list, prefs, pins, median, max);
-    if (rows.length) return { mode: 'pinned', caption: 'Your stations', rows, message: null };
+    if (rows.length) return { mode: 'pinned', caption: null, rows, message: null };   // the mode row says Pinned
     if (mode === 'pinned')
       return pins.length
         ? { mode: 'no-pins', caption: null, rows: [], message: `Your pinned stations don't list ${fuel}` }
@@ -264,8 +263,8 @@ export function chooseRows(
   const rows = areaRows(list, prefs, home, nearest ? 'distance' : 'price', median, max);
   if (!rows.length) return { mode: 'none-nearby', caption: null, rows: [], message: `No fresh ${fuel} prices within ${prefs.radiusKm} km` };
   return nearest
-    ? { mode: 'nearest', caption: `Nearest to ${home.label}`, rows, message: null }
-    : { mode: 'nearby', caption: `Cheapest near ${home.label}`, rows, message: null };
+    ? { mode: 'nearest', caption: `Near ${home.label}`, rows, message: null }   // the mode row already says Nearest/Cheapest
+    : { mode: 'nearby', caption: `Near ${home.label}`, rows, message: null };
 }
 
 /** The Sydney median now and in 7 days for the widget's fuel (forecast.live now, now + d7). */
@@ -336,9 +335,9 @@ export const MEDIUM_COMPACT_BELOW = MEDIUM_FIXED.regular + LIST_ROW_H.two;   // 
  * drawn (shorter than one row, or an unknown 0 height): the widget then shows the first row as a plain row instead.
  * Otherwise the list is only as tall as its rows, so taps below a short list reach the "open Today" area.
  */
-export function mediumLayout(heightDp: number, rows = 0): { compact: boolean; caption: boolean; rowH: number; listH: number | null } {
+export function mediumLayout(heightDp: number, rows = 0, hasCaption = true): { compact: boolean; caption: boolean; rowH: number; listH: number | null } {
   const compact = !(heightDp >= MEDIUM_COMPACT_BELOW);
-  const caption = heightDp >= 190;
+  const caption = hasCaption && heightDp >= 190;   // pinned mode has no caption, so its rows get the room
   const rowH = compact ? LIST_ROW_H.one : LIST_ROW_H.two;
   const room = Math.floor(heightDp - (compact ? MEDIUM_FIXED.compact : MEDIUM_FIXED.regular) - (caption ? MEDIUM_FIXED.caption : 0));
   const listH = Math.min(room, Math.max(rows, 1) * rowH);
@@ -420,7 +419,7 @@ export const FIX_KEY = 'widget.loc';
 export const FIX_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 /** Custom click action the ⟳ button sends: get a fresh fix and redraw. */
 export const LOCATE_ACTION = 'LOCATE';
-/** Label for a live fix: captions read "Cheapest near you" / "Nearest to you". */
+/** Label for a live fix: the caption reads "Near you". */
 export const LIVE_LABEL = 'you';
 
 export const parseFix = (v: unknown): WidgetFix | null => {

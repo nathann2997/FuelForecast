@@ -9,7 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useMeta, useStations } from '@/lib/api';
 import { backtestNote, backtestRows, plainWarnings, widgetLocationCopy } from '@/lib/copy';
-import { daysBetween, fuelName, nice } from '@/lib/format';
+import { daysBetween, nice } from '@/lib/format';
 import { bgRequestOpensSettings, openLocationSettings, useBackgroundLocation } from '@/lib/location';
 import { setSettings, useSettings } from '@/lib/settings';
 
@@ -34,11 +34,11 @@ export default function More() {
   const week = f ? backtestRows(f, s.fuel).find((x) => x.horizon === '7 days') : undefined;
 
   return (
-    <Screen title="More" subtitle="Settings and how it works" fuel={false} onRefresh={() => { fq.refetch(); mq.refetch(); }} refreshing={fq.isRefetching}>
+    <Screen title="More" fuel={false} onRefresh={() => { fq.refetch(); mq.refetch(); }} refreshing={fq.isRefetching}>
       <Section title="Your car">
         <Card style={{ gap: Spacing.four }}>
           <Field label="Fuel"><FuelPicker /></Field>
-          <Field label="Tank size, for savings in dollars">
+          <Field label="Tank size">
             <Segmented
               options={TANKS}
               value={(TANKS.find(([k]) => Number(k) === s.tankL)?.[0] ?? '50') as (typeof TANKS)[number][0]}
@@ -62,7 +62,7 @@ export default function More() {
                   <T color={c.tgp} style={{ fontWeight: '700' }}>{s.home ? 'Change' : 'Set'}</T>
                 </Pressable>
                 {s.home ? (
-                  <Pressable onPress={() => setSettings({ home: null })} accessibilityRole="button" hitSlop={8}>
+                  <Pressable onPress={() => setSettings({ home: null })} accessibilityRole="button" accessibilityLabel="Clear area" hitSlop={8}>
                     <T color={c.muted} style={{ fontWeight: '700' }}>Clear</T>
                   </Pressable>
                 ) : null}
@@ -70,11 +70,11 @@ export default function More() {
             )}
           </Field>
           <View style={styles.between}>
-            <T color={c.fg} style={{ flex: 1 }}>Include members-only sites (Costco)</T>
+            <T color={c.fg} style={{ flex: 1 }}>Show members-only sites (Costco)</T>
             <Switch value={s.members} onValueChange={(v) => setSettings({ members: v })} />
           </View>
         </Card>
-        <T kind="small">Settings and your area stay on this phone. Nothing is sent anywhere.</T>
+        <T kind="small">Stored on this phone only.</T>
       </Section>
 
       {Platform.OS === 'android' ? <WidgetLocation /> : null}
@@ -84,9 +84,11 @@ export default function More() {
           <Loading error={fq.error} onRetry={() => fq.refetch()} />
         ) : (
           <>
-            <T>
-              In tests on every month since {f.bt.test_from.slice(0, 4)}, the 7-day forecast for {fuelName(s.fuel)} was off by {week.model.toFixed(1)}c on average, against {week.naive.toFixed(1)}c for assuming no change, and it called the direction right {week.dir}% of the time.
-            </T>
+            <Card style={styles.stats}>
+              <Stat big={`${week.model.toFixed(1)}c`} label="average 7-day error" />
+              <Stat big={`${week.dir}%`} label="right direction" />
+              <Stat big={`${week.naive.toFixed(1)}c`} label="error guessing no change" />
+            </Card>
             <Disclosure title="Accuracy by horizon">
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 <Row cells={['Horizon', 'No change', 'Model', 'Gain', 'Direction']} head />
@@ -100,15 +102,21 @@ export default function More() {
         )}
       </Section>
 
-      <Disclosure title="How the model works">
+      <Disclosure title="How the forecast works">
         {MODEL.map(([k, v]) => (
           <T key={k} kind="small" color={c.fg2}><T kind="small" style={{ fontWeight: '700' }} color={c.fg}>{k}. </T>{v}</T>
         ))}
       </Disclosure>
 
-      <Section title="Data freshness">
+      {m && plainWarnings(m.warnings).length ? (
+        <Card style={{ gap: Spacing.two }}>
+          {plainWarnings(m.warnings).map((w) => <T key={w} kind="small" color={c.up}>⚠ {w}</T>)}
+        </Card>
+      ) : null}
+
+      <Disclosure title="Data sources">
         {m ? (
-          <Card style={{ gap: Spacing.two }}>
+          <View style={{ gap: Spacing.two }}>
             <Fresh label="Live Sydney prices" date={m.asof} ok={1} today={m.asof} />
             <Fresh label="Wholesale TGP (AIP)" date={m.tgp_last} ok={5} today={m.asof} />
             <Fresh label="Brent and AUD (FRED)" date={m.fred_last} ok={10} today={m.asof} />
@@ -118,12 +126,14 @@ export default function More() {
               <T kind="num" style={{ fontSize: 13 }}>{m.snapshot_days ?? '–'}</T>
             </View>
             <T kind="small">Updated {new Date(m.generated_at).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' })}</T>
-            {plainWarnings(m.warnings).map((w) => <T key={w} kind="small" color={c.up}>⚠ {w}</T>)}
-          </Card>
+          </View>
         ) : (
           <Loading error={mq.error} onRetry={() => mq.refetch()} />
         )}
-      </Section>
+        <T kind="small">
+          NSW FuelCheck and data.nsw.gov.au price history; AIP wholesale prices; Brent crude and AUD/USD from FRED. Cents per litre including GST. Sydney is postcodes 2000–2234, 2555–2574 and 2740–2786.
+        </T>
+      </Disclosure>
 
       <Section title="About">
         <View style={styles.about}>
@@ -133,10 +143,7 @@ export default function More() {
             <T kind="small">Version {Constants.expoConfig?.version ?? '–'}</T>
           </View>
         </View>
-        <T kind="small">
-          NSW Government FuelCheck API (live) and monthly price history on data.nsw.gov.au; Australian Institute of Petroleum terminal gate prices; Brent crude (DCOILBRENTEU) and AUD/USD (DEXUSAL) from FRED, Federal Reserve Bank of St. Louis. Prices in cents per litre including GST. Sydney is postcodes 2000–2234, 2555–2574 and 2740–2786.
-        </T>
-        <T kind="small">Forecasts are statistical estimates for planning, not financial advice.</T>
+        <T kind="small">Forecasts are estimates for planning, not financial advice.</T>
       </Section>
     </Screen>
   );
@@ -153,7 +160,7 @@ function WidgetLocation() {
   return (
     <Section title="Widget location">
       <Card style={{ gap: Spacing.three }}>
-        <T>Let the widget show stations near where you are, even when Bowser is closed. Your location stays on your phone.</T>
+        <T>Let the widget follow you when Bowser is closed. Stays on your phone.</T>
         <View style={styles.between}>
           <T color={c.fg2} style={{ flex: 1 }}>Status</T>
           <T color={w.status === 'On' ? c.cheap : c.fg} style={{ fontWeight: '700', flexShrink: 1, textAlign: 'right' }}>{w.status}</T>
@@ -163,6 +170,16 @@ function WidgetLocation() {
         {w.action ? <Button label={w.action === 'ask' ? 'Allow all the time' : 'Open settings'} kind="secondary" onPress={onPress} /> : null}
       </Card>
     </Section>
+  );
+}
+
+function Stat({ big, label }: { big: string; label: string }) {
+  const c = useTheme();
+  return (
+    <View style={{ flex: 1, gap: 2 }}>
+      <T kind="num" color={c.fg} style={{ fontSize: 20 }}>{big}</T>
+      <T kind="small">{label}</T>
+    </View>
   );
 }
 
@@ -205,5 +222,6 @@ function Fresh({ label, date, ok, today }: { label: string; date: string | null;
 const styles = StyleSheet.create({
   tr: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, gap: 6 },
   about: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  stats: { flexDirection: 'row', gap: Spacing.three },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.three },
 });

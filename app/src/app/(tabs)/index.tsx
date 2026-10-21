@@ -5,7 +5,6 @@ import { StyleSheet, View } from 'react-native';
 import { AreaPicker } from '@/components/area-picker';
 import { OutlookChart } from '@/components/outlook-chart';
 import { BowserWordmark } from '@/components/brand';
-import { PinIcon } from '@/components/icons';
 import { MissingPinItem, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
 import { Card, Disclosure, Loading, Screen, Section, StaleBanner, T, toneColors } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -13,11 +12,11 @@ import { useArea } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { horizons, jumpRisk, signalWhy } from '@/lib/copy';
-import { fmt, fuelName, nice } from '@/lib/format';
+import { fmt, fuelName } from '@/lib/format';
 import { pinnedRows } from '@/lib/filters';
 import { rankStations } from '@/lib/geo';
 import { dayLabel, outlook, riseDay } from '@/lib/outlook';
-import { MAX_PINS, usePins } from '@/lib/pins';
+import { usePins } from '@/lib/pins';
 import { useSettings } from '@/lib/settings';
 
 export default function Today() {
@@ -73,13 +72,9 @@ export default function Today() {
             </View>
           </View>
 
+          {pins.length ? (
           <Section title="Your stations">
-            {!pins.length ? (
-              <View style={styles.hint}>
-                <PinIcon size={16} color={c.muted} />
-                <T kind="small" style={{ flex: 1 }}>Tap the pin on any station to keep it here, up to {MAX_PINS}.</T>
-              </View>
-            ) : !sq.data ? (
+            {!sq.data ? (
               <Loading error={sq.error} onRetry={() => sq.refetch()} />
             ) : (
               <Card style={{ padding: 0, overflow: 'hidden' }}>
@@ -93,6 +88,7 @@ export default function Today() {
               </Card>
             )}
           </Section>
+          ) : null}
 
           <Section
             title={home ? `Cheapest near ${home.gps ? 'you' : home.label}` : 'Cheapest near you'}
@@ -101,40 +97,31 @@ export default function Today() {
               <Loading error={sq.error} onRetry={() => sq.refetch()} />
             ) : !home ? (
               <Card style={{ gap: Spacing.three }}>
-                <T color={c.fg2}>Set your area once to see the best {fuelName(s.fuel)} prices around you. It stays on your phone.</T>
+                <T color={c.fg2}>Where do you fill up?</T>
                 <AreaPicker suburbs={sq.data.suburbs} />
               </Card>
             ) : best.length === 0 ? (
-              <Card><T>No up-to-date prices within {s.radiusKm} km. Widen the radius on the Stations tab.</T></Card>
+              <Card><T>No recent prices within {s.radiusKm} km.</T></Card>
             ) : (
-              <>
-                <Card style={{ padding: 0, overflow: 'hidden' }}>
-                  {best.map((x, i) => (
-                    <StationItem key={rowKey(x)} r={x} median={r.now} last={i === best.length - 1} />
-                  ))}
-                </Card>
-                {o.deadline ? (
-                  <T kind="small">Station dates allow for how quickly each one usually follows a Sydney price jump. Tap one for its forecast.</T>
-                ) : null}
-              </>
+              <Card style={{ padding: 0, overflow: 'hidden' }}>
+                {best.map((x, i) => (
+                  <StationItem key={rowKey(x)} r={x} median={r.now} last={i === best.length - 1} />
+                ))}
+              </Card>
             )}
           </Section>
 
           <Disclosure title="Why we think this">
             <T>{signalWhy(r, f.stats, f.ctx, hq.data)}</T>
             <View style={{ gap: Spacing.one }}>
-              <Fact k="Chance of a 5c+ jump within 7 days" v={`${jumpRisk(r).pct}% (${jumpRisk(r).label.toLowerCase()})`} />
+              <Fact k="Chance of a 5c+ jump this week" v={`${jumpRisk(r).pct}% (${jumpRisk(r).label.toLowerCase()})`} />
               <Fact k="Cheapest 10% of Sydney stations" v={`${r.p10.toFixed(1)}c`} />
-              <Fact k="Wholesale (terminal gate) price" v={`${r.tgp.toFixed(1)}c`} />
+              <Fact k="Wholesale price" v={`${r.tgp.toFixed(1)}c`} />
             </View>
-            <T kind="small">
-              The shaded band on the chart is the 80% range, from the past year of out-of-sample errors. Live model: {f.ctx.live_model}.
-            </T>
+            <T kind="small">The shaded band is the likely range.</T>
           </Disclosure>
 
-          <T kind="small">
-            Prices from {nice(f.asof)}, updated each morning. Forecasts are statistical estimates for planning, not financial advice.
-          </T>
+          <T kind="small">Updated each morning. Estimates, not financial advice.</T>
         </>
       )}
     </Screen>
@@ -155,6 +142,5 @@ const styles = StyleSheet.create({
   hero: { borderRadius: 20, padding: Spacing.five, gap: Spacing.two },
   horizons: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
   hcell: { flex: 1, gap: 1 },
-  hint: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   fact: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Spacing.two },
 });

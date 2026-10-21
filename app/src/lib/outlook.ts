@@ -60,20 +60,20 @@ export function outlook(r: LiveRow, asof: string, tankL: number): Outlook {
   const riseDate = J == null ? null : addDays(asof, J);
   const end = dayLabel(addDays(asof, 14));
   const d14 = r.d14, d7 = r.d7;
-  const risk = riseDate ? ` There is some chance of a jump from ${dayLabel(riseDate)}, so don't let the tank run too low.` : '';
+  const risk = riseDate ? ` Some chance of a jump from ${dayLabel(riseDate)}.` : '';
   let detail: string;
   if (tone === 'act')
     detail = d14 >= 3
-      ? `Expected about ${d14.toFixed(0)}c higher by ${end}. Filling ${J == null ? 'soon' : 'before then'} saves about ${dollars(d14, tankL)} on a ${tankL} L tank.`
-      : `A price jump is likely soon, though the average move over two weeks is about ${d14 >= 0 ? '+' : ''}${d14.toFixed(0)}c.`;
+      ? `About ${d14.toFixed(0)}c higher by ${end}. Filling ${J == null ? 'soon' : 'before then'} saves about ${dollars(d14, tankL)} on a ${tankL} L tank.`
+      : `Fill up before then. Over two weeks the average move is about ${d14 >= 0 ? '+' : ''}${d14.toFixed(0)}c.`;
   else if (d7 <= -2)
-    detail = `Expected about ${Math.abs(d7).toFixed(0)}c lower by ${dayLabel(addDays(asof, 7))}. Waiting saves about ${dollars(d7, tankL)} on a ${tankL} L tank.${risk}`;
+    detail = `About ${Math.abs(d7).toFixed(0)}c lower by ${dayLabel(addDays(asof, 7))}. Waiting saves about ${dollars(d7, tankL)} on a ${tankL} L tank.${risk}`;
   else if (tone === 'wait')
-    detail = `Prices are expected to ease over the next few days.${risk}`;
+    detail = `Prices should ease over the next few days.${risk}`;
   else if (d14 >= 3)
-    detail = `No rise expected this week, but about ${d14.toFixed(0)}c higher by ${end}${riseDate ? `, with some chance of a jump from ${dayLabel(riseDate)}` : ''}. Filling in the next few days saves about ${dollars(d14, tankL)} on a ${tankL} L tank.`;
+    detail = `About ${d14.toFixed(0)}c higher by ${end}. Filling soon saves about ${dollars(d14, tankL)} on a ${tankL} L tank.${risk}`;
   else
-    detail = `Prices are expected to stay within a couple of cents for the next two weeks. Fill up whenever suits.${risk}`;
+    detail = `Steady for the next two weeks. Fill up whenever suits.${risk}`;
   return {
     tone,
     head: r.verdict.head,

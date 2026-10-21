@@ -161,7 +161,7 @@ function StationLine({ r, c, compact, width }: { r: WidgetRow; c: Pal; compact: 
 
 function Medium({ m, c, width, height }: { m: WidgetModel; c: Pal; width: number; height: number }) {
   const t = toneColors(c, m.tone);
-  const fit = mediumLayout(height, m.rows.length);
+  const fit = mediumLayout(height, m.rows.length, !!m.caption);
   const fcLine = fit.compact ? null : mediumForecastLine(m, width);
   return (
     <FlexWidget

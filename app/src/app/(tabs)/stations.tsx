@@ -4,8 +4,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AreaPicker } from '@/components/area-picker';
 import { FilterSheet } from '@/components/filter-sheet';
 import { FilterIcon } from '@/components/icons';
-import { MissingPinItem, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
-import { Button, Card, Disclosure, Loading, Screen, StaleBanner, T, toneColors } from '@/components/ui';
+import { MissingPinItem, rowKey, StationItem } from '@/components/station-row';
+import { Button, Card, Disclosure, Loading, Screen, StaleBanner, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useArea } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
@@ -14,7 +14,6 @@ import { WHEN_NOTE } from '@/lib/copy';
 import { applyFilters, brandCounts, filterCount, pinnedRows } from '@/lib/filters';
 import { fuelName, nice } from '@/lib/format';
 import { rankStations } from '@/lib/geo';
-import { outlook } from '@/lib/outlook';
 import { usePins } from '@/lib/pins';
 import { resetFilters, useSettings } from '@/lib/settings';
 
@@ -53,14 +52,7 @@ export default function Stations() {
   const nFilters = filterCount(s);
 
   const r = fq.data?.live.find((x) => x.fuel === s.fuel);
-  const o = r && fq.data ? outlook(r, fq.data.asof, s.tankL) : null;
-  const t = toneColors(c, o?.tone ?? 'calm');
-
-  const note = s.pinnedOnly
-    ? 'Showing your pinned stations only.'
-    : home
-      ? `Within ${s.radiusKm} km, ${s.sort === 'distance' ? 'nearest' : 'cheapest'} first. Straight-line distance${home.gps ? '' : " from the suburb's centre"}.`
-      : `Cheapest across all of Sydney. Set your area to see what's nearby.`;
+  const order = s.pinnedOnly ? 'pinned only' : `${home ? `within ${s.radiusKm} km, ` : ''}${home && s.sort === 'distance' ? 'nearest' : 'cheapest'} first`;
 
   return (
     <Screen
@@ -87,22 +79,16 @@ export default function Stations() {
             </Pressable>
           ) : (
             <Card style={{ gap: Spacing.three }}>
-              <T color={c.fg2}>{home ? 'Change your area' : 'Where are you filling up?'}</T>
+              <T color={c.fg2}>{home ? 'Change your area' : 'Where do you fill up?'}</T>
               <AreaPicker suburbs={data.suburbs} onDone={() => setEditing(false)} />
               {home ? <Button label="Cancel" kind="secondary" onPress={() => setEditing(false)} /> : null}
             </Card>
           )}
 
-          {o?.deadline ? (
-            <View style={[styles.banner, { backgroundColor: t.bg }]}>
-              <T kind="small" color={t.fg} style={{ fontWeight: '700' }}>{o.deadline} across Sydney.</T>
-              <T kind="small" color={t.fg}>Each station’s advice adjusts for how quickly it usually follows a price jump.</T>
-            </View>
-          ) : null}
-
           <View style={styles.toolbar}>
             <T color={c.fg} style={{ fontWeight: '700', flex: 1 }} accessibilityRole="header">
-              {total} station{total === 1 ? '' : 's'}{nFilters ? ` · ${nFilters} filter${nFilters === 1 ? '' : 's'}` : ''}
+              {total} station{total === 1 ? '' : 's'}
+              <T kind="small" style={{ fontWeight: '400' }}>{`  ${order}`}</T>
             </T>
             <Pressable
               onPress={() => setSheet(true)}
@@ -118,7 +104,6 @@ export default function Stations() {
               </T>
             </Pressable>
           </View>
-          <T kind="small" style={{ marginTop: -Spacing.two }}>{note}</T>
 
           {pinned.length ? (
             <View style={{ gap: Spacing.two }}>
@@ -139,8 +124,8 @@ export default function Stations() {
             <Card style={{ gap: Spacing.three }}>
               <T>
                 {s.pinnedOnly && !pins.length
-                  ? 'No pinned stations yet. Tap the pin on any station to keep it at the top.'
-                  : `No stations match.${staleN && !s.showStale ? ` ${staleN} more with older prices are hidden.` : ''}`}
+                  ? 'No pinned stations yet. Tap a pin to add one.'
+                  : `No stations match.${staleN && !s.showStale ? ` ${staleN} with older prices hidden.` : ''}`}
               </T>
               <Button label="Reset filters" kind="secondary" onPress={resetFilters} />
             </Card>
@@ -164,11 +149,8 @@ export default function Stations() {
             <Button label={`Show ${Math.min(PAGE, rows.length - show)} more`} kind="secondary" onPress={() => setShow(show + PAGE)} />
           ) : null}
 
-          <Disclosure title="How “when to fill” works">
+          <Disclosure title="About “Fill by” dates">
             <T kind="small" color={c.fg2}>{WHEN_NOTE}</T>
-            <T kind="small">
-              Prices are as last reported to NSW FuelCheck. Prices not updated for over {STALE_DAYS} days are hidden unless you turn on older prices in Filters. Tap a station for its price history and forecast, the pin to keep it at the top, or the arrow for directions.
-            </T>
           </Disclosure>
 
           <FilterSheet
@@ -187,7 +169,6 @@ export default function Stations() {
 
 const styles = StyleSheet.create({
   area: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.input, padding: Spacing.four },
-  banner: { borderRadius: Radius.input, paddingVertical: Spacing.three, paddingHorizontal: Spacing.four, gap: 2 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.chip, paddingHorizontal: 14, minHeight: 44 },
 });

@@ -7,7 +7,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useStationDetail } from '@/lib/api';
 import { STALE_DAYS } from '@/lib/filters';
-import { updatedText } from '@/lib/format';
+import { brandSuburb, stationName, updatedText } from '@/lib/format';
 import type { StationRow } from '@/lib/geo';
 import type { Tone } from '@/lib/outlook';
 import type { AdviceCode, Fuel, Station } from '@/lib/types';
@@ -16,7 +16,6 @@ export const ADVICE_TONE: Record<AdviceCode, Tone> = { now: 'act', by: 'act', wa
 
 export { STALE_DAYS };
 
-export const stationName = (n: string) => n.replace(/\s*\(members only\)/i, '');
 
 export const openStation = (id: string) => router.push({ pathname: '/station/[id]', params: { id } });
 
@@ -47,7 +46,7 @@ export function StationItem({ r, median, last }: { r: StationRow; median: number
         <View style={{ flex: 1, gap: 3 }}>
           <T style={{ fontWeight: '700', fontSize: 15 }} color={c.fg} numberOfLines={1}>{name}</T>
           <T kind="small" numberOfLines={1}>
-            {r.b} · {r.s}{r.d != null ? ` · ${r.d.toFixed(1)} km` : ''}{r.m ? ' · Members' : ''}
+            {brandSuburb(name, r.b, r.s)}{r.d != null ? ` · ${r.d.toFixed(1)} km` : ''}{r.m ? ' · Members' : ''}
           </T>
           <View style={[styles.row, { gap: Spacing.two, marginTop: 2 }]}>
             <Badge tone={ADVICE_TONE[code] ?? 'calm'}>{label}</Badge>
@@ -77,7 +76,7 @@ export function MissingPinItem({ id, station, fuel, last }: { id: string; statio
   const c = useTheme();
   const dq = useStationDetail(station ? undefined : id);   // name lookup only if the station left today's list
   const name = stationName(station?.n ?? dq.data?.n ?? 'Pinned station');
-  const where = station ? `${station.b} · ${station.s}` : dq.data ? `${dq.data.b} · ${dq.data.s}` : null;
+  const where = station ? brandSuburb(name, station.b, station.s) : dq.data ? brandSuburb(name, dq.data.b, dq.data.s) : null;
   const why = station ? `No ${shortFuel(fuel)} here` : 'Not in today’s prices';
   return (
     <View style={[styles.outer, !last && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>

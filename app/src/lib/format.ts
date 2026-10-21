@@ -42,3 +42,24 @@ export function updatedText(age: number | null) {
   if (age === 1) return 'Updated 1 day ago';
   return `Updated ${age} days ago`;
 }
+
+/** Words kept in capitals when an ALL-CAPS station name is title-cased */
+const ACRONYMS = new Set(['BP', 'EG', 'APW', 'NRMA', 'NSW', 'LPG', 'RD', 'ST', 'MT', 'CVRO', 'IGA', 'U-GO']);
+
+/** A station's display name: no "(members only)" tag, single spaces, and ALL-CAPS names ("SHELL NORTH ROCKS") in
+ *  title case, keeping known acronyms (BP, EG, APW…). Names with any lower case are left as written. */
+export function stationName(n: string): string {
+  const name = n.replace(/\s*\(members only\)/i, '').replace(/\s+/g, ' ').trim();
+  if (/[a-z]/.test(name) || !/[A-Z]{4}/.test(name)) return name;
+  return name
+    .split(' ')
+    .map((w) => (ACRONYMS.has(w) ? w : w.toLowerCase().replace(/(^|[-'’(])([a-z])/g, (_, p: string, ch: string) => p + ch.toUpperCase())))
+    .join(' ');
+}
+
+/** "Brand · Suburb", without the brand when the station's name already contains it as whole words
+ *  ("Enhance Merrylands", "Shell Reddy Express Parklea"). */
+export function brandSuburb(name: string, brand: string, suburb: string): string {
+  const esc = brand.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return esc && new RegExp(`(^|\\W)${esc}(\\W|$)`, 'i').test(name) ? suburb : `${brand} · ${suburb}`;
+}

@@ -13,7 +13,7 @@ import { Badge, Card, Section, StaleBanner, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { isNotFound, isStationId, useForecast, useHistory, useStationDetail, useStations } from '@/lib/api';
-import { fmt, fuelName, nice, updatedText } from '@/lib/format';
+import { brandSuburb, fmt, fuelName, nice, stationName, updatedText } from '@/lib/format';
 import { km } from '@/lib/geo';
 import { dayLabel, toneOf } from '@/lib/outlook';
 import { MAX_PINS, togglePin, usePins } from '@/lib/pins';
@@ -25,7 +25,6 @@ import {
 import type { Fuel, Station } from '@/lib/types';
 
 const SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P98: 'P98', DL: 'Diesel' };
-const cleanName = (n: string) => n.replace(/\s*\(members only\)/i, '');
 
 export default function StationPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -60,7 +59,7 @@ export default function StationPage() {
 
   // Header facts: from the station file, or from today's stations.json while it loads (or if it fails)
   const head = d ?? row;
-  const name = head ? cleanName(head.n) : 'Station';
+  const name = head ? stationName(head.n) : 'Station';
   const dist = head && s.home ? km(s.home.la, s.home.lo, head.la, head.lo) : null;
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
@@ -104,7 +103,7 @@ export default function StationPage() {
             <View style={{ gap: 4 }}>
               <T kind="title" style={{ fontSize: 26 }}>{name}</T>
               <T kind="small" color={c.fg2}>
-                {[head.b, head.s, dist != null ? `${dist.toFixed(1)} km${s.home?.gps ? ' away' : ` from ${s.home!.label}`}` : null, head.m ? 'Members only' : null]
+                {[brandSuburb(name, head.b, head.s), dist != null ? `${dist.toFixed(1)} km${s.home?.gps ? ' away' : ` from ${s.home!.label}`}` : null, head.m ? 'Members only' : null]
                   .filter(Boolean).join(' · ')}
               </T>
               {d?.addr ? <T kind="small">{d.addr}</T> : null}
@@ -244,21 +243,19 @@ export default function StationPage() {
             {fc ? (
               <Section title="Forecast for this station">
                 <Card style={{ gap: Spacing.three }}>
-                  <View style={{ gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' }}>
                     <Badge tone={ADVICE_TONE[fc.adv[0]] ?? 'calm'}>{fc.adv[1]}</Badge>
-                    {fc.adv[2] ? <T color={c.fg2}>{fc.adv[2].replace(/\.$/, '')}.</T> : null}
+                    <T style={{ fontWeight: '700' }} color={c.fg}>{riseText(fc, d.asof, tone)}</T>
                   </View>
-                  <T style={{ fontWeight: '700' }} color={c.fg}>{riseText(fc, d.asof, tone)}</T>
                   <View style={styles.tiles}>
                     {forecastTiles(fc, d.asof).map((t) => (
                       <View key={t.h} style={[styles.tile, { backgroundColor: c.sunk }]}
-                        accessible accessibilityLabel={`${t.label}: about ${t.v.toFixed(1)} cents, likely ${t.lo.toFixed(0)} to ${t.hi.toFixed(0)}`}>
+                        accessible accessibilityLabel={`${t.label}: about ${t.v.toFixed(1)} cents, ${fmt(t.delta)} cents`}>
                         <T kind="eyebrow" style={{ fontSize: 10 }}>{t.label}</T>
                         <T kind="num">{t.v.toFixed(1)}</T>
                         <T kind="small" color={t.delta > 0.05 ? c.dear : t.delta < -0.05 ? c.cheap : c.muted} style={{ fontWeight: '600' }}>
                           {fmt(t.delta)}c
                         </T>
-                        <T kind="small" style={{ fontSize: 11 }}>{t.lo.toFixed(0)}–{t.hi.toFixed(0)}</T>
                       </View>
                     ))}
                   </View>
@@ -275,7 +272,7 @@ export default function StationPage() {
                 {(() => {
                   const lines = behaviour(d.profile, fuel);
                   if (!lines.length)
-                    return <T color={c.fg2}>Not enough price history here yet to say how this station usually behaves.</T>;
+                    return <T color={c.fg2}>Not enough history yet.</T>;
                   return (
                     <>
                       {lines.map((l) => (
@@ -284,9 +281,6 @@ export default function StationPage() {
                           <T color={c.fg2} style={{ flex: 1 }}>{l}</T>
                         </View>
                       ))}
-                      {d.profile && d.profile.n >= 3 ? (
-                        <T kind="small">Based on {d.profile.n} Sydney price jumps and the last 12 months of prices.</T>
-                      ) : null}
                     </>
                   );
                 })()}

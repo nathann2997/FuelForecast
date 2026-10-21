@@ -118,9 +118,9 @@ describe('resolveOrigin', () => {
   it('captions a live fix "near you"', () => {
     const snap = SNAP;
     const prefs = { fuel: 'U91' as const, home: { label: LIVE_LABEL, ...BONDI, gps: true }, radiusKm: 5, members: true };
-    expect(buildModel(snap, prefs, [], F.asof, 10, 'nearest').caption).toBe('Nearest to you');
-    expect(buildModel(snap, prefs, [], F.asof, 10, 'cheapest').caption).toBe('Cheapest near you');
-    expect(buildModel(snap, { ...prefs, home: { label: 'Parramatta 2150', ...PARRA } }, [], F.asof, 10, 'cheapest').caption).toBe('Cheapest near Parramatta 2150');
+    expect(buildModel(snap, prefs, [], F.asof, 10, 'nearest').caption).toBe('Near you');
+    expect(buildModel(snap, prefs, [], F.asof, 10, 'cheapest').caption).toBe('Near you');
+    expect(buildModel(snap, { ...prefs, home: { label: 'Parramatta 2150', ...PARRA } }, [], F.asof, 10, 'cheapest').caption).toBe('Near Parramatta 2150');
   });
 });
 
@@ -133,7 +133,7 @@ describe('widget handler location', () => {
     expect(JSON.parse(mockStore.get(FIX_KEY)!)).toMatchObject(BONDI);
     const nodes = drawn(render.mock.calls[0][0]);
     expect(rowIds(nodes)).toEqual(['b1', 'b2']);
-    expect(texts(nodes)).toContain('Nearest to you');
+    expect(texts(nodes)).toContain('Near you');
     expect(hasLocate(nodes)).toBe(true);
   });
 
@@ -195,7 +195,7 @@ describe('widget handler location', () => {
     const nodes = drawn(render.mock.calls[0][0]);
     expect(mockLoc.calls.last + mockLoc.calls.current).toBe(0);
     expect(rowIds(nodes)).toEqual(['p1', 'p2']);
-    expect(texts(nodes)).toContain('Nearest to Parramatta 2150');
+    expect(texts(nodes)).toContain('Near Parramatta 2150');
     expect(hasLocate(nodes)).toBe(false);
     expect(mockStore.has(FIX_KEY)).toBe(false);   // N1: deleted for a typed suburb too
   });

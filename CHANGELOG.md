@@ -2,6 +2,47 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Less text: a UX pass on the app and widget
+
+### Changed
+- **Rule for the pass:** one message per screen, a reason only where it helps, everything else behind a tap.
+- **Today:**
+  - The hero detail is one short line (`lib/outlook.ts`).
+  - "Your stations" only shows once you've pinned something.
+  - Dropped the station-dates note and the 80% band sentence.
+  - The footer is now "Updated each morning. Estimates, not financial advice."
+- **Stations:**
+  - Removed the "likely to rise" banner, which repeated Today and the row chips, and the explanatory note line.
+  - The count line now carries the radius and sort ("40 stations  within 5 km, cheapest first").
+  - "About ‘Fill by’ dates" is one sentence.
+- **Station rows, the station page and the widget:**
+  - ALL-CAPS names are title-cased, keeping acronyms such as BP, EG and APW (`stationName` in `lib/format.ts`). Double spaces are collapsed.
+  - The brand is dropped from "Brand · Suburb" when the name already contains it (`brandSuburb`).
+- **Station page:**
+  - The forecast card shows the advice chip and the rise line once, instead of three times.
+  - Removed the range row under the tiles and the "Based on N jumps" footnote.
+- **Trends:**
+  - Insight cards are one line each.
+  - The brand list shows 6 brands, with "Show all".
+  - Shorter chart and history notes.
+- **More:**
+  - Removed the subtitle; "Tank size" is now a plain label.
+  - The accuracy paragraph is three stat tiles (average 7-day error, right direction, error guessing no change).
+  - Data freshness and sources are folded into "Data sources". Warnings still show outside it.
+- **Widget:**
+  - The caption is "Near <area>". It no longer repeats Cheapest or Nearest, which the mode row shows.
+  - Pinned has no caption, and its rows get that room back (`mediumLayout(height, rows, hasCaption)`).
+
+### QA audit, fixes applied
+- Kept the rise date in the calm "higher in two weeks" line.
+- An "act" verdict with a small 2-week move no longer repeats the deadline.
+- "Day of week" says what is under 1c.
+- The accuracy tiles drop "±", because it's a mean absolute error.
+- Acronym allowlist instead of "keep words of 3 letters or fewer in capitals" (fixes "BP FOX Hills" and "Jack & CO"). Capitalisation after "(", "-" and "'".
+- Forecast tile screen-reader labels match what's shown.
+- The Costco members-only note is back on Trends.
+- The calm-period qualifier is back on the cycle card.
+
 ## 2026-10-21 — More tab without the dashboard link; faster widget taps
 
 ### Removed

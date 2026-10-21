@@ -56,7 +56,7 @@ export function jumpRisk(r: LiveRow): { pct: number; label: string; cls: Verdict
 export const ADVICE_CLS: Record<AdviceCode, VerdictCls> = { now: 'up', by: 'up', hi: 'down', wait: 'down', any: 'flat', ok: 'flat', chk: 'flat' };
 
 export const WHEN_NOTE =
-  "When to fill combines the model's Sydney forecast for this fuel (the day the chance of a 5c+ jump passes 25%, or the expected path is 5c higher) with how each station has behaved since 2024: its usual price vs the median, how quickly it follows price-jump waves, and whether it cycles at all.";
+  'Each date is the Sydney forecast adjusted for the station: how fast it usually follows a price jump, and whether it follows them at all.';
 
 /** Stats/ctx values can be null if a pipeline input is missing; render a dash instead of crashing */
 const n = (v: number | null | undefined, d = 0) => (v == null || !Number.isFinite(v) ? '–' : v.toFixed(d));
@@ -68,18 +68,17 @@ export function insights(f: Forecast): { title: string; big: string; body: strin
   const dow = ST.dow.map((v) => v ?? 0);
   const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const lo = dow.indexOf(Math.min(...dow)), hi = dow.indexOf(Math.max(...dow));
-  const ly = ST.cycles_by_year[ST.cycles_by_year.length - 1] ?? { year: '–', n: '–', amp: null };
   const gap = ST.cycle_gap_calm;
   return [
-    { title: 'The Sydney cycle', big: gap != null ? `${Math.round(gap / 7)} weeks` : '–', body: `In normal times Sydney unleaded jumps about ${n(ST.cycle_amp_calm)}c every ${n(gap)} days, then slides back a cent or so a day. ${ly.year} so far: ${ly.n} jumps, typically ${n(ly.amp)}c.` },
-    { title: 'Where we are now', big: sinceJump != null ? `${sinceJump} days` : 'n/a', body: `since the last price jump on ${ST.last_restore ? nice(ST.last_restore) : 'record'}. ${sinceJump != null && gap != null && sinceJump > gap ? 'That is longer than a normal cycle, though a data gap means a jump in September may be missing.' : 'Prices usually keep sliding until the next jump.'}` },
-    { title: 'Margin today', big: `${n(ST.margin_now, 1)}c`, body: `U91 is selling ${n(ST.margin_now, 1)}c above wholesale. The 2019 to 2025 typical margin was ${n(ST.margin_typ)}c. When margins get this thin, the next jump is usually close.` },
-    { title: 'Day of week', big: 'under 1c', body: `${names[lo]} averaged ${Math.abs(dow[lo]).toFixed(1)}c below its weekly average and ${names[hi]} was dearest, in normal periods since 2019. The cycle matters far more than the weekday.` },
-    { title: 'Shop around', big: `${n(ST.shop_around)}c`, body: `The cheapest 10% of Sydney stations sit about ${n(ST.shop_around)}c below the median on an average day since 2023. That is about $${n(ST.shop_around == null ? null : ST.shop_around * 0.5)} on a 50L tank.` },
-    { title: 'Diesel premium', big: `${n(ST.dl_gap_now)}c`, body: `Diesel costs ${n(ST.dl_gap_now)}c more than U91 today, against ${n(ST.dl_gap_2019_25)}c on average from 2019 to 2025.` },
-    { title: 'E10 and Premium', big: `${n(ST.e10_disc)}c / ${n(ST.p98_prem)}c`, body: `Since 2023, E10 has averaged ${n(ST.e10_disc, 1)}c a litre below U91 in Sydney and Premium 98 ${n(ST.p98_prem)}c above.` },
-    { title: 'Since 2019', big: `${n(ST.low_2019)}c → ${n(ST.high_all)}c`, body: `Sydney's U91 median has ranged from ${n(ST.low_2019, 1)}c (2020 COVID low) to ${n(ST.high_all, 1)}c on ${day(ST.high_date)}.` },
-    { title: 'Oil today', big: `US$${n(CTX.brent_usd)}`, body: `Brent crude is US$${n(CTX.brent_usd, 1)} a barrel, about A$${n(CTX.brent_aud)} at ${n(CTX.audusd, 3)} US cents per Australian dollar (as at ${day(CTX.fred_last)}).` },
+    { title: 'The Sydney cycle', big: gap != null ? `${Math.round(gap / 7)} weeks` : '–', body: `Normally prices jump about ${n(ST.cycle_amp_calm)}c every ${n(gap)} days, then slide back slowly.` },
+    { title: 'Where we are now', big: sinceJump != null ? `${sinceJump} days` : 'n/a', body: `since the last jump${ST.last_restore ? ` on ${nice(ST.last_restore)}` : ''}.${sinceJump != null && gap != null && sinceJump > gap ? ' Longer than a normal cycle.' : ''}` },
+    { title: 'Margin today', big: `${n(ST.margin_now, 1)}c`, body: `U91 over wholesale, against a typical ${n(ST.margin_typ)}c. Thin margins usually end in a jump.` },
+    { title: 'Day of week', big: 'under 1c', body: `${names[lo]} is cheapest and ${names[hi]} dearest, but the gap is under 1c. The cycle matters far more.` },
+    { title: 'Shop around', big: `${n(ST.shop_around)}c`, body: 'How much less the cheapest 10% of stations charge than the median, on a typical day.' },
+    { title: 'Diesel premium', big: `${n(ST.dl_gap_now)}c`, body: `Over U91 today, against ${n(ST.dl_gap_2019_25)}c on average from 2019 to 2025.` },
+    { title: 'E10 and Premium', big: `${n(ST.e10_disc)}c / ${n(ST.p98_prem)}c`, body: `E10 below U91, Premium 98 above, on average since 2023.` },
+    { title: 'Since 2019', big: `${n(ST.low_2019)}c → ${n(ST.high_all)}c`, body: `Sydney U91 median, from the 2020 low to the high on ${day(ST.high_date)}.` },
+    { title: 'Oil today', big: `US$${n(CTX.brent_usd)}`, body: `Brent crude a barrel, about A$${n(CTX.brent_aud)} (${day(CTX.fred_last)}).` },
   ];
 }
 
@@ -106,8 +105,8 @@ export function historyNote(ctx: Ctx) {
   if (!ctx.history_last) return '';
   const gapDays = daysBetween(ctx.history_last, ctx.asof) - (ctx.snapshot_days ?? 0);
   return gapDays > 3
-    ? `Why the gap: the live NSW feed only gives today's prices, so daily history comes from NSW's monthly files, published about a month late (latest: ${nice(ctx.history_last)}). A point is added each morning from today, and the gap fills automatically when NSW publishes each new month.`
-    : `History to ${nice(ctx.history_last)} from NSW monthly files, then daily live snapshots.`;
+    ? `Gaps fill in when NSW publishes each month's history, about a month late (latest: ${nice(ctx.history_last)}).`
+    : '';
 }
 
 /** meta.warnings from the daily export, in plain English. Anything not recognised is technical and is hidden. */

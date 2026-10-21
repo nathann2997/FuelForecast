@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { chartData, yBounds } from '../chart';
 import { backtestRows, horizons, insights, jumpRisk, signalWhy } from '../copy';
-import { addDays, daysBetween, fmt, nice, sydneyToday, updatedText } from '../format';
+import { addDays, brandSuburb, daysBetween, fmt, nice, stationName, sydneyToday, updatedText } from '../format';
 import { findSuburb, km, rankStations } from '../geo';
 import { dayLabel, outlook, path, riseDay, tankSaving } from '../outlook';
 import type { Forecast, History, Station, Suburb } from '../types';
@@ -157,8 +157,30 @@ describe('outlook (build.py market() parity)', () => {
     expect(mix.deadline).toBeNull();
     expect(mix.riseDate).not.toBeNull();
     expect(mix.detail).toContain('Waiting saves');
-    expect(mix.detail).toContain('some chance of a jump');
+    expect(mix.detail).toContain('Some chance of a jump');
     expect(dayLabel('2026-11-04')).toBe('Wed 4 Nov');
     expect(tankSaving(10, 50)).toBe(5);
+  });
+});
+
+describe('station names', () => {
+  it('title-cases ALL-CAPS names, keeping short words and leaving mixed case alone', () => {
+    expect(stationName('SHELL NORTH ROCKS')).toBe('Shell North Rocks');
+    expect(stationName('BP MAYS HILL')).toBe('BP Mays Hill');
+    expect(stationName('7-ELEVEN GRANVILLE')).toBe('7-Eleven Granville');
+    expect(stationName('Costco Casula (members only)')).toBe('Costco Casula');
+    expect(stationName('APW')).toBe('APW');
+    expect(stationName('Metro Fuel Greystanes')).toBe('Metro Fuel Greystanes');
+    expect(stationName('BP FOX HILLS')).toBe('BP Fox Hills');
+    expect(stationName('APEX PETROLEUM (WEST RYDE)')).toBe('Apex Petroleum (West Ryde)');
+    expect(stationName('JACK & CO NORTHWOOD')).toBe('Jack & Co Northwood');
+    expect(stationName("O'CONNELL FUEL")).toBe("O'Connell Fuel");
+    expect(stationName('Shell Reddy  Express Parklea')).toBe('Shell Reddy Express Parklea');
+  });
+  it('drops the brand when the name already starts with it', () => {
+    expect(brandSuburb('Enhance Merrylands', 'Enhance', 'Merrylands West')).toBe('Merrylands West');
+    expect(brandSuburb('Metro Toongabbie', 'Metro Fuel', 'Old Toongabbie')).toBe('Metro Fuel · Old Toongabbie');
+    expect(brandSuburb('Shell Reddy Express Parklea', 'Reddy Express', 'Parklea')).toBe('Parklea');
+    expect(brandSuburb('Bpx Station', 'BP', 'Ryde')).toBe('BP · Ryde');
   });
 });
