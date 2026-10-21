@@ -2,6 +2,32 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Widget: forecast price and "should I fuel up" (OTA to 0.3.0)
+
+### Added
+- **Two-line station rows** in the medium widget.
+  - Left: the name, then the station's own advice in its tone colour ("Fill now", "Fill by Fri", "Wait"…). In Nearest mode the distance follows the advice.
+  - Right: today's price, then the 7-day forecast "→ 237.4", which uses `stations.json` index 5. It's dear-coloured if 0.5c or more higher, cheap-coloured if 0.5c or more lower.
+  - With no forecast (an old cache, or a day the station files failed), the right side shows the mode's note or nothing.
+  - Compact widgets (under 166 dp) use one-line rows: the name, the advice with its width capped, and the price.
+- **Header forecast:** the verdict and rise line stay, and a new line shows Sydney "237.9 now → 240.4 in 7 days" for the widget's fuel. It uses the longest form that fits. On the small widget the rise line shortens to "Rise from Sat" when needed.
+- **Cache:** the key moved to `widget.cache.v2`, which carries the advice code and label plus the forecast. It reads `v1` as a fallback, so the first offline render after the update still shows data.
+
+### Layout budgets (re-measured from the styles; all widget text has fixed size)
+- Medium: compact 80, regular 122, caption +18.
+- Row height: 44 dp for two-line rows, 28 dp for one-line rows.
+- Medium is compact below 166 dp.
+- Small: compact below 150 dp (measures 107), regular measures 144.
+- The list is still never drawn smaller than one row; the plain-row fallback stays.
+
+### QA audit: no blockers; 2 should-fix and 4 nice-to-have items fixed
+- Old-cache fallback; no distance in compact rows; advice is no longer repeated; taller two-line rows; short rise wording; a clearer comment. 281 tests in total.
+
+### Device checks
+- Compact row alignment.
+- Two-line rows on OEM fonts.
+- The "→" glyph and colours in light and dark.
+
 ## 2026-10-21 — API: 7-day station forecast in stations.json
 
 - `stations.json` fuel tuples gain index 5: the station's 7-day forecast price, `round(fc.now + fc.d7, 1)`, taken from the same forecast as `station/{id}.json`. It's for the widget, which can't fetch per-station files.

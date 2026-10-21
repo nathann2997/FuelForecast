@@ -1,5 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 
+import {
+  LIST_ROW_H, MED, MEDIUM_FIXED, MEDIUM_COMPACT_BELOW, ROW, compactHeadline, compactRowWidths, riseShort, smallRiseLine, fcTone, firstFit, lineH, mediumForecastLine, shortAdvice,
+  smallCompact, smallForecastLine, smallHeight, sydneyForecast,
+} from '../../widget/logic';
+
 import type { Place } from '../geo';
 import type { Forecast, Station, Stations } from '../types';
 import {
@@ -107,9 +112,10 @@ describe('widget station rows', () => {
     expect(r.mode).toBe('none-nearby');
     expect(r.message).toBe('No fresh P98 prices within 5 km');
   });
-  it('uses the advice label when there is no median for the fuel', () => {
+  it('leaves the note blank with no median and no forecast (the advice is already on the left), but keeps a stale age', () => {
     const s = snap({ forecast: null });
-    expect(chooseRows(s, prefs(), ['1']).rows[0]).toMatchObject({ note: 'Fill by Fri', noteTone: 'act' });
+    expect(chooseRows(s, prefs(), ['1']).rows[0]).toMatchObject({ note: '', fc: null, advice: 'Fill by Fri' });
+    expect(chooseRows(s, prefs(), ['2']).rows[0]).toMatchObject({ note: '12 days old' });
   });
   it('encodes station ids in deep links', () => {
     expect(stationUri('12/3')).toBe('fuelforecast://station/12%2F3');
@@ -120,7 +126,7 @@ describe('widget cache', () => {
   it('drops the long reason text and stations without an id', () => {
     const c = compactStations({ ...STATIONS, stations: [...STATIONS.stations, { ...st('x', 'No id', 230, 0), id: '' }] });
     expect(c.stations).toHaveLength(STATIONS.stations.length);
-    expect(c.stations[0].p.U91).toEqual([229.9, 0, 'by', 'Fill by Fri']);
+    expect(c.stations[0].p.U91).toEqual([229.9, 0, 'by', 'Fill by Fri', null]);   // no forecast in this file
   });
   it('is fresh when both files are today\'s, or when fetched in the last 30 minutes', () => {
     const now = 1_000_000_000;
@@ -133,14 +139,16 @@ describe('widget cache', () => {
   });
   it('compacts the medium header on a short widget', () => {
     // the list scrolls and fills whatever is left; only the header changes with height
-    expect(mediumLayout(110, 3)).toEqual({ compact: true, caption: false, listH: 30 });   // 110 - 80
-    expect(mediumLayout(150, 10)).toEqual({ compact: false, caption: false, listH: 38 });   // 150 - 112
-    expect(mediumLayout(180, 10)).toEqual({ compact: false, caption: false, listH: 68 });
-    expect(mediumLayout(220, 10)).toEqual({ compact: false, caption: true, listH: 90 });   // 220 - 112 - 18
+    expect(mediumLayout(110, 3)).toEqual({ compact: true, caption: false, rowH: 28, listH: 30 });    // 110 - 80, one-line rows
+    expect(mediumLayout(150, 10)).toEqual({ compact: true, caption: false, rowH: 28, listH: 70 });   // compact below 164: 150 - 80
+    expect(mediumLayout(165, 10).compact).toBe(true);                                                // below 166
+    expect(mediumLayout(166, 10)).toEqual({ compact: false, caption: false, rowH: 44, listH: 44 });  // 166 - 122: one two-line row
+    expect(mediumLayout(180, 10)).toEqual({ compact: false, caption: false, rowH: 44, listH: 58 });
+    expect(mediumLayout(220, 10)).toEqual({ compact: false, caption: true, rowH: 44, listH: 80 });   // 220 - 122 - 18
     // only as tall as the rows, so taps below a short list reach "open Today"
-    expect(mediumLayout(400, 2).listH).toBe(56);
-    expect(mediumLayout(400, 0).listH).toBe(28);
-    // never a list under 28 dp, nor for an unknown (0) or nonsense height
+    expect(mediumLayout(400, 2).listH).toBe(88);
+    expect(mediumLayout(400, 0).listH).toBe(44);
+    // never a list under one row of its layout, nor for an unknown (0) or nonsense height
     for (const h of [0, 60, 80, 105, NaN, -5]) expect(mediumLayout(h, 3).listH).toBeNull();
   });
 });
@@ -221,7 +229,9 @@ describe('medium widget list modes', () => {
     expect(r.mode).toBe('nearest');
     expect(r.caption).toBe('Nearest to Parramatta 2150');
     expect(r.rows.map((x) => x.id)).toEqual(['a', 'b', 'c']);
-    expect(r.rows[0]).toMatchObject({ note: '1.1 km', noteTone: 'flat', price: '239.9', uri: 'fuelforecast://station/a' });
+    // the distance follows the advice; without a forecast the right-hand note is the gap (not the distance again)
+    expect(r.rows[0]).toMatchObject({ advice: 'Fill by Fri', dist: '1.1 km', adviceTone: 'act', note: '+2.0c', fc: null, price: '239.9', uri: 'fuelforecast://station/a' });
+    expect(chooseRows(s, prefs(), [], 3, 'cheapest').rows[0].dist).toBeNull();
     expect(chooseRows(s, prefs({ radiusKm: 2 }), [], 3, 'nearest').rows.map((x) => x.id)).toEqual(['a']);
   });
   it('Cheapest: fresh stations in the radius, cheapest first, gap to the median as the note', () => {
@@ -289,5 +299,116 @@ describe('widget list length and fuel chip', () => {
     expect(resolveMode(null, snap(), prefs({ fuel: 'U91' }), ['1'])).toBe('pinned');
     expect(resolveMode(null, snap(), prefs({ fuel: 'DL' }), ['1'])).toBe('cheapest');
     expect(resolveMode(null, snap(), prefs({ fuel: 'DL' }), ['7'])).toBe('pinned');
+  });
+});
+
+describe('widget forecasts and advice', () => {
+  // stations.json index 5: the station's 7-day forecast price
+  const withFc = (id: string, price: number, fc: unknown, label = 'Fill by Fri 23 Oct', code = 'by'): Station =>
+    ({ ...st(id, id, price, 0), p: { U91: [price, 0, code, label, 'reason', fc] as never } });
+  const S: Stations = {
+    schema: 1, asof: TODAY, suburbs: [],
+    stations: [withFc('up', 230, 232.4), withFc('down', 231, 229.0, 'Wait', 'wait'), withFc('flat', 232, 232.3, 'No rush', 'any'), withFc('none', 233, undefined, 'Any time', 'ok'), withFc('bad', 234, 'x', 'Check price', 'chk')],
+  };
+  const s = snap({ stations: compactStations(S) });
+  const rows = Object.fromEntries(chooseRows(s, prefs(), [], 10, 'cheapest').rows.map((r) => [r.id, r]));
+
+  it('shortens "Fill by <day> <date>" and leaves other labels alone', () => {
+    expect(shortAdvice('Fill by Fri 23 Oct')).toBe('Fill by Fri');
+    expect(shortAdvice('Fill by Sat 1 Nov')).toBe('Fill by Sat');
+    for (const l of ['Fill now', 'Wait', 'No rush', 'Any time', 'Check price', 'Fill by Fri']) expect(shortAdvice(l)).toBe(l);
+  });
+  it('colours the forecast: dear up 0.5c+, cheap down 0.5c+, muted otherwise', () => {
+    expect(fcTone(230, 230.5)).toBe('dear');
+    expect(fcTone(230, 229.5)).toBe('cheap');
+    expect(fcTone(230, 230.4)).toBe('flat');
+    expect(fcTone(230, 229.6)).toBe('flat');
+    expect(rows.up).toMatchObject({ fc: '→ 232.4', fcTone: 'dear', advice: 'Fill by Fri', adviceTone: 'act' });
+    expect(rows.down).toMatchObject({ fc: '→ 229.0', fcTone: 'cheap', advice: 'Wait', adviceTone: 'wait' });
+    expect(rows.flat).toMatchObject({ fc: '→ 232.3', fcTone: 'flat', adviceTone: 'calm' });
+  });
+  it('falls back to the mode\'s note when the forecast is missing or not a number (old data, fail-soft days)', () => {
+    expect(rows.none).toMatchObject({ fc: null, note: '−4.9c', noteTone: 'cheap' });
+    expect(rows.bad).toMatchObject({ fc: null, advice: 'Check price' });
+    expect(compactStations(S).stations.map((x) => x.p.U91![4])).toEqual([232.4, 229.0, 232.3, null, null]);
+  });
+  it('keeps the age, not the forecast, for a stale pinned price', () => {
+    const old = snap({ stations: compactStations({ ...S, stations: [{ ...withFc('old', 230, 235), p: { U91: [230, 12, 'by', 'Fill by Fri 23 Oct', 'r', 235] as never } }] }) });
+    expect(chooseRows(old, prefs(), ['old'], 10, 'pinned').rows[0]).toMatchObject({ fc: null, note: '12 days old' });
+  });
+  it('gives the Sydney forecast for the widget\'s fuel: now -> now + d7', () => {
+    expect(sydneyForecast(U91)).toEqual({ long: '237.9 now → 240.4 in 7 days', mid: '237.9 → 240.4 in 7 days', short: '237.9 → 240.4', tone: 'dear' });
+    expect(buildModel(snap(), prefs({ fuel: 'DL' }), [], TODAY).sydney?.short).toMatch(/^278\.9 → /);
+    expect(buildModel(null, prefs(), [], TODAY).sydney).toBeNull();
+  });
+  it('fits the forecast into the headers, or drops it', () => {
+    const m = buildModel(snap(), prefs(), [], TODAY);
+    expect(firstFit(['a very long candidate', 'short'], 30, 10)).toBe('short');
+    expect(firstFit(['too long', 'still too long'], 1, 10)).toBe('still too long');
+    expect(compactHeadline(m, 400)).toBe('Fill up today · 237.9 → 240.4');
+    expect(compactHeadline(m, 250)).toBe('Fill up today');          // the 4x2 minimum: no room
+    expect(compactHeadline({ ...m, asOf: 'as of 20 Oct' }, 380)).toBe('Fill up today · as of 20 Oct');
+    expect(mediumForecastLine(m, 400)).toBe('237.9 now → 240.4 in 7 days');
+    expect(mediumForecastLine(m, 300)).toBe('237.9 → 240.4 in 7 days');
+    expect(mediumForecastLine(m, 250)).toBe('237.9 → 240.4');
+    expect(smallForecastLine(m, 260, false)).toBe('237.9 now → 240.4 in 7 days');
+    expect(smallForecastLine(m, 200, false)).toBe('237.9 → 240.4 in 7 days');
+    expect(smallForecastLine(m, 150, false)).toBe('237.9 → 240.4');
+    expect(smallForecastLine(m, 110, true)).toBe('237.9 → 240.4');
+    expect(smallForecastLine({ ...m, asOf: 'as of 20 Oct' }, 110, true)).toBe('as of 20 Oct');
+    expect(smallForecastLine({ ...m, sydney: null }, 110, true)).toBeNull();
+  });
+});
+
+describe('widget compact rows, short rise line', () => {
+  it('caps the advice so the name keeps the larger share at 250 dp', () => {
+    for (const advice of ['Wait', 'Fill now', 'Fill by Wed', 'Check price', 'A much longer advice label than any we use']) {
+      const { adviceW, nameW } = compactRowWidths(250, advice);
+      expect(nameW).toBeGreaterThan(adviceW);
+      expect(nameW).toBeGreaterThanOrEqual(90);   // ~11 characters of a 13 sp name
+    }
+    expect(compactRowWidths(250, 'Wait').adviceW).toBeLessThan(compactRowWidths(250, 'Fill by Wed').adviceW);   // short advice isn't padded
+    expect(compactRowWidths(0, 'Wait')).toEqual({ adviceW: 0, nameW: 0 });
+  });
+  it('shortens the rise line for the compact small widget', () => {
+    const P98 = F.live.find((r) => r.fuel === 'P98')!;
+    expect(riseShort(U91, F.asof, TODAY)).toBe('Rise from Sat');
+    expect(riseShort(U91, F.asof, '2026-10-23')).toBe('Rise from tomorrow');
+    expect(riseShort(U91, F.asof, '2026-10-25')).toBe('Rising now');
+    expect(riseShort({ ...P98, p_jump7: 0.6 }, F.asof, TODAY)).toMatch(/^Jump possible [A-Z][a-z]{2}$/);
+    expect(riseShort({ ...P98, p_jump7: 0.01, d1: 0, d3: -1, d7: -2, d14: -3 }, F.asof, TODAY)).toBe('No rise in 14 days');
+    const m = buildModel(snap(), prefs(), [], TODAY);
+    expect(smallRiseLine(m, 110, true)).toBe('Rise from Sat');
+    expect(smallRiseLine(m, 400, false)).toBe('Likely to rise from Sat 24 Oct');
+    expect(smallRiseLine({ rise: null, riseShort: null }, 110, true)).toBeNull();
+  });
+});
+
+describe('widget layout budgets (from the styles widgets.tsx uses)', () => {
+  it('medium fixed blocks cover the measured heights', () => {
+    const compact = 2 * MED.pad + 2 * MED.padVCompact + Math.max(MED.markCompact, lineH(MED.headCompact), MED.chipCompact) + MED.modeGap + MED.modesCompact + MED.listGap;
+    const regular = 2 * MED.pad + 2 * MED.padV + Math.max(MED.mark, lineH(MED.head) + 2 * lineH(MED.sub), MED.chip + lineH(MED.asOf)) + MED.modeGap + MED.modes + MED.listGap;
+    expect(compact).toBe(78);
+    expect(regular).toBe(118);
+    expect(MEDIUM_FIXED.compact).toBeGreaterThanOrEqual(compact);
+    expect(MEDIUM_FIXED.regular).toBeGreaterThanOrEqual(regular);
+    expect(MEDIUM_FIXED.caption).toBeGreaterThanOrEqual(MED.captionGap + lineH(MED.caption));
+  });
+  it('rows are as tall as their lines', () => {
+    const two = 2 * ROW.padV + Math.max(lineH(ROW.name) + lineH(ROW.sub), lineH(ROW.price) + lineH(ROW.sub));
+    const one = 2 * ROW.padV + Math.max(lineH(ROW.name), lineH(ROW.sub), lineH(ROW.price));
+    expect(LIST_ROW_H.two).toBeGreaterThanOrEqual(two);
+    expect(LIST_ROW_H.one).toBeGreaterThanOrEqual(one);
+    expect(MEDIUM_COMPACT_BELOW).toBe(MEDIUM_FIXED.regular + LIST_ROW_H.two);
+  });
+  it('the 4x2 minimum fits the compact header, mode row and one row', () => {
+    expect(MEDIUM_FIXED.compact + LIST_ROW_H.one).toBeLessThanOrEqual(110);
+  });
+  it('the small widget fits at 110 x 110 and at 150 x 150', () => {
+    expect(smallCompact(110, 110)).toBe(true);
+    expect(smallCompact(200, 140)).toBe(true);
+    expect(smallCompact(150, 150)).toBe(false);
+    expect(smallHeight(true)).toBeLessThanOrEqual(110);
+    expect(smallHeight(false)).toBeLessThanOrEqual(150);
   });
 });
