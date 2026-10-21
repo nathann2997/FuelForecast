@@ -4,6 +4,7 @@ import { chartData, yBounds } from '../chart';
 import { backtestRows, horizons, insights, jumpRisk, signalWhy } from '../copy';
 import { addDays, daysBetween, fmt, nice, sydneyToday, updatedText } from '../format';
 import { findSuburb, km, rankStations } from '../geo';
+import { dayLabel, outlook, path, riseDay, tankSaving } from '../outlook';
 import type { Forecast, History, Station, Suburb } from '../types';
 import fixture from './forecast.fixture.json';
 
@@ -50,7 +51,7 @@ describe('geo', () => {
   });
 
   const st = (n: string, la: number, price: number | null, m: 0 | 1 = 0): Station => ({
-    n, b: 'X', s: 'S', pc: 2000, la, lo: 151, m,
+    id: n, n, b: 'X', s: 'S', pc: 2000, la, lo: 151, m,
     p: price == null ? {} : { U91: [price, 1, 'ok', 'No rush', ''] },
   });
   const stations = [st('far-cheap', -34.0, 200), st('near-dear', -33.87, 230), st('near-mid', -33.88, 220), st('members', -33.87, 199, 1), st('no-u91', -33.87, null)];
@@ -122,5 +123,42 @@ describe('chart', () => {
     const b = yBounds(d);
     expect(b.min % 10).toBe(0);
     expect(b.max).toBeGreaterThanOrEqual(U91.now + U91.hi14);
+  });
+});
+
+describe('outlook (build.py market() parity)', () => {
+  const row = (over: Partial<typeof U91>) => ({ ...U91, ...over });
+  it('interpolates the 14-day path through the model horizons', () => {
+    const p = path(row({ d1: 1, d3: 3, d7: 7, d14: 14 }));
+    expect(p).toHaveLength(15);
+    expect(p[0]).toBe(0);
+    expect(p[2]).toBeCloseTo(2);
+    expect(p[10]).toBeCloseTo(10);
+    expect(p[14]).toBeCloseTo(14);
+  });
+  it('finds the rise day from the jump hazard or the 5c path, whichever comes first', () => {
+    // p_jump7 0.6: daily hazard 12.3%, cumulative risk passes 25% on day 3 (as build.py on 21 Oct 2026)
+    expect(riseDay(row({ p_jump7: 0.6, d1: 0, d3: 0, d7: 2.5, d14: 13 }))).toBe(3);
+    // low jump risk, path reaches +5c on day 9
+    expect(riseDay(row({ p_jump7: 0.01, d1: 0, d3: 0, d7: 3, d14: 10 }))).toBe(9);
+    expect(riseDay(row({ p_jump7: 0.01, d1: 0, d3: -1, d7: -2, d14: -3 }))).toBeNull();
+  });
+  it('writes the headline pieces and the tank saving', () => {
+    const o = outlook(row({ p_jump7: 0.6, d1: -0.3, d3: -0.1, d7: 2.5, d14: 13.3, verdict: { cls: 'up', head: 'Fill up today' } }), '2026-10-21', 50);
+    expect(o.tone).toBe('act');
+    expect(o.deadline).toBe('Prices likely to rise from Sat 24 Oct');
+    expect(o.detail).toContain('$6.65 on a 50 L tank');
+    const w = outlook(row({ p_jump7: 0.01, d1: -0.5, d3: -1, d7: -3, d14: -4, verdict: { cls: 'down', head: 'Wait if you can' } }), '2026-10-21', 60);
+    expect(w.tone).toBe('wait');
+    expect(w.deadline).toBeNull();
+    expect(w.detail).toContain('Waiting saves');
+    // jump risk without an "up" verdict: no firm deadline, a softer risk line instead
+    const mix = outlook(row({ p_jump7: 0.2, d1: -0.5, d3: -1.6, d7: -3.5, d14: -4, verdict: { cls: 'down', head: 'Wait if you can' } }), '2026-10-21', 50);
+    expect(mix.deadline).toBeNull();
+    expect(mix.riseDate).not.toBeNull();
+    expect(mix.detail).toContain('Waiting saves');
+    expect(mix.detail).toContain('some chance of a jump');
+    expect(dayLabel('2026-11-04')).toBe('Wed 4 Nov');
+    expect(tankSaving(10, 50)).toBe(5);
   });
 });

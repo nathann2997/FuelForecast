@@ -2,6 +2,7 @@
 #   code   <- main (sydney/pipeline)
 #   state  <- `data` branch (store/ + archive/), seeded from main's sydney/store and sydney/archive on first run
 #   output -> GitHub Pages: /api/v1/{meta,forecast,stations,history}.json and the dashboard at /
+#             + /api/v1/station/{id}.json, one per station (station_api.py; omitted with a meta warning if it fails)
 name: daily-forecast
 
 on:

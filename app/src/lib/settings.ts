@@ -1,23 +1,50 @@
-// Small persisted settings shared across tabs (the dashboard's fuel picker applies to every section).
+// Small persisted settings shared across tabs (the fuel applies to every screen; the filters to the Stations tab).
 import Storage from './storage';
 import { useSyncExternalStore } from 'react';
 
+import { ADVICE_GROUPS, FILTER_DEFAULTS, RADII, type FilterSettings } from './filters';
+import type { Place } from './geo';
 import type { Fuel } from './types';
 
-export type Settings = {
+export type Settings = FilterSettings & {
   fuel: Fuel;
-  radiusKm: number;
-  members: boolean;
-  sort: 'price' | 'distance';
+  tankL: number;             // for "$ saved on a tank"
+  home: Place | null;        // remembered area (GPS fix or suburb), stays on the phone
 };
 
 const KEY = 'settings.v1';
-const DEFAULTS: Settings = { fuel: 'U91', radiusKm: 5, members: true, sort: 'price' };
+export const DEFAULTS: Settings = { ...FILTER_DEFAULTS, fuel: 'U91', tankL: 50, home: null };
+
+const FUEL_CODES: readonly Fuel[] = ['U91', 'E10', 'P98', 'DL'];
+const GROUPS = new Set<string>(ADVICE_GROUPS.map(([g]) => g));
+
+/** Merge a saved object over the defaults, keeping only fields of the right shape. Saved settings from older
+ *  versions (fewer fields) or a damaged value never break the app. */
+export function normalize(raw: unknown): Settings {
+  if (!raw || typeof raw !== 'object') return DEFAULTS;
+  const o = raw as Record<string, unknown>;
+  const bool = (k: keyof Settings) => (typeof o[k] === 'boolean' ? (o[k] as boolean) : (DEFAULTS[k] as boolean));
+  const strs = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  const home = o.home as Place | null | undefined;
+  return {
+    fuel: FUEL_CODES.includes(o.fuel as Fuel) ? (o.fuel as Fuel) : DEFAULTS.fuel,
+    tankL: typeof o.tankL === 'number' && o.tankL > 0 ? o.tankL : DEFAULTS.tankL,
+    home: home && typeof home === 'object' && typeof home.la === 'number' && typeof home.lo === 'number' ? home : null,
+    sort: o.sort === 'distance' ? 'distance' : 'price',
+    radiusKm: (RADII as readonly number[]).includes(o.radiusKm as number) ? (o.radiusKm as number) : DEFAULTS.radiusKm,
+    members: bool('members'),
+    showStale: bool('showStale'),
+    pinnedOnly: bool('pinnedOnly'),
+    brands: [...new Set(strs(o.brands))],
+    advice: [...new Set(strs(o.advice))].filter((g) => GROUPS.has(g)) as Settings['advice'],
+    maxPrice: typeof o.maxPrice === 'number' && o.maxPrice > 0 ? o.maxPrice : null,
+  };
+}
 
 function load(): Settings {
   try {
     const raw = Storage.getItemSync(KEY);
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : DEFAULTS;
+    return raw ? normalize(JSON.parse(raw)) : DEFAULTS;
   } catch {
     return DEFAULTS;
   }
@@ -35,6 +62,11 @@ export function setSettings(patch: Partial<Settings>) {
   }
   listeners.forEach((l) => l());
 }
+
+/** Back to the default filters (fuel, tank and area are kept) */
+export const resetFilters = () => setSettings({ ...FILTER_DEFAULTS });
+
+export const getSettings = () => state;
 
 export function useSettings(): Settings {
   return useSyncExternalStore(

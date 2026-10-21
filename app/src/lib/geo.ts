@@ -9,7 +9,7 @@ export function km(lat1: number, lon1: number, lat2: number, lon2: number) {
   return 12742 * Math.asin(Math.sqrt(x));
 }
 
-export type Place = { label: string; la: number; lo: number };
+export type Place = { label: string; la: number; lo: number; gps?: boolean };
 
 /** Suburb or postcode search, same matching as the dashboard: exact name, then prefix, then substring. */
 export function findSuburb(suburbs: Suburb[], query: string): Place | null {

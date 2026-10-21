@@ -2,17 +2,19 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PriceChart } from '@/components/price-chart';
-import { Card, FuelPicker, Loading, Screen, Section, Segmented, T } from '@/components/ui';
+import { Card, Disclosure, Loading, Screen, Section, Segmented, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { chartData, RANGES, type RangeKey } from '@/lib/chart';
 import { historyNote, insights } from '@/lib/copy';
-import { fmt, fuelName, nice } from '@/lib/format';
+import { fuelName, nice } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
 import type { Fuel, Stations } from '@/lib/types';
 
 const RANGE_OPTS = RANGES.map(([k]) => [k, k] as const);
+// insights() order: 0 cycle, 1 where we are now, 2 margin, 3 day of week, 4 shop around, 5 diesel, 6 E10/P98, 7 since 2019, 8 oil
+const KEY = [1, 0, 4];
 
 /** Average price per brand minus the Sydney median, brands with 3+ stations (brandStats() on the dashboard) */
 function brandStats(st: Stations, fuel: Fuel, median: number) {
@@ -27,7 +29,7 @@ function brandStats(st: Stations, fuel: Fuel, median: number) {
     .sort((a, b) => a.prem - b.prem);
 }
 
-export default function HistoryScreen() {
+export default function TrendsScreen() {
   const c = useTheme();
   const { fuel } = useSettings();
   const [range, setRange] = useState<RangeKey>('1Y');
@@ -39,26 +41,29 @@ export default function HistoryScreen() {
   const d = useMemo(() => (h && r && f ? chartData(h, r, f.ctx, fuel, range) : null), [h, r, f, fuel, range]);
   const brands = useMemo(() => (sq.data && r ? brandStats(sq.data, fuel, r.now) : []), [sq.data, fuel, r]);
   const maxAbs = Math.max(1, ...brands.map((b) => Math.abs(b.prem)));
+  const all = f ? insights(f) : [];
 
   return (
-    <Screen title="Price history" eyebrow="Evidence" onRefresh={() => { hq.refetch(); fq.refetch(); sq.refetch(); }} refreshing={hq.isRefetching}>
-      <FuelPicker />
+    <Screen
+      title="Trends"
+      subtitle={`Sydney ${fuelName(fuel)}`}
+      onRefresh={() => { hq.refetch(); fq.refetch(); sq.refetch(); }}
+      refreshing={hq.isRefetching}>
       {!d || !f ? (
         <Loading error={hq.error ?? fq.error} onRetry={() => { hq.refetch(); fq.refetch(); }} />
       ) : (
         <>
-          <Section title="Sydney pump price against wholesale">
+          <Card style={{ gap: Spacing.three }}>
             <Segmented options={RANGE_OPTS} value={range} onChange={setRange} />
             <PriceChart d={d} label={fuelName(fuel)} />
-            <T kind="small">{historyNote(f.ctx)}</T>
-          </Section>
+          </Card>
 
-          <Section eyebrow="What the data says for Sydney drivers" title="Know the cycle, beat the bowser">
+          <Section title="Know the cycle">
             <View style={{ gap: Spacing.two }}>
-              {insights(f).map((x) => (
-                <Card key={x.title} style={{ gap: 4, padding: Spacing.three }}>
+              {KEY.map((k) => all[k]).map((x) => (
+                <Card key={x.title} style={styles.insight}>
                   <T kind="eyebrow">{x.title}</T>
-                  <T kind="bignum" style={{ fontSize: 22 }}>{x.big}</T>
+                  <T kind="bignum">{x.big}</T>
                   <T kind="small" color={c.fg2}>{x.body}</T>
                 </Card>
               ))}
@@ -66,32 +71,53 @@ export default function HistoryScreen() {
           </Section>
 
           {brands.length ? (
-            <Section eyebrow={`Sydney ${fuelName(fuel)}, ${nice(sq.data!.asof)}`} title="Brand premium vs the Sydney median">
-              <View style={{ gap: 6 }}>
+            <Section title="Cheapest brands today">
+              <Card style={{ gap: 8 }}>
                 {brands.map((b) => (
                   <View key={b.brand} style={styles.brandRow}>
-                    <T kind="small" color={c.fg2} style={{ width: 118 }} numberOfLines={1}>{b.brand}</T>
+                    <T kind="small" color={c.fg2} style={{ width: 112 }} numberOfLines={1}>{b.brand}</T>
                     <View style={styles.track}>
                       <View style={[styles.mid, { backgroundColor: c.line }]} />
                       <View
                         style={{
-                          position: 'absolute', height: 10, borderRadius: 3, top: 3,
+                          position: 'absolute', height: 8, borderRadius: 4, top: 4,
                           backgroundColor: b.prem < 0 ? c.cheap : c.dear,
                           width: `${(Math.abs(b.prem) / maxAbs) * 50}%`,
                           ...(b.prem < 0 ? { right: '50%' } : { left: '50%' }),
                         }}
                       />
                     </View>
-                    <T kind="num" style={{ width: 52, textAlign: 'right', fontSize: 13 }}>{fmt(b.prem)}c</T>
+                    <T kind="num" style={{ width: 50, textAlign: 'right', fontSize: 13 }}>
+                      {b.prem < 0 ? '−' : '+'}{Math.abs(b.prem).toFixed(1)}c
+                    </T>
                   </View>
                 ))}
-              </View>
+              </Card>
               <T kind="small">
-                Average price at each brand’s Sydney stations today minus the Sydney median ({r!.now.toFixed(1)}c). Brands with 3+ stations selling this fuel. Negative is cheaper.
-                {sq.data!.stations.some((x) => x.b === 'Costco') ? ' Costco’s Sydney sites are members-only and only report E10 and Premium 98, so they appear for those fuels and not for U91 or diesel.' : ''}
+                Average price at each brand’s Sydney stations on {nice(sq.data!.asof)} minus the Sydney median ({r!.now.toFixed(1)}c). Brands with 3+ stations selling this fuel.
+                {sq.data!.stations.some((x) => x.b === 'Costco') ? ' Costco’s Sydney sites are members-only and only report E10 and Premium 98.' : ''}
               </T>
             </Section>
           ) : null}
+
+          <Disclosure title="More facts">
+            {all.filter((_, i) => !KEY.includes(i)).map((x) => (
+              <View key={x.title} style={{ gap: 2 }}>
+                <View style={styles.factHead}>
+                  <T kind="eyebrow" style={{ flex: 1 }}>{x.title}</T>
+                  <T kind="num" style={{ fontSize: 14 }}>{x.big}</T>
+                </View>
+                <T kind="small" color={c.fg2}>{x.body}</T>
+              </View>
+            ))}
+          </Disclosure>
+
+          <Disclosure title="About this chart">
+            <T kind="small" color={c.fg2}>
+              Sydney median pump price against the wholesale terminal gate price (TGP). The shaded band is the spread from the cheapest to the dearest 10% of stations; the dashed line is the 14-day forecast with its 80% range. Touch and drag the chart to read any day.
+            </T>
+            <T kind="small">{historyNote(f.ctx)}</T>
+          </Disclosure>
         </>
       )}
     </Screen>
@@ -99,7 +125,9 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  insight: { gap: 4, padding: Spacing.four },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   track: { flex: 1, height: 16, justifyContent: 'center' },
   mid: { position: 'absolute', left: '50%', width: 1, height: 16 },
+  factHead: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
 });

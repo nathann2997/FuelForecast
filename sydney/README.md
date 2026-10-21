@@ -15,7 +15,7 @@ The walk-forward backtest (`model.py --backtest`, about 8 minutes) reruns on the
 `.github/workflows/daily.yml` runs the same pipeline with no browser, every day at 19:30 UTC (06:30 AEDT / 05:30 AEST), alongside the Claude task above and without touching `main`:
 1. `pipeline/fetch.py` replaces the four Chrome pulls and writes the same files into `inbox/` (only the NSW snapshot is required; FRED, AIP and monthly history are best-effort).
 2. `pipeline/run_daily.sh`, unchanged (with `--backtest` on the first Monday of the month).
-3. `pipeline/export_api.py` runs `build.py` and writes the app API, failing if the data isn't today's.
+3. `pipeline/export_api.py` runs `build.py` and writes the app API (with `station_api.py` for the per-station files), failing if the data isn't today's or a check fails.
 4. State (`store/`, `archive/`) is committed to the `data` branch (seeded from `main` on the first run); the API and dashboard are deployed to GitHub Pages.
 
 Needs repo secrets `NSW_API_KEY` / `NSW_API_SECRET` and Pages set to deploy from GitHub Actions.
@@ -23,9 +23,10 @@ Needs repo secrets `NSW_API_KEY` / `NSW_API_SECRET` and Pages set to deploy from
 API (`https://nathann2997.github.io/FuelForecast/api/v1/`), static JSON regenerated daily:
 | File | What |
 |---|---|
-| `meta.json` | schema version, generated time, as-of date per source, file sizes. Check `asof` for staleness |
+| `meta.json` | schema version, generated time, as-of date per source, file sizes (`station/` = total bytes of the station files, `station/count` = how many). Check `asof` for staleness |
 | `forecast.json` | `live[]` per fuel (now, d1/d3/d7/d14 with lo/hi ranges, p_jump7, `verdict`), `ctx`, `stats`, `brands`, `bt` (backtest) |
-| `stations.json` | `stations[]` with `p: {fuel: [price, days since update, advice code, advice label, reason]}`; `suburbs[]` centroids for radius search |
+| `stations.json` | `stations[]` with `id` (NSW station code) and `p: {fuel: [price, days since update, advice code, advice label, reason]}`; `suburbs[]` centroids for radius search |
+| `station/{id}.json` | one station (`StationDetail` in `app/src/lib/types.ts`): `hist[fuel]` end-of-day price for the 400 days from `start` to `asof` (monthly history, then the `archive/` snapshots, then today; carried forward up to 30 days, else null), `profile` (`typ`, `lag`, `part`, `n`), and `fc[fuel]`, the station's own 14-day forecast (`now`, d/lo/hi at 1/3/7/14 days, `rise` date, `adv` as in `stations.json`). Method in `pipeline/station_api.py`. About 8 KB each |
 | `history.json` | `hist[fuel].{med,p10,p90}` and `tgp.{ulp,dl}`, daily from `start` |
 
 ## Credentials

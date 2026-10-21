@@ -1,11 +1,11 @@
-# Testing Sydney Fuel Outlook (Android)
+# Testing Bowser (Android)
 
 ## For testers
 
 ### Option A — install the APK (recommended)
 1. Open the install link (or scan the QR code) you were sent, on your Android phone.
 2. Tap **Install**. Android asks once to allow installs from your browser; allow it. If Play Protect warns about an unknown app, tap **Install anyway**.
-3. Open **Sydney Fuel Outlook**. Allow location when you tap **Near me** on the Stations tab (it's only used on your phone).
+3. Open **Bowser** (previously "Sydney Fuel Outlook"). If you had the old app, install the new link once: version 0.3.0 can't arrive as an automatic update, and it installs over the old app keeping your settings. On Today or Stations, tap **Use my location** (or type a suburb) to set your area once; it's remembered and only used on your phone.
 
 The app updates itself: a new version downloads when you open the app and applies after you fully close it (swipe it away from recent apps) and reopen it, so it can take two launches.
 
@@ -17,9 +17,12 @@ For quick looks while the owner is running the app from their computer.
 No Expo account is needed on Android.
 
 ### What to look at
-- **Today**: does "Fill up today / this week / Wait" match what you see at the pump over the next few days?
-- **Stations**: are the nearby stations and prices right? Does tapping one open directions?
-- **History**: does the chart read well; can you drag along it?
+- **Today**: does "Fill up today / this week / Wait" and the "likely to rise from" date match what you see at the pump over the next few days? Is the dollar saving believable for your tank (set the size under **More**)?
+- **Stations**: are the nearby stations and prices right? The arrow button on each row should open Google Maps directions straight away. Try **Filters** (brand, when to fill, max price) and the pin button; pinned stations stay at the top and on Today.
+- **Station page**: tap a station. Does the price chart (1W to 1Y, drag along it) and the station's own forecast make sense? Does the page scroll normally when you swipe up from the chart?
+- **Widget**: long-press your home screen → Widgets → **Bowser**. Add the small and the wide one. Does it show your pinned stations, and does tapping one open its page? Does it update the next morning?
+- **Trends**: does the chart read well; can you drag along it?
+- **More**: change fuel, tank size and area; do the other tabs follow?
 - Anything confusing, slow or broken: send a screenshot and what you tapped.
 
 Prices refresh every morning around 6:30am.
@@ -34,4 +37,4 @@ Prices refresh every morning around 6:30am.
 | Live session for Expo Go testers (Option B) | `npx expo start --tunnel` and share the QR code |
 | Run on your own phone on the same Wi-Fi | `npx expo start` and scan with Expo Go |
 
-Updates only reach APKs with the same runtime version (`app.json` `version`, currently 0.1.0). Keep `version` unchanged for JS-only changes; bump it only together with a new APK when native code changes, because existing APKs then stop receiving updates.
+Updates only reach APKs with the same runtime version (`app.json` `version`, currently 0.3.0). Keep `version` unchanged for JS-only changes; bump it only together with a new APK when native code changes, because existing APKs then stop receiving updates.

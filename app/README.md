@@ -1,4 +1,4 @@
-# Sydney Fuel Outlook (Android POC)
+# Bowser (Android POC)
 
 Expo / React Native app for the Sydney pump price forecast. It reads the static JSON API published daily by `.github/workflows/daily.yml` (`https://nathann2997.github.io/FuelForecast/api/v1/`) and shows the same numbers and wording as the web dashboard.
 

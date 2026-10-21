@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Sydney Fuel Outlook",
+    "name": "Bowser",
     "slug": "fuel-forecast",
-    "version": "0.1.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fuelforecast",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.nathann2997.fuelforecast"
     },
     "android": {
@@ -32,7 +32,7 @@
         {
           "backgroundColor": "#16191C",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 110
         }
       ],
       "expo-sqlite",
@@ -40,6 +40,44 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Your location is used only on your phone to sort nearby fuel stations by distance."
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "BowserSmall",
+              "label": "Bowser",
+              "description": "Today's fill-up call for your fuel and when prices are likely to rise.",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 14400000
+            },
+            {
+              "name": "BowserMedium",
+              "label": "Bowser",
+              "description": "The fill-up call plus your pinned stations, or the cheapest near your area.",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 14400000
+            }
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# react-native-android-widget runs widget updates through WorkManager. R8 full mode (AGP 9) strips the\n# no-arg constructors WorkManager/Room create by reflection, which crashes release builds on launch\n# (github.com/sAleksovski/react-native-android-widget/issues/159). Keep them.\n-keep class androidx.work.impl.WorkDatabase_Impl { <init>(); }\n-keep class * extends androidx.room.RoomDatabase { <init>(); }\n-keep class * extends androidx.work.InputMerger { <init>(); }\n-keep class * extends androidx.work.ListenableWorker { <init>(android.content.Context, androidx.work.WorkerParameters); }\n-keep class com.reactnativeandroidwidget.** { *; }",
+            "enableMinifyInReleaseBuilds": false
+          }
         }
       ]
     ],

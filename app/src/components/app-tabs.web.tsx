@@ -7,8 +7,8 @@ import { useTheme } from '@/hooks/use-theme';
 const TABS = [
   ['index', '/', 'Today'],
   ['stations', '/stations', 'Stations'],
-  ['history', '/history', 'History'],
-  ['about', '/about', 'About'],
+  ['trends', '/trends', 'Trends'],
+  ['more', '/more', 'More'],
 ] as const;
 
 export default function AppTabs() {

@@ -109,3 +109,21 @@ export function historyNote(ctx: Ctx) {
     ? `Why the gap: the live NSW feed only gives today's prices, so daily history comes from NSW's monthly files, published about a month late (latest: ${nice(ctx.history_last)}). A point is added each morning from today, and the gap fills automatically when NSW publishes each new month.`
     : `History to ${nice(ctx.history_last)} from NSW monthly files, then daily live snapshots.`;
 }
+
+/** meta.warnings from the daily export, in plain English. Anything not recognised is technical and is hidden. */
+export function plainWarnings(warnings: string[]): string[] {
+  const out: string[] = [];
+  for (const w of warnings) {
+    const age = w.match(/^(tgp_last|fred_last) is (\d+) days old/);
+    if (age) {
+      out.push(
+        age[1] === 'tgp_last'
+          ? `Wholesale prices haven’t updated for ${age[2]} days, so the forecast uses the last known ones.`
+          : `Oil price and exchange rate data haven’t updated for ${age[2]} days, so the forecast uses the last known ones.`,
+      );
+    } else if (/^station files unavailable/i.test(w)) {
+      out.push('Station price history isn’t available today.');
+    }
+  }
+  return [...new Set(out)];
+}

@@ -2,6 +2,87 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Bowser 0.3.0: rebrand, pinned stations, filters, directions, station page, Android widget
+
+Plan and specs: `docs/BOWSER_PLAN.md`. Brand: `docs/BRAND.md`. Ships together with the v0.2 redesign below as one commit. **Needs a new APK** (native widget code, new launcher name and icon); `version` 0.1.0 → 0.3.0, so 0.1.0 installs don't get it over the air.
+
+### Rebrand
+- The app is now **Bowser**, with no subtitle. Changed: launcher name, icon, adaptive and monochrome icons, splash (higher resolution, shown larger), favicon, the wordmark on Today, the About block in More, the widget, `app/README.md` and `docs/TESTING.md`. iOS now uses `icon.png` (the unused `assets/expo.icon` is removed).
+- Unchanged on purpose: Android package, iOS bundle id, slug, EAS project, URL scheme `fuelforecast`, repo and API URLs, and the web dashboard (owned by the Claude task).
+- Logo: a "B" that is also a petrol bowser (concept B of 3, `docs/brand/concepts.png`). Sources in `app/assets/brand/`, component `components/brand.tsx`.
+
+### Added
+- **Pinned stations** (`lib/pins.ts`, up to 10, kept on the phone). They appear in "Your stations" on Today and in a Pinned group at the top of Stations. A pinned station shows "No U91 here" or "Not in today's prices" when it has no price.
+- **Filters sheet** (`components/filter-sheet.tsx`, `lib/filters.ts`) covers sort, radius, brands (with search), when to fill, max price, members-only, old prices, and pinned only. The settings persist and Reset clears them.
+- **One-tap Directions** on every row and on the station page (`lib/directions.ts`): Google Maps navigation on Android, Apple Maps on iOS, and the web URL as a fallback.
+- **Station page** `/station/[id]` (`app/station/[id].tsx`, `components/ticker-chart.tsx`, `lib/station.ts`): a ticker-style price block, a chart (1W–1Y) with the Sydney median and a dotted 14-day forecast with a likely-range band, range stats, the station's own forecast, and how the station behaves. Tapping a station row opens it. Also opens from `fuelforecast://station/<id>`.
+- **Android home-screen widget** (`src/widget/`, `react-native-android-widget` 0.23.0). The small size shows the verdict and rise date. The medium size adds pinned stations, or the cheapest near your area. Refreshes every 4 h and whenever the app's data, pins or settings change. The app entry is now `app/index.ts`.
+- **API: `api/v1/station/{id}.json`** for each station (`sydney/pipeline/station_api.py`): 400 days of daily prices, the behaviour profile and a station forecast. `stations.json` gains `id` (the NSW station code). The schema stays 1 (additive). If station files fail, only they are skipped; the export still publishes and adds a `meta.warnings` entry.
+- Routing: a root Stack with a `(tabs)` group, so pushed screens sit over the tabs.
+
+### Changed
+- `export_api.py` adds the ids and calls `station_api`. `build.py`, the dashboard, `forecast.json` and `history.json` are byte-identical to before (QA checked). Export time goes from about 1.4 s to 8 s, and the Pages artifact from 1.5 MB to 11 MB.
+- The persisted query cache key is now `schema-1-ids`, so old cached station lists without ids are dropped.
+- `app.json`: `expo-build-properties` with `enableMinifyInReleaseBuilds: false`. The widget library has an open release crash under R8 (issue #159). Keep rules are included for when we turn minify back on.
+- More shows pipeline warnings in plain English.
+
+### QA audit (independent QA agent): 1 blocker and 8 should-fix items, all fixed
+- Blocker: rows from a `stations.json` without ids made every row look pinned and opened `/station/undefined`. Fixed in three ways:
+  - id-less rows have no pin and don't navigate;
+  - `togglePin` ignores empty ids;
+  - the cache key above discards old cached lists.
+  The release order below still applies.
+- The widget no longer reuses yesterday's data from a backgrounded app. Its settings are normalised and its cache is written asynchronously.
+- The station page uses the same "Likely to rise" / "Jump possible" wording rule as Today.
+- Tap targets in the filters UI are now 44 dp. Selected brands stay visible after a fuel change. Pinned rows with no price no longer count in the header.
+- Splash re-exported at 684×639. The tester guide is updated.
+- Nice-to-haves done:
+  - the chart takes the touch only on a sideways drag, so the page scrolls;
+  - deep-link ids are validated;
+  - station queries are kept for 6 h;
+  - the `station_api` import is fail-soft;
+  - a price unchanged in the monthly history is carried forward up to 180 days.
+- Remaining gaps in station history are genuine (new or rebranded station codes, or a fuel the station stopped selling).
+
+### Release order (must follow)
+1. Push to `main`, then run the daily workflow (`workflow_dispatch`) and confirm the live `stations.json` has `id` and `station/<id>.json` loads.
+2. Only then build the 0.3.0 preview APK (`npx eas-cli@latest build -p android --profile preview`) and share it.
+
+### Verified
+- `tsc`, `expo lint`, `jest` 73/73, `expo-doctor` 20/20, and `expo export` for Android and web all pass.
+- Prebuild (scratch copy) shows the widget receivers labelled Bowser, the provider XML and the keep rules.
+- An integrated web preview against the scratch API covered Today (wordmark and pins), Stations, the filters sheet, and the station page in light and dark.
+- **Not yet on a device:** widget placement, refresh and taps, the release APK launching, chart scrubbing, and the directions intent.
+
+## 2026-10-21 — App v0.2 redesign (UX/UI), JS only
+
+Product-design review and redesign of the app; rationale and before/after in `docs/DESIGN.md`. Pipeline, API, verdict rule and station advice unchanged; everything new is derived on the device.
+
+### Changed
+- Tabs are now Today · Stations · Trends · More (`history.tsx` → `trends.tsx`, `about.tsx` → `more.tsx`).
+- **Today**: decision hero coloured by tone (act / wait / calm) with the shared verdict headline, the Sydney "likely to rise from" date, the saving in dollars for the user's tank, and a 14-day sparkline with the 80% range (replaces the four forecast tiles and the jump-risk tile). Adds the 3 cheapest fresh stations near the saved area (or a one-tap area setup). The "why" text and the stats are in a collapsed section.
+- **Stations**: remembered area (GPS or suburb) in a bar at the top; the Sydney rise date shown once; compact rows that expand to show the reason, the saving and Directions (a tap no longer opens Maps straight away); chip filters; prices older than 7 days hidden by default; paging of 30, which resets when any filter changes.
+- **Trends**: chart, three cycle insights, cheapest brands; other facts and the chart notes collapsed.
+- **More**: settings (fuel, tank size, area, members-only sites), a one-line accuracy summary with the table collapsed, model card collapsed, data freshness, sources.
+- Visual system: decision-tone tokens in `constants/theme.ts`, tabular figures instead of monospace, no dark "board" in light mode. The fuel switch is a header chip with a bottom sheet.
+
+### Added
+- `lib/outlook.ts`: port of `market()` in `sydney/pipeline/build.py` (the rise day) plus the headline and saving copy. Checked against the 21 Oct data: U91 Sat 24 Oct, E10 Fri 23 Oct, P98 Tue 27 Oct, diesel none, identical to the station advice.
+- `components/outlook-chart.tsx`, `components/station-row.tsx`, `components/area-picker.tsx`, `hooks/use-area.ts`, `lib/location.ts`.
+- Settings `tankL` (50), `home` (remembered area), `showStale` (false); v0.1 settings merge with the defaults.
+- Tests for the path interpolation, the rise day, the headline/deadline rules and the tank saving (14 tests in total).
+
+### QA audit (independent QA agent) — no blockers; fixes applied
+- The hero could show a firm rise deadline under a "Wait" or "No rush" verdict (the jump-hazard rule fires from p_jump7 ≈ 0.13; the verdict only from 0.35). The deadline now appears only for "act"; otherwise a softer "some chance of a jump from …" line. A "No rush" verdict with a slow +3c-or-more drift no longer says prices stay flat.
+- A GPS area is now refreshed when the app returns to the foreground, and falls back to a fresh fix when there is no recent one.
+- `Screen` is wrapped in a `KeyboardAvoidingView` (Android SDK 58 is edge-to-edge), so the suburb search on Today isn't hidden behind the keyboard. **Verify on a device.**
+- TalkBack: only the station header toggles, and its details are separate elements. The fuel sheet has a labelled close button and its options are reachable.
+- Paging resets on any filter change; the area editor in More has Cancel and a loading state.
+- Not changed: the "Shop around" insight still assumes a 50 L tank (dashboard parity).
+
+### Release notes
+- Not shipped on its own: it is bundled into Bowser 0.3.0 above (new APK).
+
 ## 2026-10-21 — Phase 4: tester distribution (APK + OTA updates, Expo Go)
 
 ### Added

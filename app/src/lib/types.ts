@@ -89,6 +89,7 @@ export type AdviceCode = 'now' | 'by' | 'ok' | 'wait' | 'hi' | 'any' | 'chk';
 export type StationPrice = [number, number | null, AdviceCode, string, string];
 
 export type Station = {
+  id: string;     // NSW FuelCheck station code, stable across days (key for pins and station/{id}.json)
   n: string;      // name
   b: string;      // brand
   s: string;      // suburb
@@ -115,4 +116,34 @@ export type History = {
   start: string;
   hist: Record<Fuel, { med: Series; p10: Series; p90: Series }>;
   tgp: { ulp: Series; dl: Series };
+};
+
+// ---- station/{id}.json: one station's price history and its own forecast (the "ticker" page and the widget)
+export type StationForecast = {
+  now: number;                    // today's price at this station, c/L
+  d1: number; lo1: number; hi1: number;     // expected change vs now (c/L) and 80% range, as LiveRow but for this station
+  d3: number; lo3: number; hi3: number;
+  d7: number; lo7: number; hi7: number;
+  d14: number; lo14: number; hi14: number;
+  rise: string | null;            // ISO date this station is likely to rise from (Sydney rise date shifted by its lag), null if none in 14 days
+  adv: [AdviceCode, string, string];        // same advice as stations.json [code, label, reason]
+};
+
+export type StationProfile = {
+  typ: Partial<Record<Fuel, number>>;       // typical premium vs the Sydney median, last 365 days (c/L, negative = cheaper)
+  lag: number | null;             // median hours after a price-jump wave starts before this station hikes
+  part: number | null;            // share of jump waves it joined (0..1; low = steady pricer)
+  n: number;                      // waves observed
+};
+
+export type StationDetail = {
+  schema: number;
+  asof: string;
+  id: string;
+  n: string; b: string; s: string; pc: number; la: number; lo: number; m: 0 | 1;
+  addr: string | null;
+  start: string;                  // ISO date of hist[*][0]
+  hist: Partial<Record<Fuel, Series>>;      // end-of-day price c/L per day from start to asof, null = not sold / unknown
+  profile: StationProfile | null;
+  fc: Partial<Record<Fuel, StationForecast>>;
 };
