@@ -2,6 +2,41 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Bowser 0.4.0: the widget follows your location (new APK)
+
+### Added
+- **Live location in the widget.** If you've allowed location **all the time** and your area is "Use my location" (or unset), the widget lists Nearest/Cheapest around where the phone is now, not where you last opened Bowser.
+  - Redraws read the phone's last known position (≤ 30 min old, ≤ 3 km accuracy) without waking the GPS.
+  - The fix is stored on the phone as `widget.loc`, stamped with its own time and ignored after 6 h. It's deleted when permission is withdrawn or a suburb is typed.
+  - A typed suburb always wins.
+  - The widget never asks for permission itself, and no coordinates ever leave the phone (the API is static files).
+- **⟳ button** in the medium widget's mode row, shown only when the widget may use location. It gets a fresh fix (Balanced accuracy, 8 s timeout, falls back to last known) and redraws.
+- **More → Widget location** (Android only): a status line and an **Allow all the time** button. It asks for foreground then background permission; Android 11+ hands over to Settings, preceded by a "Next, choose Allow all the time" hint. When permission can't be asked again, the button opens Settings. When phone location is off, it opens Location settings. The widget redraws as soon as the permission changes.
+
+### Changed (native)
+- `version` 0.4.0. expo-location: `isAndroidBackgroundLocationEnabled: true`, `isAndroidForegroundServiceEnabled: false` (ACCESS_BACKGROUND_LOCATION; no foreground service).
+- **Widget tap fix:** `patches/react-native-android-widget+0.23.0.patch` (patch-package, applied on `postinstall`). Tap areas now get stable request codes `(widgetId << 10) | index` with `FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE` instead of a clock-based code with `FLAG_CANCEL_CURRENT`. This fixes dead taps when areas are created in the same millisecond and a PendingIntent leak (upstream issue #154 / PR #161). List-item areas use 512+.
+- The widget picker description now mentions pinned, nearest and cheapest stations with 7-day forecasts.
+
+### QA audit: no blockers; 2 should-fix and 6 nice-to-have items fixed
+- Approximate-only location users now get fixes (the accuracy limit was 1 km).
+- Granting permission redraws the widget.
+- The stored fix is cleared when unused and stamped with its measured time.
+- Settings opens only when Android won't prompt.
+- "Location is off on this phone" state; the Android 11+ hint.
+- 305 tests.
+
+### Not in this release
+- A logo redraw from another session (window-and-drop B) is held back at the owner's request. It's kept uncommitted for a later decision.
+
+### Device checks
+- The patched Java compiles on EAS (it couldn't be compiled locally).
+- Taps keep working after many redraws.
+- Background last-known reads on Android 14+.
+- ⟳ gets a fix indoors within 8 s.
+- The permission flow through Settings and back.
+- Google Play would require a background-location declaration if Bowser is ever published.
+
 ## 2026-10-21 — Widget: forecast price and "should I fuel up" (OTA to 0.3.0)
 
 ### Added

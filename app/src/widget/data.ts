@@ -8,7 +8,7 @@ import Storage from '@/lib/storage';
 import type { Forecast, Fuel, Stations } from '@/lib/types';
 
 import {
-  compactForecast, compactStations, fromAppData, fuelKey, isFresh, mergeSnapshot, modeKey, parseFuel, parseMode, type StationMode,
+  FIX_KEY, compactForecast, compactStations, fromAppData, fuelKey, parseFix, type WidgetFix, isFresh, mergeSnapshot, modeKey, parseFuel, parseMode, type StationMode,
   type WidgetPrefs, type WidgetSnapshot,
 } from './logic';
 
@@ -138,6 +138,19 @@ export const readFuel = (widgetId: number): Fuel | null => parseFuel(readKey(fue
 /** Save the widget's fuel; tapping back to the app's own fuel removes it, so the widget follows the app again. */
 export const saveFuel = (widgetId: number, fuel: Fuel) =>
   fuel === readPrefs().fuel ? clearKey(fuelKey(widgetId)) : saveKey(fuelKey(widgetId), fuel);
+
+/** The widget's last location fix (shared by all widgets: it's where the phone is). */
+export function readFix(): WidgetFix | null {
+  try {
+    const raw = Storage.getItemSync(FIX_KEY);
+    return raw ? parseFix(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+export const saveFix = (fix: WidgetFix) => saveKey(FIX_KEY, JSON.stringify(fix));
+/** Forget the fix (permission withdrawn, or the user typed a suburb), so coordinates don't linger on the phone. */
+export const clearFix = () => clearKey(FIX_KEY);
 
 /** A removed widget's saved mode and fuel. */
 export async function clearWidget(widgetId: number) {

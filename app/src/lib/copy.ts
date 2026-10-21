@@ -127,3 +127,25 @@ export function plainWarnings(warnings: string[]): string[] {
   }
   return [...new Set(out)];
 }
+
+/** Copy for More → Widget location, from the background location status and the saved area. The widget follows the
+ *  phone only when background location is allowed, location is on and the area is GPS-based or unset.
+ *  `opensSettings`: Android 11+ answers the background request with the Settings page, so say what to pick first. */
+export function widgetLocationCopy(
+  bg: { status: 'granted' | 'denied' | 'undetermined' | 'unsupported'; canAskAgain: boolean; servicesOff?: boolean },
+  home: { label: string; gps?: boolean } | null,
+  opensSettings = false,
+): { status: string; action: 'ask' | 'settings' | 'services' | null; note: string | null; hint: string | null } {
+  const typed = home && !home.gps ? home.label : null;
+  const note = typed ? `Your area is set to ${typed}. Switch to Use my location for the widget to follow you.` : null;
+  if (bg.status === 'unsupported') return { status: 'Off', action: null, note: null, hint: null };
+  if (bg.servicesOff) return { status: 'Location is off on this phone', action: 'services', note, hint: null };
+  const on = bg.status === 'granted' && !typed;
+  const action = bg.status === 'granted' ? null : bg.canAskAgain ? 'ask' : 'settings';
+  return {
+    status: on ? 'On' : home ? `Off – widget uses ${typed ?? 'where you last opened Bowser'}` : 'Off – no area set for the widget',
+    action,
+    note,
+    hint: action === 'ask' && opensSettings ? 'Next, choose Allow all the time.' : null,
+  };
+}

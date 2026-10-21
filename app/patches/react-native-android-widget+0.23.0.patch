@@ -1,0 +1,117 @@
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+index 5650d1e..5c749bc 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+@@ -158,12 +158,12 @@ public class RNWidget {
+         List<ClickableView> clickableViews = widgetWithViews.getClickableViews();
+         for (int i = 0; i < clickableViews.size(); i++) {
+             ClickableView clickableView = clickableViews.get(i);
+-            addClickableArea(remoteWidgetView, rootView, clickableView, widgetId);
++            addClickableArea(remoteWidgetView, rootView, clickableView, widgetId, i);
+         }
+     }
+ 
+     @RequiresApi(Build.VERSION_CODES.N)
+-    private void addClickableArea(RemoteViews widgetView, ViewGroup rootWidget, ClickableView clickableView, int widgetId) {
++    private void addClickableArea(RemoteViews widgetView, ViewGroup rootWidget, ClickableView clickableView, int widgetId, int index) {
+         View clickableWidget = clickableView.getView();
+         Rect offsetViewBounds = new Rect();
+         clickableWidget.getDrawingRect(offsetViewBounds);
+@@ -194,12 +194,25 @@ public class RNWidget {
+             clickableRemoteView.setContentDescription(R.id.rn_widget_clickable_area, clickableView.getAccessibilityLabel());
+         }
+ 
+-        registerClickTask(widgetId, clickableView, clickableRemoteView, R.id.rn_widget_clickable_area);
++        registerClickTask(widgetId, clickableView, clickableRemoteView, R.id.rn_widget_clickable_area, index);
+ 
+         widgetView.addView(R.id.rn_widget_clickable_container, clickableRemoteView);
+     }
+ 
+-    private void registerClickTask(int id, ClickableView clickableView, RemoteViews widgetView, Integer button) {
++    // Bowser patch (issue #154, after PR #161): a stable request code per widget and clickable area, updated in place on
++    // re-render. The clock-derived code + FLAG_CANCEL_CURRENT let areas created in the same millisecond cancel each
++    // other (dead taps) and leaked one PendingIntent per area per render. Codes 0..511 per widget are for these areas;
++    // RNWidgetCollectionService uses 512..1023.
++    // Assumes native renders of one widget are serialised: drawWidgetById is an async @ReactMethod, which React Native
++    // runs one call at a time on its native-modules thread, and each draw pushes its RemoteViews before returning. Area indices are positional, so they shift between renders when an area
++    // appears or disappears (e.g. Bowser's ⟳ cell); FLAG_UPDATE_CURRENT rewrites each code's extras for the new
++    // layout, and the RemoteViews pushed in the same render point at those codes, so a tap always sends the extras of
++    // the layout on screen. Two renders of one widget interleaving could briefly mismatch them.
++    static int clickRequestCode(int widgetId, int index) {
++        return (widgetId << 10) | (index & 0x1FF);
++    }
++
++    private void registerClickTask(int id, ClickableView clickableView, RemoteViews widgetView, Integer button, int index) {
+         Intent intent = new Intent(appContext.getPackageName() + ".WIDGET_CLICK");
+         intent.setComponent(new ComponentName(appContext, RNWidgetUtil.getWidgetProviderClassName(appContext, widgetName)));
+         intent.putExtra("widgetId", id);
+@@ -207,10 +220,10 @@ public class RNWidget {
+         intent.putExtra("clickActionData", Arguments.toBundle(clickableView.getClickActionData()));
+         PendingIntent pendingIntent = PendingIntent.getBroadcast(
+             appContext,
+-            (int) System.currentTimeMillis(),
++            clickRequestCode(id, index),
+             intent,
+-            PendingIntent.FLAG_CANCEL_CURRENT
+-                | PendingIntent.FLAG_MUTABLE
++            PendingIntent.FLAG_UPDATE_CURRENT
++                | PendingIntent.FLAG_IMMUTABLE
+         );
+         widgetView.setOnClickPendingIntent(button, pendingIntent);
+     }
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java
+index f818d97..c342ca1 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java
+@@ -95,8 +95,8 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+         ArrayList<Bundle> clickableAreas = bundle.getParcelableArrayList("clickableAreas");
+ 
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+-            for (Bundle clickableArea : clickableAreas) {
+-                addClickableArea(listItemView, clickableArea, bundle.getInt("imageWidth"));
++            for (int i = 0; i < clickableAreas.size(); i++) {
++                addClickableArea(listItemView, clickableAreas.get(i), bundle.getInt("imageWidth"), position, i);
+             }
+         }
+ 
+@@ -104,7 +104,7 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+     }
+ 
+     @RequiresApi(Build.VERSION_CODES.N)
+-    private void addClickableArea(RemoteViews widgetView, Bundle clickableArea, int imageWidth) {
++    private void addClickableArea(RemoteViews widgetView, Bundle clickableArea, int imageWidth, int position, int areaIndex) {
+         RemoteViews clickableRemoteView = new RemoteViews(mContext.getPackageName(), R.layout.rn_widget_clickable);
+ 
+         clickableRemoteView.setViewPadding(
+@@ -133,7 +133,7 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+             clickableRemoteView.setContentDescription(R.id.rn_widget_clickable_area, clickableArea.getString("accessibilityLabel"));
+         }
+ 
+-        PendingIntent pendingIntent = createPendingIntent(clickableArea);
++        PendingIntent pendingIntent = createPendingIntent(clickableArea, position, areaIndex);
+         clickableRemoteView.setOnClickPendingIntent(R.id.rn_widget_clickable_area, pendingIntent);
+ 
+         Intent fillInIntent = createFillInIntent(clickableArea);
+@@ -154,7 +154,9 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+         return fillInIntent;
+     }
+ 
+-    private PendingIntent createPendingIntent(Bundle clickableArea) {
++    // Bowser patch (issue #154): stable request codes for clickable areas inside list items, in 512..1023 per widget so
++    // they never collide with RNWidget's top-level areas (0..511); updated in place instead of cancelled.
++    private PendingIntent createPendingIntent(Bundle clickableArea, int position, int areaIndex) {
+         Intent intent = new Intent(mContext.getPackageName() + ".WIDGET_CLICK");
+         intent.setComponent(new ComponentName(mContext, RNWidgetUtil.getWidgetProviderClassName(mContext, widgetName)));
+         intent.putExtra("widgetId", mAppWidgetId);
+@@ -162,9 +164,9 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+         intent.putExtra("clickActionData", clickableArea.getBundle("clickActionData"));
+         return PendingIntent.getBroadcast(
+             mContext,
+-            (int) System.currentTimeMillis(),
++            (mAppWidgetId << 10) | 0x200 | ((position * 8 + areaIndex) & 0x1FF),
+             intent,
+-            PendingIntent.FLAG_CANCEL_CURRENT
++            PendingIntent.FLAG_UPDATE_CURRENT
+                 | PendingIntent.FLAG_MUTABLE
+         );
+     }

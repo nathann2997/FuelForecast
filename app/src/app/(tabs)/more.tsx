@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { BowserMark } from '@/components/brand';
 import { AreaPicker } from '@/components/area-picker';
@@ -8,8 +8,9 @@ import { Button, Card, Disclosure, FuelPicker, Loading, Screen, Section, Segment
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { DASHBOARD_URL, useForecast, useMeta, useStations } from '@/lib/api';
-import { backtestNote, backtestRows, plainWarnings } from '@/lib/copy';
+import { backtestNote, backtestRows, plainWarnings, widgetLocationCopy } from '@/lib/copy';
 import { daysBetween, fuelName, nice } from '@/lib/format';
+import { bgRequestOpensSettings, openLocationSettings, useBackgroundLocation } from '@/lib/location';
 import { setSettings, useSettings } from '@/lib/settings';
 
 const MODEL = [
@@ -76,6 +77,8 @@ export default function More() {
         <T kind="small">Settings and your area stay on this phone. Nothing is sent anywhere.</T>
       </Section>
 
+      {Platform.OS === 'android' ? <WidgetLocation /> : null}
+
       <Section title="How good is the forecast?">
         {!f || !week ? (
           <Loading error={fq.error} onRetry={() => fq.refetch()} />
@@ -139,6 +142,30 @@ export default function More() {
         </Pressable>
       </Section>
     </Screen>
+  );
+}
+
+/** Android only: let the home-screen widget use the phone's position while Bowser is closed */
+function WidgetLocation() {
+  const c = useTheme();
+  const { home } = useSettings();
+  const bg = useBackgroundLocation();
+  if (!bg.status || bg.status.status === 'unsupported') return null;
+  const w = widgetLocationCopy(bg.status, home, bgRequestOpensSettings());
+  const onPress = w.action === 'ask' ? bg.request : w.action === 'services' ? openLocationSettings : () => Linking.openSettings().catch(() => {});
+  return (
+    <Section title="Widget location">
+      <Card style={{ gap: Spacing.three }}>
+        <T>Let the widget show stations near where you are, even when Bowser is closed. Your location stays on your phone.</T>
+        <View style={styles.between}>
+          <T color={c.fg2} style={{ flex: 1 }}>Status</T>
+          <T color={w.status === 'On' ? c.cheap : c.fg} style={{ fontWeight: '700', flexShrink: 1, textAlign: 'right' }}>{w.status}</T>
+        </View>
+        {w.note ? <T kind="small">{w.note}</T> : null}
+        {w.hint ? <T kind="small" color={c.fg2}>{w.hint}</T> : null}
+        {w.action ? <Button label={w.action === 'ask' ? 'Allow all the time' : 'Open settings'} kind="secondary" onPress={onPress} /> : null}
+      </Card>
+    </Section>
   );
 }
 

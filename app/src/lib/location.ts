@@ -1,4 +1,8 @@
 import * as Location from 'expo-location';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, Linking, Platform } from 'react-native';
+
+import { requestWidgetRefresh } from '@/widget/sync';
 
 import type { Place } from './geo';
 
@@ -31,4 +35,100 @@ export async function quietLocate(): Promise<Place | null> {
   } catch {
     return null;
   }
+}
+
+// ---- Background location, for the Android home-screen widget ("Allow all the time"). Android only for now.
+export type BgLocation = {
+  status: 'granted' | 'denied' | 'undetermined' | 'unsupported';
+  canAskAgain: boolean;
+  servicesOff?: boolean;     // location is switched off for the whole phone
+};
+
+const UNSUPPORTED: BgLocation = { status: 'unsupported', canAskAgain: false };
+const bgSupported = () => Platform.OS === 'android';
+const asBg = (r: { status: string; canAskAgain: boolean }): BgLocation => ({
+  status: r.status === 'granted' ? 'granted' : r.status === 'denied' ? 'denied' : 'undetermined',
+  canAskAgain: r.canAskAgain,
+});
+
+/** Android 11+ (API 30) sends the background request to the system Settings page instead of a dialog */
+export const bgRequestOpensSettings = () => Platform.OS === 'android' && Number(Platform.Version) >= 30;
+
+/** Whether the widget may read the position while Bowser is closed. Background needs foreground too. */
+export async function backgroundLocationStatus(): Promise<BgLocation> {
+  if (!bgSupported()) return UNSUPPORTED;
+  try {
+    const servicesOff = !(await Location.hasServicesEnabledAsync());
+    const fg = await Location.getForegroundPermissionsAsync();
+    if (fg.status !== 'granted') return { status: fg.status === 'denied' ? 'denied' : 'undetermined', canAskAgain: fg.canAskAgain, servicesOff };
+    return { ...asBg(await Location.getBackgroundPermissionsAsync()), servicesOff };
+  } catch {
+    return UNSUPPORTED;
+  }
+}
+
+/** Ask for "Allow all the time": foreground first if needed, then background. On Android 11+ the background request
+ *  opens the system settings page, so the result may still be "denied" here; callers re-check when the app becomes
+ *  active again (useBackgroundLocation does). When Android won't show a prompt any more, open the app's settings. */
+export async function requestBackgroundLocation(): Promise<BgLocation> {
+  if (!bgSupported()) return UNSUPPORTED;
+  try {
+    let fg = await Location.getForegroundPermissionsAsync();
+    if (fg.status !== 'granted') {
+      if (!fg.canAskAgain) {
+        await Linking.openSettings();
+        return backgroundLocationStatus();
+      }
+      fg = await Location.requestForegroundPermissionsAsync();
+      if (fg.status !== 'granted') return backgroundLocationStatus();
+    }
+    const bg = await Location.getBackgroundPermissionsAsync();
+    if (bg.status !== 'granted') {
+      if (bg.canAskAgain) await Location.requestBackgroundPermissionsAsync();
+      else await Linking.openSettings();
+    }
+  } catch (e) {
+    // Only send the user to Settings when Android won't prompt any more; otherwise just report it
+    console.warn('requestBackgroundLocation failed', e);
+    const now = await backgroundLocationStatus();
+    if (now.status !== 'granted' && now.status !== 'unsupported' && !now.canAskAgain) await Linking.openSettings().catch(() => {});
+    return now;
+  }
+  return backgroundLocationStatus();
+}
+
+/** Opens the phone's Location settings (location services switched off), or the app's settings as a fallback */
+export async function openLocationSettings() {
+  try {
+    await Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS');
+  } catch {
+    await Linking.openSettings().catch(() => {});
+  }
+}
+
+/** Background location status that refreshes whenever Bowser comes back to the foreground (e.g. from Settings).
+ *  When the widget gains or loses permission, it is asked to redraw so the live list appears straight away. */
+export function useBackgroundLocation() {
+  const [st, setSt] = useState<BgLocation | null>(bgSupported() ? null : UNSUPPORTED);
+  const refresh = useCallback(() => {
+    backgroundLocationStatus().then(setSt);
+  }, []);
+  useEffect(() => {
+    if (!bgSupported()) return;
+    refresh();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && refresh());
+    return () => sub.remove();
+  }, [refresh]);
+  const request = useCallback(async () => {
+    setSt(await requestBackgroundLocation());
+  }, []);
+  // Widget redraw on a change to or from "granted" (not on the first read)
+  const live = st && st.status !== 'unsupported' ? st.status === 'granted' && !st.servicesOff : null;
+  const prev = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (live == null) return;
+    if (prev.current != null && prev.current !== live) requestWidgetRefresh();
+    prev.current = live;
+  }, [live]);
+  return { status: st, request, refresh };
 }

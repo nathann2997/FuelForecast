@@ -2,6 +2,7 @@
 import { requestWidgetUpdate } from 'react-native-android-widget';
 
 import { loadSnapshot } from './data';
+import { prepareLocation } from './location';
 import { modelFor } from './model';
 import { WIDGET_NAMES, renderWidgetFor } from './widgets';
 
@@ -12,9 +13,10 @@ let running: Promise<void> | null = null;
 async function refreshNow() {
   const snap = await loadSnapshot({ allowFetch: true });
   if (!snap) return;   // nothing loaded yet: leave whatever the widget shows
+  const loc = await prepareLocation().catch(() => ({ bgGranted: false }));   // last-known fix only
   for (const name of WIDGET_NAMES) {
-    // Each placed widget gets its own model: the medium widget's list mode is saved per widget id
-    await requestWidgetUpdate({ widgetName: name, renderWidget: (info) => renderWidgetFor(name, info, modelFor(name, info.widgetId, snap)) });
+    // Each placed widget gets its own model: the medium widget's list mode and fuel are saved per widget id
+    await requestWidgetUpdate({ widgetName: name, renderWidget: (info) => renderWidgetFor(name, info, modelFor(name, info.widgetId, snap, {}, loc)) });
   }
 }
 

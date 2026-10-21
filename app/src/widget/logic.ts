@@ -111,6 +111,7 @@ export type WidgetModel = {
   sydney: { long: string; mid: string; short: string; tone: NoteTone } | null;   // "237.9 now → 240.4 in 7 days", "237.9 → 240.4 in 7 days", "237.9 → 240.4"
   asOf: string | null;          // "as of 20 Oct" when the data isn't today's (Sydney date)
   stationMode: StationMode | null;   // the medium widget's selected mode row tab (null for the small widget)
+  canLocate: boolean;           // show the ⟳ (LOCATE) button: background location granted and the area is GPS or unset
   mode: ListMode;
   caption: string | null;       // "Your stations" / "Cheapest near Parramatta 2150"
   rows: WidgetRow[];
@@ -289,7 +290,7 @@ export function buildModel(
     : f
       ? { tone: 'calm' as Tone, head: `No outlook for ${fuel}`, rise: null, riseShort: null, sydney: null }
       : { tone: 'calm' as Tone, head: 'Open Bowser', rise: "to load today's outlook", riseShort: 'to load prices', sydney: null };
-  return { fuel, fuelCode: prefs.fuel, nextFuel: nextFuel(prefs.fuel), ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...chooseRows(snap, prefs, pins, max, mode) };
+  return { fuel, fuelCode: prefs.fuel, nextFuel: nextFuel(prefs.fuel), canLocate: false, ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...chooseRows(snap, prefs, pins, max, mode) };
 }
 
 // ---- layout budgets. widgets.tsx draws with exactly these sizes; all widget text has allowFontScaling={false}.
@@ -408,6 +409,38 @@ export function smallForecastLine(m: Pick<WidgetModel, 'sydney' | 'asOf'>, width
   const fc = m.sydney ? [m.sydney.long, m.sydney.mid, m.sydney.short] : [];
   const cands = m.asOf ? [...fc.map((x) => `${x} · ${m.asOf}`), m.asOf] : fc;
   return cands.length ? firstFit(cands, w, s.sub) : null;
+}
+
+// ---- where "near" is: the widget's live location, or the area saved in the app
+
+/** The widget's last location fix, kept in kv so redraws without a new fix reuse it */
+export type WidgetFix = { la: number; lo: number; at: number };
+export const FIX_KEY = 'widget.loc';
+/** A stored fix older than this isn't "where you are" any more; the saved area is used instead. */
+export const FIX_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+/** Custom click action the ⟳ button sends: get a fresh fix and redraw. */
+export const LOCATE_ACTION = 'LOCATE';
+/** Label for a live fix: captions read "Cheapest near you" / "Nearest to you". */
+export const LIVE_LABEL = 'you';
+
+export const parseFix = (v: unknown): WidgetFix | null => {
+  const f = v as WidgetFix | null;
+  return f && typeof f === 'object' && [f.la, f.lo, f.at].every((x) => typeof x === 'number' && Number.isFinite(x)) ? f : null;
+};
+
+/**
+ * The origin for Nearest, Cheapest and the no-pins fallback. A suburb the user typed is a deliberate choice and always
+ * wins. Otherwise (GPS-based area, or none), when background location is granted, the widget's own fix (if under
+ * 6 h old) is used, labelled "you"; failing that, the saved area. The widget never asks for permission.
+ */
+export function resolveOrigin(
+  home: Place | null, bgGranted: boolean, fix: WidgetFix | null, now: number,
+): { origin: Place | null; live: boolean; canLocate: boolean } {
+  const typed = !!home && !home.gps;
+  const canLocate = bgGranted && !typed;
+  if (canLocate && fix && now - fix.at >= 0 && now - fix.at <= FIX_MAX_AGE_MS)
+    return { origin: { label: LIVE_LABEL, la: fix.la, lo: fix.lo, gps: true }, live: true, canLocate };
+  return { origin: home, live: false, canLocate };
 }
 
 // ---- the per-widget fuel chip (tap cycles U91 -> E10 -> P98 -> DL -> U91)

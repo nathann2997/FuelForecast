@@ -21,6 +21,7 @@ No Expo account is needed on Android.
 - **Stations**: are the nearby stations and prices right? The arrow button on each row should open Google Maps directions straight away. Try **Filters** (brand, when to fill, max price) and the pin button; pinned stations stay at the top and on Today.
 - **Station page**: tap a station. Does the price chart (1W to 1Y, drag along it) and the station's own forecast make sense? Does the page scroll normally when you swipe up from the chart?
 - **Widget**: long-press your home screen → Widgets → **Bowser**. Add the small and the wide one. Tap the fuel chip (e.g. **U91 ▾**) to switch fuel on that widget. On the wide one, scroll the station list and tap **Pinned · Nearest · Cheapest**: does the list switch, and does each widget remember its own choice? Does tapping a station open its page? Tell us if any tap does nothing. Does it update the next morning?
+- **Widget location (0.4.0)**: in **More → Widget location**, tap **Allow all the time** (Android will open Settings; choose *Allow all the time*). Your area must be *Use my location*. Then drive somewhere and tap **⟳** on the wide widget: do Nearest/Cheapest switch to stations around you?
 - **Trends**: does the chart read well; can you drag along it?
 - **More**: change fuel, tank size and area; do the other tabs follow?
 - Anything confusing, slow or broken: send a screenshot and what you tapped.
@@ -37,4 +38,4 @@ Prices refresh every morning around 6:30am.
 | Live session for Expo Go testers (Option B) | `npx expo start --tunnel` and share the QR code |
 | Run on your own phone on the same Wi-Fi | `npx expo start` and scan with Expo Go |
 
-Updates only reach APKs with the same runtime version (`app.json` `version`, currently 0.3.0). Keep `version` unchanged for JS-only changes; bump it only together with a new APK when native code changes, because existing APKs then stop receiving updates.
+Updates only reach APKs with the same runtime version (`app.json` `version`, currently 0.4.0). Keep `version` unchanged for JS-only changes; bump it only together with a new APK when native code changes, because existing APKs then stop receiving updates.

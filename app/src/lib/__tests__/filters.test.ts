@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { directionsUrls } from '../directions';
-import { plainWarnings } from '../copy';
+import { plainWarnings, widgetLocationCopy } from '../copy';
 import { applyFilters, brandCounts, brandOptions, FILTER_DEFAULTS, filterCount, isFiltered, pinnedRows, type FilterSettings } from '../filters';
 import { rankStations } from '../geo';
 import { DEFAULTS, normalize } from '../settings';
@@ -137,5 +137,37 @@ describe('plain warnings', () => {
       'Station price history isn’t available today.',
     ]);
     expect(plainWarnings([])).toEqual([]);
+  });
+});
+
+describe('widget location copy', () => {
+  const gps = { label: 'your location', gps: true };
+  const typed = { label: 'Manly 2095' };
+  const yes = { status: 'granted', canAskAgain: true } as const;
+  it('is on only with background location and a GPS or unset area', () => {
+    expect(widgetLocationCopy(yes, gps)).toEqual({ status: 'On', action: null, note: null, hint: null });
+    expect(widgetLocationCopy(yes, null).status).toBe('On');
+    expect(widgetLocationCopy(yes, typed)).toEqual({
+      status: 'Off – widget uses Manly 2095',
+      action: null,
+      note: 'Your area is set to Manly 2095. Switch to Use my location for the widget to follow you.',
+      hint: null,
+    });
+  });
+  it('asks, with the Settings hint on Android 11+, or sends to settings when Android will not prompt again', () => {
+    expect(widgetLocationCopy({ status: 'undetermined', canAskAgain: true }, gps)).toEqual({
+      status: 'Off – widget uses where you last opened Bowser', action: 'ask', note: null, hint: null,
+    });
+    expect(widgetLocationCopy({ status: 'denied', canAskAgain: true }, gps, true).hint).toBe('Next, choose Allow all the time.');
+    expect(widgetLocationCopy({ status: 'denied', canAskAgain: false }, null, true)).toEqual({
+      status: 'Off – no area set for the widget', action: 'settings', note: null, hint: null,
+    });
+    expect(widgetLocationCopy({ status: 'unsupported', canAskAgain: false }, gps).action).toBeNull();
+  });
+  it('never says On when location is off for the whole phone', () => {
+    expect(widgetLocationCopy({ ...yes, servicesOff: true }, gps, true)).toEqual({
+      status: 'Location is off on this phone', action: 'services', note: null, hint: null,
+    });
+    expect(widgetLocationCopy({ status: 'denied', canAskAgain: true, servicesOff: true }, typed).note).toContain('Manly 2095');
   });
 });

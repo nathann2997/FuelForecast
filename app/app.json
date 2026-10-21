@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bowser",
     "slug": "fuel-forecast",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fuelforecast",
@@ -39,7 +39,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Your location is used only on your phone to sort nearby fuel stations by distance."
+          "locationWhenInUsePermission": "Your location is used only on your phone to sort nearby fuel stations by distance.",
+          "locationAlwaysAndWhenInUsePermission": "Bowser's widget uses your location on your phone to list the stations nearest to you. It never leaves your phone.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
       [
@@ -60,7 +63,7 @@
             {
               "name": "BowserMedium",
               "label": "Bowser",
-              "description": "The fill-up call plus your pinned stations, or the cheapest near your area.",
+              "description": "The fill-up call plus your pinned, nearest or cheapest stations, with 7-day price forecasts.",
               "minWidth": "250dp",
               "minHeight": "110dp",
               "targetCellWidth": 4,
