@@ -3,6 +3,7 @@
 // (index.ts) before expo-router.
 import { registerWidgetTaskHandler, type WidgetTaskHandler } from 'react-native-android-widget';
 
+import { syncAlerts } from '@/lib/alerts';
 import type { Fuel } from '@/lib/types';
 
 import { clearWidget, loadSnapshot, readCache, saveFuel, saveMode } from './data';
@@ -57,6 +58,8 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
     throw e;
   } finally {
     await saving;   // never rejects (saveKey swallows errors)
+    // Periodic and first draws carry the day's data even when Bowser stays closed: keep the rise alert current
+    if (widgetAction === 'WIDGET_UPDATE' || widgetAction === 'WIDGET_ADDED') await syncAlerts(snap?.forecast?.live, snap?.forecast?.asof);
   }
 };
 

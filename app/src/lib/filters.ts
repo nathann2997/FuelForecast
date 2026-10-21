@@ -98,3 +98,10 @@ export function pinnedRows(stations: Station[], fuel: Fuel, pins: string[], home
     return { id, station: s, row: { ...s, price: p[0], age: p[1], adv: p, d: home ? km(home.la, home.lo, s.la, s.lo) : null } };
   });
 }
+
+/** Today's one recommendation: the cheapest fresh price among your pinned stations and the cheapest nearby ones. */
+export function bestPick(rows: (StationRow | null | undefined)[]): StationRow | null {
+  let best: StationRow | null = null;
+  for (const r of rows) if (r && r.id && !isStale(r.age) && (!best || r.price < best.price)) best = r;
+  return best;
+}

@@ -2,6 +2,51 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
+
+### Added
+- **"Best for you" on Today.** The hero names the single cheapest fresh station among your pinned stations and the 3 cheapest nearby. It shows that station's advice and the saving against the Sydney average for your tank, and tapping it opens the station (`bestPick` in `lib/filters.ts`).
+- **A welcome screen on first run** (`app/welcome.tsx`): fuel, area, rise alerts and a widget tip on one screen, with Start or Skip.
+  - Settings saved before 0.5.0 that already have an area count as onboarded (`settings.onboarded`).
+  - Today redirects to the welcome screen until it has been seen.
+- **Swipe a station row left to Pin/Unpin or get Directions** (gesture-handler `ReanimatedSwipeable`).
+  - The two icon buttons on every row are gone, which gives the name and price more room.
+  - A small pin by the name marks a pinned station.
+  - Screen readers get Pin and Directions as row actions, and the hidden swipe buttons are kept out of their reach.
+  - Stations shows a one-line swipe hint until you pin something.
+- **Rise alerts** (`expo-notifications`, `lib/alerts.ts`), opt-in from More or the welcome screen.
+  - **When:** one local notification when a rise becomes likely, meaning the verdict says fill up or a jump is likely within 2 days. It's sent at the next 7:30 am, or a minute later if the widget finds it during the day.
+  - **How often:** at most once per cycle, with a 5-day cooldown. The rise day moves forward with each day's forecast, so alerts key on the condition, not on a date.
+  - **When it's cancelled:** if the rise is called off before the alert shows.
+  - **When it's skipped:** if the app is open and already showing the warning.
+  - **Where it's scheduled:** from the app, and from the widget's periodic update so it works while Bowser stays closed.
+  - **Permissions:** if notifications are blocked in system settings, the switch turns itself off, and turning it back on offers Open Settings.
+  - **Icon:** a dedicated, cropped notification icon (`assets/images/notification-icon.png`).
+- **Trends opens a one-line cycle summary**, e.g. "Late in the cycle: 36 days since the last jump, so the next one is due." (`cycleSummary` in `lib/copy.ts`).
+- **The small widget's bottom line names your cheapest station**, e.g. "229.3 · Enhance Merrylands", and tapping it opens that station. With old data, it falls back to the Sydney forecast line with "as of".
+
+### Changed
+- **Three tabs: Today, Stations, More.** Trends is now a page with a back button, opened from Today ("Price trends and the cycle →") and from More.
+- `Screen` takes `onBack` and `stack`. Stack screens pad for the Android navigation bar.
+- `station-actions.tsx` keeps only `notify` and `PINS_FULL`.
+- Version 0.5.0. The runtime changes, so 0.4.0 installs don't get this by OTA and need the new APK.
+
+### QA audit, fixes applied
+- **Alerts rewritten as once per cycle.** Keying them on the rise date would have meant a new alert every day, or none at all.
+- A pending alert that is cancelled is forgotten, so a later rise can still alert.
+- Alerts notice when notifications are blocked.
+- Stack screens get bottom insets.
+- Screen readers no longer reach the hidden swipe buttons.
+- Dedicated notification icon.
+- The widget's best line is tappable, and its screen-reader label matches what's shown.
+- `onboarded` is based on the validated area.
+
+### Device checks
+- **Welcome:** shown on a fresh install only, not on an upgrade with an area set.
+- **Swipe rows:** check them inside the scrolling lists on Today and Stations.
+- **Alerts:** turn them on (the Android 13+ permission prompt should appear) and check one arrives at 7:30 during a rise. Then turn off notifications in system settings and reopen Bowser: the switch should show off.
+- **Small widget:** the bottom line taps through to the station.
+
 ## 2026-10-21 — Less text: a UX pass on the app and widget
 
 ### Changed

@@ -96,6 +96,7 @@ export type WidgetRow = {
   noteTone: NoteTone;
   fc: string | null;            // line 2 right: "→ 237.4", the station's 7-day forecast (null when the data has none)
   fcTone: NoteTone;
+  stale: boolean;               // price older than STALE_DAYS (only pinned rows can be)
 };
 
 export type ListMode = 'pinned' | 'nearby' | 'nearest' | 'no-pins' | 'no-area' | 'none-nearby' | 'no-data';
@@ -116,6 +117,7 @@ export type WidgetModel = {
   caption: string | null;       // "Near Parramatta 2150" (none for pinned: the mode row says it)
   rows: WidgetRow[];
   message: string | null;       // shown instead of rows
+  best: { price: string; name: string; uri: string } | null;   // cheapest fresh row: the small widget's bottom line
 };
 
 /** The rise line, using the same rise-day rule as Today and the station chips (lib/outlook.ts riseDay). */
@@ -176,6 +178,7 @@ function toRow(s: WStation, fuel: Fuel, median: number | undefined): WidgetRow |
     advice, adviceTone: ADVICE_TONE[adv[2]] ?? 'calm', dist: null,
     note, noteTone,
     fc, fcTone: fc ? fcTone(adv[0], f7!) : 'flat',
+    stale,
     a11y: `${name}, ${adv[0].toFixed(1)} cents, ${advice}${fc ? `, ${f7!.toFixed(1)} in 7 days` : note ? `, ${note === 'at median' ? 'at the median' : note}` : ''}`,
   };
 }
@@ -289,7 +292,12 @@ export function buildModel(
     : f
       ? { tone: 'calm' as Tone, head: `No outlook for ${fuel}`, rise: null, riseShort: null, sydney: null }
       : { tone: 'calm' as Tone, head: 'Open Bowser', rise: "to load today's outlook", riseShort: 'to load prices', sydney: null };
-  return { fuel, fuelCode: prefs.fuel, nextFuel: nextFuel(prefs.fuel), canLocate: false, ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...chooseRows(snap, prefs, pins, max, mode) };
+  const rows = chooseRows(snap, prefs, pins, max, mode);
+  const best = rows.rows.filter((x) => !x.stale).reduce<WidgetRow | null>((a, x) => (!a || Number(x.price) < Number(a.price) ? x : a), null);
+  return {
+    fuel, fuelCode: prefs.fuel, nextFuel: nextFuel(prefs.fuel), canLocate: false, ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...rows,
+    best: best ? { price: best.price, name: best.name, uri: best.uri } : null,
+  };
 }
 
 // ---- layout budgets. widgets.tsx draws with exactly these sizes; all widget text has allowFontScaling={false}.
@@ -399,6 +407,14 @@ export function compactRowWidths(widthDp: number, advice: string): { adviceW: nu
   const avail = widthDp - 2 * MED.pad - 2 * 4 - 8 - 8 - priceW;   // widget + row padding, two 8 dp gaps
   const adviceW = Math.max(0, Math.min(Math.ceil(advice.length * ROW.sub * AVG_EM), Math.floor(avail * 0.4)));
   return { adviceW, nameW: Math.max(0, avail - adviceW) };
+}
+
+/** Small: the cheapest station for you ("229.3 · Enhance Merrylands"), the thing to act on. Falls back to the Sydney
+ *  forecast line when there's no station to name, or when the data is old (that line carries the "as of"). */
+export function smallBottomLine(m: Pick<WidgetModel, 'sydney' | 'asOf' | 'best'>, widthDp: number, compact: boolean): { text: string; best: boolean } | null {
+  if (m.best && !m.asOf) return { text: `${m.best.price} · ${m.best.name}`, best: true };
+  const fc = smallForecastLine(m, widthDp, compact);
+  return fc ? { text: fc, best: false } : null;
 }
 
 /** Small: the forecast line (with "as of" when the data is old), long form if it fits. */

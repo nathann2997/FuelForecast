@@ -5,15 +5,18 @@ import * as Network from 'expo-network';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import Storage from '@/lib/storage';
+import { initAlerts } from '@/lib/alerts';
 import { useWidgetSync } from '@/widget/sync';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Render errors show expo-router's error screen with a retry instead of a blank app
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
+initAlerts();
 
 // A deep link straight to a pushed screen (fuelforecast://station/<id> from the widget) gets the tabs behind it,
 // so Back goes to Today instead of closing the app
@@ -43,6 +46,7 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <PersistQueryClientProvider
       client={queryClient}
       // buster: bump to drop cached data a new app version can't use (0.3.0: stations need `id`)
@@ -53,8 +57,11 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="station/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="trends" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
         </Stack>
       </ThemeProvider>
     </PersistQueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

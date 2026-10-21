@@ -82,6 +82,19 @@ export function insights(f: Forecast): { title: string; big: string; body: strin
   ];
 }
 
+/** One plain sentence on where Sydney is in the price cycle, for the top of Trends ('' when the stats are missing). */
+export function cycleSummary(f: Forecast): string {
+  const ST = f.stats;
+  const since = ST.last_restore ? daysBetween(ST.last_restore, f.ctx.asof) : null;
+  const gap = ST.cycle_gap_calm;
+  const thin = ST.margin_now != null && ST.margin_typ != null && ST.margin_now < ST.margin_typ - 6;
+  if (since == null || gap == null) return thin ? 'Margins are thin, so a price jump is likely soon.' : '';
+  if (since <= 3) return 'Prices have just jumped and should slide back over the coming weeks.';
+  if (thin || since >= gap) return `Late in the cycle: ${since} days since the last jump, so the next one is due.`;
+  if (since < gap / 2) return `Early in the cycle: prices are sliding back after the jump ${since} days ago.`;
+  return `Mid-cycle: prices are still sliding, ${since} days since the last jump.`;
+}
+
 export function backtestRows(f: Forecast, fuel: Fuel) {
   const S = f.bt.summary, prod = f.bt.prod;
   return [1, 3, 7, 14].map((h) => {

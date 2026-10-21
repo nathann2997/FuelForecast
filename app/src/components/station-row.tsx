@@ -1,12 +1,17 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import { DirectionsButton, PinButton } from '@/components/station-actions';
+import { DirectionsIcon, PinIcon } from '@/components/icons';
+import { notify, PINS_FULL } from '@/components/station-actions';
 import { Badge, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useStationDetail } from '@/lib/api';
+import { openDirections } from '@/lib/directions';
 import { STALE_DAYS } from '@/lib/filters';
+import { togglePin, usePins } from '@/lib/pins';
 import { brandSuburb, stationName, updatedText } from '@/lib/format';
 import type { StationRow } from '@/lib/geo';
 import type { Tone } from '@/lib/outlook';
@@ -16,7 +21,6 @@ export const ADVICE_TONE: Record<AdviceCode, Tone> = { now: 'act', by: 'act', wa
 
 export { STALE_DAYS };
 
-
 export const openStation = (id: string) => router.push({ pathname: '/station/[id]', params: { id } });
 
 /** React key for a row; rows from an old cached stations.json have no id */
@@ -24,8 +28,59 @@ export const rowKey = (r: { id?: string; n: string; la: number; lo: number }) =>
 
 const shortFuel = (f: Fuel) => (f === 'DL' ? 'Diesel' : f);
 
-/** One station: price and gap to the median, name and where, the when-to-fill chip; pin and Directions buttons.
- *  Tapping the row opens the station page. */
+/** Swipe left on a row for Pin/Unpin and Directions. Screen readers get the same two as custom actions on the row. */
+function SwipeRow({ id, name, la, lo, children }: { id?: string; name: string; la?: number; lo?: number; children: (a11y: A11y) => ReactNode }) {
+  const c = useTheme();
+  const pinned = usePins().includes(id ?? '');
+  const canGo = la != null && lo != null;
+  const pin = () => {
+    if (id && !togglePin(id)) notify(PINS_FULL);
+  };
+  const go = () => {
+    if (canGo) openDirections(la, lo, name);
+  };
+  const then = (m: SwipeableMethods, f: () => void) => () => {
+    m.close();
+    f();
+  };
+  const a11y: A11y = {
+    accessibilityActions: [
+      ...(id ? [{ name: 'pin', label: pinned ? 'Unpin' : 'Pin' }] : []),
+      ...(canGo ? [{ name: 'directions', label: 'Directions' }] : []),
+    ],
+    onAccessibilityAction: (e) => (e.nativeEvent.actionName === 'pin' ? pin() : e.nativeEvent.actionName === 'directions' ? go() : undefined),
+  };
+  return (
+    <Swipeable
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+      renderRightActions={(_p, _t, m) => (
+        // Hidden from screen readers: the row's own accessibilityActions offer Pin and Directions
+        <View style={styles.swipe} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+          {id ? (
+            <Pressable onPress={then(m, pin)} accessibilityRole="button" accessibilityLabel={pinned ? `Unpin ${name}` : `Pin ${name}`} style={[styles.swipeBtn, { backgroundColor: c.chip }]}>
+              <PinIcon filled={!pinned} color={c.onChip} size={20} />
+              <T kind="small" color={c.onChip} style={{ fontWeight: '700' }}>{pinned ? 'Unpin' : 'Pin'}</T>
+            </Pressable>
+          ) : null}
+          {canGo ? (
+            <Pressable onPress={then(m, go)} accessibilityRole="button" accessibilityLabel={`Directions to ${name}`} style={[styles.swipeBtn, { backgroundColor: c.tgp }]}>
+              <DirectionsIcon color="#ffffff" size={22} />
+              <T kind="small" color="#ffffff" style={{ fontWeight: '700' }}>Go</T>
+            </Pressable>
+          ) : null}
+        </View>
+      )}>
+      {children(a11y)}
+    </Swipeable>
+  );
+}
+
+type A11y = Pick<PressableProps, 'accessibilityActions' | 'onAccessibilityAction'>;
+
+/** One station: name, where, the when-to-fill chip, price and gap to the median. Tapping opens the station page;
+ *  swiping left shows Pin and Directions. A pinned station shows a small pin by its name. */
 export function StationItem({ r, median, last }: { r: StationRow; median: number | undefined; last?: boolean }) {
   const c = useTheme();
   const [, , code, label] = r.adv;
@@ -33,45 +88,50 @@ export function StationItem({ r, median, last }: { r: StationRow; median: number
   const gap = median != null ? r.price - median : null;
   const stale = r.age != null && r.age > STALE_DAYS;
   const hasId = !!r.id;   // an old cached stations.json has no ids: no station page and no pin, Directions still works
+  const pinned = usePins().includes(r.id);
 
   return (
-    <View style={[styles.outer, !last && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-      <Pressable
-        onPress={hasId ? () => openStation(r.id) : undefined}
-        disabled={!hasId}
-        accessibilityRole={hasId ? 'button' : undefined}
-        accessibilityLabel={`${name}, ${r.price.toFixed(1)} cents, ${label}`}
-        accessibilityHint={hasId ? "Opens the station's prices and forecast" : undefined}
-        style={({ pressed }) => [styles.item, pressed && { backgroundColor: c.sunk }]}>
-        <View style={{ flex: 1, gap: 3 }}>
-          <T style={{ fontWeight: '700', fontSize: 15 }} color={c.fg} numberOfLines={1}>{name}</T>
-          <T kind="small" numberOfLines={1}>
-            {brandSuburb(name, r.b, r.s)}{r.d != null ? ` · ${r.d.toFixed(1)} km` : ''}{r.m ? ' · Members' : ''}
-          </T>
-          <View style={[styles.row, { gap: Spacing.two, marginTop: 2 }]}>
-            <Badge tone={ADVICE_TONE[code] ?? 'calm'}>{label}</Badge>
-            {stale ? <T kind="small" color={c.up} numberOfLines={1} style={{ flexShrink: 1 }}>{updatedText(r.age)}</T> : null}
-          </View>
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <T kind="bignum" style={{ fontSize: 22 }}>{r.price.toFixed(1)}</T>
-          {gap != null ? (
-            <T kind="small" color={gap < -0.05 ? c.cheap : gap > 0.05 ? c.dear : c.muted} style={{ fontWeight: '600' }}>
-              {Math.abs(gap) < 0.05 ? 'at median' : `${gap < 0 ? '−' : '+'}${Math.abs(gap).toFixed(1)}c`}
-            </T>
-          ) : null}
-        </View>
-      </Pressable>
-      <View style={styles.actions}>
-        {hasId ? <PinButton id={r.id} name={name} /> : null}
-        <DirectionsButton la={r.la} lo={r.lo} name={name} />
-      </View>
+    <View style={[styles.outer, { backgroundColor: c.surface }, !last && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+      <SwipeRow id={hasId ? r.id : undefined} name={name} la={r.la} lo={r.lo}>
+        {(a11y) => (
+          <Pressable
+            onPress={hasId ? () => openStation(r.id) : undefined}
+            disabled={!hasId}
+            accessibilityRole={hasId ? 'button' : undefined}
+            accessibilityLabel={`${name}${pinned ? ', pinned' : ''}, ${r.price.toFixed(1)} cents, ${label}`}
+            accessibilityHint={hasId ? "Opens the station's prices and forecast" : undefined}
+            {...a11y}
+            style={({ pressed }) => [styles.item, { backgroundColor: pressed ? c.sunk : c.surface }]}>
+            <View style={{ flex: 1, gap: 3 }}>
+              <View style={[styles.row, { gap: 6 }]}>
+                <T style={{ fontWeight: '700', fontSize: 15, flexShrink: 1 }} color={c.fg} numberOfLines={1}>{name}</T>
+                {pinned ? <PinIcon filled color={c.muted} size={14} /> : null}
+              </View>
+              <T kind="small" numberOfLines={1}>
+                {brandSuburb(name, r.b, r.s)}{r.d != null ? ` · ${r.d.toFixed(1)} km` : ''}{r.m ? ' · Members' : ''}
+              </T>
+              <View style={[styles.row, { gap: Spacing.two, marginTop: 2 }]}>
+                <Badge tone={ADVICE_TONE[code] ?? 'calm'}>{label}</Badge>
+                {stale ? <T kind="small" color={c.up} numberOfLines={1} style={{ flexShrink: 1 }}>{updatedText(r.age)}</T> : null}
+              </View>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 2 }}>
+              <T kind="bignum" style={{ fontSize: 22 }}>{r.price.toFixed(1)}</T>
+              {gap != null ? (
+                <T kind="small" color={gap < -0.05 ? c.cheap : gap > 0.05 ? c.dear : c.muted} style={{ fontWeight: '600' }}>
+                  {Math.abs(gap) < 0.05 ? 'at median' : `${gap < 0 ? '−' : '+'}${Math.abs(gap).toFixed(1)}c`}
+                </T>
+              ) : null}
+            </View>
+          </Pressable>
+        )}
+      </SwipeRow>
     </View>
   );
 }
 
 /** A pinned station with no price for this fuel in today's data (doesn't sell it, or not in today's list): greyed
- *  out, still tappable and unpinnable. */
+ *  out, still tappable; swipe to unpin. */
 export function MissingPinItem({ id, station, fuel, last }: { id: string; station: Station | null; fuel: Fuel; last?: boolean }) {
   const c = useTheme();
   const dq = useStationDetail(station ? undefined : id);   // name lookup only if the station left today's list
@@ -79,30 +139,34 @@ export function MissingPinItem({ id, station, fuel, last }: { id: string; statio
   const where = station ? brandSuburb(name, station.b, station.s) : dq.data ? brandSuburb(name, dq.data.b, dq.data.s) : null;
   const why = station ? `No ${shortFuel(fuel)} here` : 'Not in today’s prices';
   return (
-    <View style={[styles.outer, !last && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-      <Pressable
-        onPress={() => openStation(id)}
-        accessibilityRole="button"
-        accessibilityLabel={`${name}, ${why}`}
-        style={({ pressed }) => [styles.item, { opacity: 0.6 }, pressed && { backgroundColor: c.sunk }]}>
-        <View style={{ flex: 1, gap: 3 }}>
-          <T style={{ fontWeight: '700', fontSize: 15 }} color={c.fg} numberOfLines={1}>{name}</T>
-          {where ? <T kind="small" numberOfLines={1}>{where}</T> : null}
-        </View>
-        <T kind="small" style={{ fontWeight: '600' }}>{why}</T>
-      </Pressable>
-      <View style={styles.actions}>
-        <PinButton id={id} name={name} />
-        {station ? <DirectionsButton la={station.la} lo={station.lo} name={name} /> : <View style={styles.spacer} />}
-      </View>
+    <View style={[styles.outer, { backgroundColor: c.surface }, !last && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+      <SwipeRow id={id} name={name} la={station?.la} lo={station?.lo}>
+        {(a11y) => (
+          <Pressable
+            onPress={() => openStation(id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${name}, pinned, ${why}`}
+            {...a11y}
+            style={({ pressed }) => [styles.item, { backgroundColor: pressed ? c.sunk : c.surface }]}>
+            <View style={{ flex: 1, gap: 3, opacity: 0.6 }}>
+              <View style={[styles.row, { gap: 6 }]}>
+                <T style={{ fontWeight: '700', fontSize: 15, flexShrink: 1 }} color={c.fg} numberOfLines={1}>{name}</T>
+                <PinIcon filled color={c.muted} size={14} />
+              </View>
+              {where ? <T kind="small" numberOfLines={1}>{where}</T> : null}
+            </View>
+            <T kind="small" style={{ fontWeight: '600', opacity: 0.6 }}>{why}</T>
+          </Pressable>
+        )}
+      </SwipeRow>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: { flexDirection: 'row', alignItems: 'center' },
-  item: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three, paddingLeft: Spacing.four, paddingRight: Spacing.two },
-  actions: { flexDirection: 'row', alignItems: 'center', paddingRight: Spacing.one },
+  outer: {},
+  item: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three, paddingHorizontal: Spacing.four },
+  swipe: { flexDirection: 'row' },
+  swipeBtn: { width: 76, alignItems: 'center', justifyContent: 'center', gap: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  spacer: { width: 44, height: 44 },
 });

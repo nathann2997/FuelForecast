@@ -105,6 +105,10 @@ export default function Stations() {
             </Pressable>
           </View>
 
+          {!pins.length && total > 0 ? (
+            <T kind="small" style={{ marginTop: -Spacing.two }}>Swipe a station left to pin it or get directions.</T>
+          ) : null}
+
           {pinned.length ? (
             <View style={{ gap: Spacing.two }}>
               <T kind="eyebrow">Pinned</T>
@@ -124,7 +128,7 @@ export default function Stations() {
             <Card style={{ gap: Spacing.three }}>
               <T>
                 {s.pinnedOnly && !pins.length
-                  ? 'No pinned stations yet. Tap a pin to add one.'
+                  ? 'No pinned stations yet. Swipe a station left to pin it.'
                   : `No stations match.${staleN && !s.showStale ? ` ${staleN} with older prices hidden.` : ''}`}
               </T>
               <Button label="Reset filters" kind="secondary" onPress={resetFilters} />

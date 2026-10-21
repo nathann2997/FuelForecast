@@ -10,10 +10,12 @@ export type Settings = FilterSettings & {
   fuel: Fuel;
   tankL: number;             // for "$ saved on a tank"
   home: Place | null;        // remembered area (GPS fix or suburb), stays on the phone
+  onboarded: boolean;        // the welcome screen has been seen (or skipped)
+  alerts: boolean;           // a notification the morning before a likely price rise (lib/alerts.ts)
 };
 
 const KEY = 'settings.v1';
-export const DEFAULTS: Settings = { ...FILTER_DEFAULTS, fuel: 'U91', tankL: 50, home: null };
+export const DEFAULTS: Settings = { ...FILTER_DEFAULTS, fuel: 'U91', tankL: 50, home: null, onboarded: false, alerts: false };
 
 const FUEL_CODES: readonly Fuel[] = ['U91', 'E10', 'P98', 'DL'];
 const GROUPS = new Set<string>(ADVICE_GROUPS.map(([g]) => g));
@@ -26,10 +28,11 @@ export function normalize(raw: unknown): Settings {
   const bool = (k: keyof Settings) => (typeof o[k] === 'boolean' ? (o[k] as boolean) : (DEFAULTS[k] as boolean));
   const strs = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
   const home = o.home as Place | null | undefined;
+  const okHome = home && typeof home === 'object' && typeof home.la === 'number' && typeof home.lo === 'number' ? home : null;
   return {
     fuel: FUEL_CODES.includes(o.fuel as Fuel) ? (o.fuel as Fuel) : DEFAULTS.fuel,
     tankL: typeof o.tankL === 'number' && o.tankL > 0 ? o.tankL : DEFAULTS.tankL,
-    home: home && typeof home === 'object' && typeof home.la === 'number' && typeof home.lo === 'number' ? home : null,
+    home: okHome,
     sort: o.sort === 'distance' ? 'distance' : 'price',
     radiusKm: (RADII as readonly number[]).includes(o.radiusKm as number) ? (o.radiusKm as number) : DEFAULTS.radiusKm,
     members: bool('members'),
@@ -38,10 +41,14 @@ export function normalize(raw: unknown): Settings {
     brands: [...new Set(strs(o.brands))],
     advice: [...new Set(strs(o.advice))].filter((g) => GROUPS.has(g)) as Settings['advice'],
     maxPrice: typeof o.maxPrice === 'number' && o.maxPrice > 0 ? o.maxPrice : null,
+    // Saved before the welcome screen existed: someone who already set an area doesn't need it
+    onboarded: typeof o.onboarded === 'boolean' ? o.onboarded : !!okHome,
+    alerts: bool('alerts'),
   };
 }
 
-function load(): Settings {
+/** The saved settings, read fresh from storage (for the widget task, which can outlive app changes). */
+export function loadSettings(): Settings {
   try {
     const raw = Storage.getItemSync(KEY);
     return raw ? normalize(JSON.parse(raw)) : DEFAULTS;
@@ -50,7 +57,7 @@ function load(): Settings {
   }
 }
 
-let state = load();
+let state = loadSettings();
 const listeners = new Set<() => void>();
 
 export function setSettings(patch: Partial<Settings>) {

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -7,7 +8,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { chartData, RANGES, type RangeKey } from '@/lib/chart';
-import { historyNote, insights } from '@/lib/copy';
+import { cycleSummary, historyNote, insights } from '@/lib/copy';
 import { fuelName } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
 import type { Fuel, Stations } from '@/lib/types';
@@ -44,17 +45,21 @@ export default function TrendsScreen() {
   const brands = useMemo(() => (sq.data && r ? brandStats(sq.data, fuel, r.now) : []), [sq.data, fuel, r]);
   const maxAbs = Math.max(1, ...brands.map((b) => Math.abs(b.prem)));
   const all = f ? insights(f) : [];
+  const where = f ? cycleSummary(f) : '';
 
   return (
     <Screen
       title="Trends"
       subtitle={`Sydney ${fuelName(fuel)}`}
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       onRefresh={() => { hq.refetch(); fq.refetch(); sq.refetch(); }}
       refreshing={hq.isRefetching}>
       {!d || !f ? (
         <Loading error={hq.error ?? fq.error} onRetry={() => { hq.refetch(); fq.refetch(); }} />
       ) : (
         <>
+          {where ? <T kind="h2" style={{ lineHeight: 24 }}>{where}</T> : null}
+
           <Card style={{ gap: Spacing.three }}>
             <Segmented options={RANGE_OPTS} value={range} onChange={setRange} />
             <PriceChart d={d} label={fuelName(fuel)} />

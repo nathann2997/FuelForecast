@@ -14,10 +14,6 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Stations</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="location" md="near_me" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="trends">
-        <NativeTabs.Trigger.Label>Trends</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="chart.xyaxis.line" md="query_stats" />
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="more">
         <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="gearshape" md="settings" />

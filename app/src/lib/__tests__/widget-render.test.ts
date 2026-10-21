@@ -82,7 +82,9 @@ describe('widget rendering', () => {
           expect(chipOf(nodes).map((n) => n.props?.clickActionData)).toEqual([{ fuel: nextFuel(p.fuel) }]);
           expect(nodes.some((n) => n.type === 'ListWidget')).toBe(false);
           expect(nodes.some((n) => n.props?.text === t.model.head)).toBe(true);
-          if (t.model.sydney) expect(nodes.some((n) => String(n.props?.text ?? '').startsWith(t.model.sydney!.short.slice(0, 5)))).toBe(true);
+          // the bottom line names the cheapest station for you, else (or with old data) the Sydney forecast
+          if (t.model.best && !t.model.asOf) expect(nodes.some((n) => n.props?.text === `${t.model.best!.price} · ${t.model.best!.name}`)).toBe(true);
+          else if (t.model.sydney) expect(nodes.some((n) => String(n.props?.text ?? '').startsWith(t.model.sydney!.short.slice(0, 5)))).toBe(true);
           // every text is fixed-size so the budget holds
           for (const n of nodes.filter((x) => x.type === 'TextWidget')) expect(n.props?.allowFontScaling).toBe(false);
         }

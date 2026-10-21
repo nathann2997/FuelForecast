@@ -1,21 +1,21 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AreaPicker } from '@/components/area-picker';
 import { OutlookChart } from '@/components/outlook-chart';
 import { BowserWordmark } from '@/components/brand';
-import { MissingPinItem, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
-import { Card, Disclosure, Loading, Screen, Section, StaleBanner, T, toneColors } from '@/components/ui';
+import { ADVICE_TONE, MissingPinItem, openStation, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
+import { Badge, Card, Disclosure, Loading, Screen, Section, StaleBanner, T, toneColors } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useArea } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { horizons, jumpRisk, signalWhy } from '@/lib/copy';
-import { fmt, fuelName } from '@/lib/format';
-import { pinnedRows } from '@/lib/filters';
+import { fmt, fuelName, stationName } from '@/lib/format';
+import { bestPick, pinnedRows } from '@/lib/filters';
 import { rankStations } from '@/lib/geo';
-import { dayLabel, outlook, riseDay } from '@/lib/outlook';
+import { dayLabel, dollars, outlook, riseDay } from '@/lib/outlook';
 import { usePins } from '@/lib/pins';
 import { useSettings } from '@/lib/settings';
 
@@ -39,6 +39,10 @@ export default function Today() {
       .slice(0, 3);
   }, [sq.data, home, s.fuel, s.radiusKm, s.members]);
   const mine = useMemo(() => (sq.data ? pinnedRows(sq.data.stations, s.fuel, pins, home) : []), [sq.data, s.fuel, pins, home]);
+  const pick = useMemo(() => bestPick([...mine.map((p) => p.row), ...best]), [mine, best]);
+  const pickSave = pick && r ? r.now - pick.price : 0;   // c/L under the Sydney median
+
+  if (!s.onboarded) return <Redirect href="/welcome" />;
 
   return (
     <Screen
@@ -59,6 +63,25 @@ export default function Today() {
             </T>
             <T kind="hero" color={t.fg} style={{ fontSize: 34, lineHeight: 40 }}>{o.head}</T>
             {o.deadline ? <T color={t.fg} style={{ fontWeight: '700' }}>{o.deadline}</T> : null}
+            {pick ? (
+              <Pressable
+                onPress={() => openStation(pick.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Best for you: ${stationName(pick.n)}, ${pick.price.toFixed(1)} cents, ${pick.adv[3]}`}
+                style={({ pressed }) => [styles.pick, { backgroundColor: c.surface, opacity: pressed ? 0.8 : 1 }]}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <T kind="eyebrow">Best for you</T>
+                  <T color={c.fg} style={{ fontWeight: '700', fontSize: 16 }} numberOfLines={1}>{stationName(pick.n)}</T>
+                  <Badge tone={ADVICE_TONE[pick.adv[2]] ?? 'calm'}>{pick.adv[3]}</Badge>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                  <T kind="bignum">{pick.price.toFixed(1)}</T>
+                  {pickSave >= 0.5 ? (
+                    <T kind="small" color={c.cheap} style={{ fontWeight: '600' }}>saves {dollars(pickSave, s.tankL)} vs avg</T>
+                  ) : null}
+                </View>
+              </Pressable>
+            ) : null}
             <T color={t.fg} style={{ opacity: 0.9 }}>{o.detail}</T>
             <OutlookChart r={r} asof={f.asof} rise={riseDay(r)} tone={o.tone} />
             <View style={styles.horizons}>
@@ -121,6 +144,10 @@ export default function Today() {
             <T kind="small">The shaded band is the likely range.</T>
           </Disclosure>
 
+          <Pressable onPress={() => router.push('/trends')} accessibilityRole="link" hitSlop={8}>
+            <T color={c.tgp} style={{ fontWeight: '700' }}>Price trends and the cycle →</T>
+          </Pressable>
+
           <T kind="small">Updated each morning. Estimates, not financial advice.</T>
         </>
       )}
@@ -142,5 +169,6 @@ const styles = StyleSheet.create({
   hero: { borderRadius: 20, padding: Spacing.five, gap: Spacing.two },
   horizons: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
   hcell: { flex: 1, gap: 1 },
+  pick: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: 14, padding: Spacing.three, marginVertical: Spacing.one },
   fact: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Spacing.two },
 });

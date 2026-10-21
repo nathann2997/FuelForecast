@@ -1,8 +1,10 @@
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { BowserMark } from '@/components/brand';
+import { AlertsSwitch } from '@/components/alerts-switch';
 import { AreaPicker } from '@/components/area-picker';
 import { Button, Card, Disclosure, FuelPicker, Loading, Screen, Section, Segmented, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -73,9 +75,20 @@ export default function More() {
             <T color={c.fg} style={{ flex: 1 }}>Show members-only sites (Costco)</T>
             <Switch value={s.members} onValueChange={(v) => setSettings({ members: v })} />
           </View>
+          <AlertsSwitch />
         </Card>
         <T kind="small">Stored on this phone only.</T>
       </Section>
+
+      <Pressable onPress={() => router.push('/trends')} accessibilityRole="link" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+        <Card style={styles.between}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T color={c.fg} style={{ fontWeight: '700' }}>Price trends</T>
+            <T kind="small">History, the price cycle and the cheapest brands</T>
+          </View>
+          <T color={c.muted} style={{ fontSize: 22 }}>›</T>
+        </Card>
+      </Pressable>
 
       {Platform.OS === 'android' ? <WidgetLocation /> : null}
 

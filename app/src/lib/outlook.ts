@@ -49,7 +49,7 @@ export type Outlook = {
   move14: number;        // expected change by day 14, c/L
 };
 
-const dollars = (cents: number, litres: number) => {
+export const dollars = (cents: number, litres: number) => {
   const v = (Math.abs(cents) * litres) / 100;
   return v >= 10 ? `$${v.toFixed(0)}` : `$${v.toFixed(2)}`;
 };

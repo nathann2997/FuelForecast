@@ -12,7 +12,7 @@ import type { Tone } from '@/lib/outlook';
 
 import {
   FUEL_ACTION, LOCATE_ACTION, MED, MODE_ACTION, ROW, SMALL_STYLE, STATION_MODES, TODAY_URI, compactHeadline, fuelLabel, mediumForecastLine, mediumLayout,
-  compactRowWidths, smallCompact, smallForecastLine, smallRiseLine, type NoteTone, type WidgetModel, type WidgetRow,
+  compactRowWidths, smallCompact, smallBottomLine, smallRiseLine, type NoteTone, type WidgetModel, type WidgetRow,
 } from './logic';
 
 export const SMALL = 'BowserSmall';
@@ -63,12 +63,12 @@ function Small({ m, c, width, height }: { m: WidgetModel; c: Pal; width: number;
   const t = toneColors(c, m.tone);
   const compact = smallCompact(width, height);
   const s = compact ? SMALL_STYLE.compact : SMALL_STYLE.regular;
-  const fcLine = smallForecastLine(m, width, compact);
+  const bottom = smallBottomLine(m, width, compact);
   const rise = smallRiseLine(m, width, compact);
   return (
     <FlexWidget
       {...open}
-      accessibilityLabel={`Bowser. ${m.fuel}: ${m.head}. ${m.rise ?? ''} ${m.sydney?.long ?? ''}`}
+      accessibilityLabel={`Bowser. ${m.fuel}: ${m.head}. ${m.rise ?? ''} ${bottom?.best && m.best ? `Cheapest for you: ${m.best.name}, ${m.best.price}` : (m.sydney?.long ?? '')}`}
       style={{ height: 'match_parent', width: 'match_parent', backgroundColor: hex(t.bg), borderRadius: 22, padding: s.pad, flexDirection: 'column' }}>
       <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center' }}>
         <ImageWidget image={MARK} imageWidth={s.mark} imageHeight={s.mark} />
@@ -80,8 +80,16 @@ function Small({ m, c, width, height }: { m: WidgetModel; c: Pal; width: number;
       {rise ? (
         <TextWidget text={rise} maxLines={1} truncate="END" allowFontScaling={false} style={{ fontSize: s.sub, color: hex(c.fg2), marginTop: s.gap }} />
       ) : null}
-      {fcLine ? (
-        <TextWidget text={fcLine} maxLines={1} truncate="END" allowFontScaling={false} style={{ fontSize: s.sub, fontWeight: '600', color: hex(m.sydney ? noteColor(c, m.sydney.tone) : c.muted), marginTop: compact ? 0 : 2 }} />
+      {bottom?.best && m.best ? (
+        // The cheapest station opens its own page; the rest of the widget opens Today
+        <FlexWidget clickAction="OPEN_URI" clickActionData={{ uri: m.best.uri }} accessibilityLabel={`${m.best.name}, ${m.best.price} cents`} style={{ width: 'match_parent', marginTop: compact ? 0 : 2 }}>
+          <TextWidget text={bottom.text} maxLines={1} truncate="END" allowFontScaling={false} style={{ fontSize: s.sub, fontWeight: '600', color: hex(t.fg) }} />
+        </FlexWidget>
+      ) : bottom ? (
+        <TextWidget
+          text={bottom.text} maxLines={1} truncate="END" allowFontScaling={false}
+          style={{ fontSize: s.sub, fontWeight: '600', color: hex(m.sydney ? noteColor(c, m.sydney.tone) : c.muted), marginTop: compact ? 0 : 2 }}
+        />
       ) : null}
     </FlexWidget>
   );

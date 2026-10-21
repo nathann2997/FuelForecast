@@ -7,7 +7,6 @@ import { useTheme } from '@/hooks/use-theme';
 const TABS = [
   ['index', '/', 'Today'],
   ['stations', '/stations', 'Stations'],
-  ['trends', '/trends', 'Trends'],
   ['more', '/more', 'More'],
 ] as const;
 

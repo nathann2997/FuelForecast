@@ -33,8 +33,13 @@ export function toneColors(c: Palette, tone: Tone) {
 
 /** Scrolling screen with a title and the fuel chip (and the app wordmark above the title on Today). Android applies the bottom tab inset itself; we handle the top. */
 export function Screen({
-  title, subtitle, brand, children, onRefresh, refreshing = false, fuel = true,
-}: { title: string; subtitle?: string; brand?: ReactNode; children: ReactNode; onRefresh?: () => void; refreshing?: boolean; fuel?: boolean }) {
+  title, subtitle, brand, children, onRefresh, refreshing = false, fuel = true, onBack, stack = !!onBack,
+}: {
+  title: string; subtitle?: string; brand?: ReactNode; children: ReactNode; onRefresh?: () => void; refreshing?: boolean; fuel?: boolean;
+  onBack?: () => void;
+  /** A stack screen (no tab bar below): pad for the system navigation bar on Android too */
+  stack?: boolean;
+}) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
   // Android SDK 58 is edge-to-edge, so the window no longer resizes for the keyboard: pad for it here
@@ -44,7 +49,7 @@ export function Screen({
       style={{ flex: 1, backgroundColor: c.bg }}
       contentContainerStyle={{
         paddingTop: insets.top + Spacing.four,
-        paddingBottom: Spacing.six + (Platform.OS === 'ios' ? insets.bottom + 50 : 0),
+        paddingBottom: Spacing.six + (stack ? insets.bottom : Platform.OS === 'ios' ? insets.bottom + 50 : 0),
         paddingHorizontal: Spacing.four,
         gap: Spacing.four,
       }}
@@ -52,6 +57,11 @@ export function Screen({
       refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.muted} /> : undefined}>
       <View style={styles.header}>
         <View style={{ flex: 1, gap: 2 }}>
+          {onBack ? (
+            <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={12} style={styles.back}>
+              <Text style={{ color: c.fg, fontSize: 26, lineHeight: 28 }}>‹</Text>
+            </Pressable>
+          ) : null}
           {brand ? <View style={{ marginBottom: Spacing.two }}>{brand}</View> : null}
           {subtitle ? <T kind="small">{subtitle}</T> : null}
           <T kind="title">{title}</T>
@@ -297,6 +307,7 @@ export function StaleBanner({ asof }: { asof: string | undefined }) {
 const styles = StyleSheet.create({
   between: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   header: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three },
+  back: { width: 44, height: 36, justifyContent: 'center', marginLeft: -Spacing.two, paddingLeft: Spacing.two },
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
   card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.card, padding: Spacing.four },
   seg: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: Radius.chip, padding: 3, gap: 2, alignSelf: 'flex-start' },
