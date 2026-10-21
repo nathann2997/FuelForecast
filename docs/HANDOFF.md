@@ -13,10 +13,12 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - [x] Phase 1 — headless pipeline (`fetch.py`, `.github/workflows/daily.yml`)
 - [x] Phase 2 — static JSON API (`export_api.py`)
 - [x] Go-live (2026-10-21): QA audit + fixes, pushed to main, secrets set, Pages enabled, first run passed in 94 s (run 39513415528), `data` branch seeded, API live
-- [ ] Phase 3 — Expo app in `/app`: tabs Today / Stations / History / About; expo-router, @tanstack/react-query (offline cache), expo-location, victory-native, AsyncStorage; haversine on device; stale banner from `meta.asof`
-- [ ] Phase 4 — EAS Build preview APK, EAS Update, CI typecheck/lint for `/app`
+- [~] Phase 3 — Expo app in `/app` built (Today / Stations / History / About; react-query + expo-sqlite kv-store cache, expo-location, custom react-native-svg chart instead of victory-native). QA audited and fixed, committed. Not yet run on a real Android device (next: Expo Go on the owner's phone).
+- [ ] Phase 4 — EAS Build preview APK (needs owner's Expo account login: `npx eas-cli@latest login`), EAS Update. CI for `/app` done (`app-ci.yml`).
 
 ## Key facts
+- Node 22 at `~/.local/node/bin` (on PATH via `~/.zshrc`); run app checks with `cd app && npx tsc --noEmit && npx expo lint && npx jest`.
+- Browser preview: `npx expo export --platform web`, serve with an SPA fallback, screenshot with headless Chrome at >=500 px width.
 - API base: `https://nathann2997.github.io/FuelForecast/api/v1/` (see `sydney/README.md` for the file schema).
 - `stations.json` per-fuel tuple: `[price, days since update, advice code, advice label, reason]`; advice codes: now, by, ok, wait, hi, any, chk.
 - Verdict rule lives in `template.html` (`verdict()`) and is mirrored in `export_api.py` — change both together.
