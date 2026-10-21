@@ -37,6 +37,49 @@ All of this is in the widget library patch (`app/patches/react-native-android-wi
 - **The stale-data banner no longer says "pull down to refresh"**: "Showing prices from Tue 21 Oct. Today's update hasn't arrived yet."
 - `docs/TESTING.md`'s widget-location check no longer mentions ⟳.
 
+### 4. Fresher data: five pipeline runs a day (workflow + widget JS)
+- **Review: NSW FuelCheck is live, so the old schedule was the bottleneck.** The API returns each station's current price, reported within minutes of a change.
+  - **One run a day:** the pipeline ran once, at 06:30 Sydney.
+  - **Often late:** GitHub cron often starts late; the scheduled run on 22 Oct started at 09:33.
+  - **Stations change prices all day.** In the 2025–26 NSW history (319k hikes, 690k cuts, Sydney local time):
+
+    | Share done by | Hikes | Cycle jumps (8c+) | Cuts |
+    |---|---|---|---|
+    | 06:00 | 7% | 7% | 4% |
+    | 12:00 | 60% | 55% | 49% |
+    | 18:00 | 90% | 89% | 88% |
+    | 21:00 | 96% | 96% | 96% |
+
+  - **So a 6:30 am snapshot showed almost none of a jump day.** It is really "yesterday's close", whereas the history rows the model trains on are each day's last price (`build_history.py`).
+- **`.github/workflows/daily.yml` now runs five times a day** (AEDT; one hour earlier in AEST):
+
+  | Time | Purpose |
+  |---|---|
+  | 05:13 | The day's first file, ready before the morning |
+  | 10:13, 13:13, 17:13 | Catch the jumps |
+  | 21:13 | The day's near-close (96% of changes in) |
+
+  - **The latest run wins:** each run replaces the day's snapshot row (`update.py` already did this).
+  - **Slot choice:** the slots avoid GitHub's busy :00/:30 marks and back each other up when one starts late.
+  - **The close slot is 21:13, not later**, so even a late start stays on the same Sydney date.
+  - **Old offset fixed:** a day's final row now matches the history's end-of-day definition. Before, a row labelled D was really D−1's close. One transition day will have a two-day `mom1`; it heals when the monthly history replaces the snapshot rows.
+  - **Forecasts during the day use the day so far.** The 10:13, 13:13 and 17:13 runs build on a partial day, so the verdict and the jump odds can change during the day, and a rise alert can arrive mid-day. Alerts still go out at most once per cycle, with a 5-day cooldown.
+- **The backtest now runs every 28 days, on whichever run comes first.** It was the first Monday of the month, which a late or failed run could skip for a month. `store/backtest_ran` on the `data` branch holds the date of the last one; the first run after this change does one.
+- **The widget picks up runs during the day:**
+  - Today's data counts as fresh for 2 h, not all day (`TODAY_FRESH_MS` in `widget/logic.ts`), so the 4-hourly widget update fetches the latest run.
+  - The app's in-memory data is used only if it is today's, newer than the widget's cache and under 2 h old (`fromAppData` / `appDataUsable`).
+  - Older app data never replaces the cache's copy of the same day. Before, a backgrounded app holding the morning's data would have frozen the widget at it.
+- **The app needed no change.** Its 15-minute stale time and refetch-on-foreground already pick up new runs, and pull-to-refresh now really does bring newer prices during the day.
+- **Load:**
+  - Each run takes about 1.5 min on a free public-repo runner, plus a Pages deploy.
+  - That's 2 NSW API calls per run, about 300 a month.
+  - The `data` branch grows about 5x faster (one rewritten snapshot archive per run, about 160 MB a year).
+- **QA audit, fixes applied:**
+  - The app data's age is now checked (above).
+  - The analysis hours are corrected.
+  - The backtest is gated on how stale it is.
+  - The close run moved from 22:43 to 21:13.
+
 ## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
 
 ### Added

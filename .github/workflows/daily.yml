@@ -6,8 +6,19 @@
 name: daily-forecast
 
 on:
+  # Several runs a day; each replaces the day's snapshot row (update.py), so the latest run wins. NSW FuelCheck is live,
+  # but Sydney stations change prices all day: of 2025-26 hikes, 7% are in by 06:00, 60% by noon, 90% by 18:00 and 96%
+  # by 21:00 (cycle jumps of 8c+: 7% / 55% / 89% / 96%). So the first run makes the day's file early and the others
+  # catch the jumps. The last run records (nearly) the day's close, which matches the history rows the model is trained
+  # on (last price of the day, build_history.py); it's at 21:13, not later, so a late start still lands before midnight.
+  # GitHub cron is UTC only and often starts late (the 06:30 run started at 09:33 on 22 Oct), so the slots avoid the
+  # busy :00/:30 marks and back each other up. Times are AEDT / AEST.
   schedule:
-    - cron: "30 19 * * *"   # 06:30 AEDT / 05:30 AEST (GitHub cron is UTC only)
+    - cron: "13 18 * * *"   # 05:13 / 04:13: the day's first file, before the morning
+    - cron: "13 23 * * *"   # 10:13 / 09:13
+    - cron: "13 2 * * *"    # 13:13 / 12:13
+    - cron: "13 6 * * *"    # 17:13 / 16:13
+    - cron: "13 10 * * *"   # 21:13 / 20:13: the day's (near) close
   workflow_dispatch:
     inputs:
       backtest:
@@ -75,8 +86,13 @@ jobs:
       - name: Update store, model, dashboard
         run: |
           BT=""
-          if [ "${{ inputs.backtest }}" = "true" ] || { [ "$(date +%u)" = 1 ] && [ "$(date +%-d)" -le 7 ]; }; then BT="--backtest"; fi
+          # The walk-forward backtest (~8 min) once every 28 days, on whichever run comes first; store/backtest_ran
+          # (on the data branch) holds the date of the last one. backtest.json's test_to can't be used: it follows the
+          # monthly history files, which always lag.
+          LAST=$(cat state/store/backtest_ran 2>/dev/null || echo 2000-01-01)
+          if [ "${{ inputs.backtest }}" = "true" ] || [ $(( ($(date +%s) - $(date -d "$LAST" +%s)) / 86400 )) -ge 28 ]; then BT="--backtest"; fi
           bash state/pipeline/run_daily.sh "$PWD/state" "$PWD/state/inbox" $BT
+          if [ -n "$BT" ]; then date +%F > state/store/backtest_ran; fi
 
       - name: Export app API (fails on stale or broken output)
         run: python state/pipeline/export_api.py state site

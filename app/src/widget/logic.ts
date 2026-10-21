@@ -49,38 +49,57 @@ export function compactStations(s: Stations): NonNullable<WidgetSnapshot['statio
   };
 }
 
-/** Is a snapshot good enough to render without fetching? Today's data, or fetched in the last `maxAgeMs`. */
+/** How long today's data counts as fresh: the pipeline republishes during the day (.github/workflows/daily.yml: ~5 am,
+ *  10 am, 1 pm, 5 pm, 9 pm), so a widget that fetched in the morning picks up the later prices on its next update. */
+export const TODAY_FRESH_MS = 2 * 60 * 60 * 1000;
+
+/** Is a snapshot good enough to render without fetching? Today's data fetched in the last 2 h, or any data fetched in
+ *  the last `maxAgeMs` (so a day whose file hasn't landed yet isn't refetched on every redraw). */
 export function isFresh(s: WidgetSnapshot | null, today: string, now: number, maxAgeMs = 30 * 60 * 1000): boolean {
   if (!s?.forecast || !s.stations) return false;
-  if (s.forecast.asof >= today && s.stations.asof >= today) return true;
-  return now - s.fetchedAt < maxAgeMs;
+  const age = now - s.fetchedAt;
+  if (s.forecast.asof >= today && s.stations.asof >= today) return age < TODAY_FRESH_MS;
+  return age < maxAgeMs;
 }
 
-/** Merge newer parts over a snapshot (a part is only replaced by the same or a newer day). */
+/** Merge newer parts over a snapshot: a part is replaced by a newer day, and by the same day unless `keepTies` (the
+ *  incoming copy is older than the snapshot's, e.g. app data loaded before the widget's last fetch). */
 export function mergeSnapshot(
-  prev: WidgetSnapshot | null, next: Partial<Pick<WidgetSnapshot, 'forecast' | 'stations'>>, fetchedAt: number,
+  prev: WidgetSnapshot | null, next: Partial<Pick<WidgetSnapshot, 'forecast' | 'stations'>>, fetchedAt: number, keepTies = false,
 ): WidgetSnapshot {
   const pick = <T extends { asof: string }>(a: T | null | undefined, b: T | null | undefined) =>
-    b && (!a || b.asof >= a.asof) ? b : (a ?? null);
+    b && (!a || b.asof > a.asof || (!keepTies && b.asof === a.asof)) ? b : (a ?? null);
   return { forecast: pick(prev?.forecast, next.forecast), stations: pick(prev?.stations, next.stations), fetchedAt };
 }
 
+/** The app's query data and when it arrived (react-query dataUpdatedAt, ms; the older of the two files). */
+export type AppData = { forecast?: Forecast; stations?: Stations; updatedAt?: number };
+
 /**
- * The app's in-memory query data, folded into the cache. `use` is true only when both files are today's: an app left
- * in the background still holds yesterday's data, which must not stop the widget fetching. The cache's fetchedAt is
- * kept (app data is not a fetch), so the 30-minute freshness rule still applies to stale data.
+ * The app's in-memory query data, folded into the cache. The pipeline republishes during the day, so app data is only
+ * as good as when the app loaded it (`updatedAt`; unknown counts as older than any cache):
+ * - newer than the cache: it wins, and the cache takes its time as fetchedAt;
+ * - older: it only adds a newer day, never replaces the cache's copy of the same day.
+ * `todays` (both files today's and newer than the cache) with `at` lets the caller use it while under TODAY_FRESH_MS
+ * old (`use`, for `now`): an app left in the background holds the morning's data, which must not stop the widget
+ * fetching the afternoon run.
  */
 export function fromAppData(
-  prev: WidgetSnapshot | null, app: { forecast?: Forecast; stations?: Stations } | null | undefined, today: string,
-): { snap: WidgetSnapshot; changed: boolean; use: boolean } | null {
+  prev: WidgetSnapshot | null, app: AppData | null | undefined, today: string, now = Date.now(),
+): { snap: WidgetSnapshot; changed: boolean; todays: boolean; at: number; use: boolean } | null {
   if (!app?.forecast && !app?.stations) return null;
   const f = app.forecast ? compactForecast(app.forecast) : null;
   const s = app.stations ? compactStations(app.stations) : null;
-  const snap = mergeSnapshot(prev, { forecast: f, stations: s }, prev?.fetchedAt ?? 0);
-  const changed = !prev || snap.forecast?.asof !== prev.forecast?.asof || snap.stations?.asof !== prev.stations?.asof;
-  const use = !!f && !!s && f.asof >= today && s.asof >= today;
-  return { snap, changed, use };
+  const at = app.updatedAt ?? 0;
+  const newer = !prev || at > prev.fetchedAt;
+  const snap = mergeSnapshot(prev, { forecast: f, stations: s }, newer ? at : prev!.fetchedAt, !newer);
+  const changed = !prev || snap.fetchedAt !== prev.fetchedAt || snap.forecast !== prev.forecast || snap.stations !== prev.stations;
+  const todays = newer && !!f && !!s && f.asof >= today && s.asof >= today;
+  return { snap, changed, todays, at, use: appDataUsable(todays, at, now) };
 }
+
+/** Today's app data, newer than the cache, is used as is while under TODAY_FRESH_MS old. */
+export const appDataUsable = (todays: boolean, at: number, now: number) => todays && now - at < TODAY_FRESH_MS;
 
 // ---- what the widget shows
 

@@ -9,7 +9,7 @@ import type { Place } from '../geo';
 import type { Forecast, Station, Stations } from '../types';
 import {
   asOfLabel, buildModel, chooseRows, compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, modeKey, parseMode, resolveMode, riseText, mediumLayout, fuelKey, nextFuel, parseFuel, resolveFuel, fuelLabel, MAX_ROWS,
-  stationUri,
+  stationUri, TODAY_FRESH_MS,
   type WidgetPrefs, type WidgetSnapshot,
 } from '../../widget/logic';
 import fixture from './forecast.fixture.json';
@@ -138,9 +138,11 @@ describe('widget cache', () => {
     expect(c.stations).toHaveLength(STATIONS.stations.length);
     expect(c.stations[0].p.U91).toEqual([229.9, 0, 'by', 'Fill by Fri', null]);   // no forecast in this file
   });
-  it('is fresh when both files are today\'s, or when fetched in the last 30 minutes', () => {
+  it('is fresh when both files are today\'s and fetched in the last 2 h (the pipeline republishes during the day), or when fetched in the last 30 minutes', () => {
     const now = 1_000_000_000;
-    expect(isFresh(snap({ fetchedAt: 0 }), TODAY, now)).toBe(true);
+    expect(isFresh(snap({ fetchedAt: now - TODAY_FRESH_MS + 60_000 }), TODAY, now)).toBe(true);
+    expect(isFresh(snap({ fetchedAt: now - TODAY_FRESH_MS }), TODAY, now)).toBe(false);   // the noon run may be out
+    expect(isFresh(snap({ fetchedAt: 0 }), TODAY, now)).toBe(false);
     const old = snap({ fetchedAt: now - 60 * 60 * 1000 });
     old.forecast!.asof = '2026-10-20';
     expect(isFresh(old, TODAY, now)).toBe(false);
@@ -171,11 +173,30 @@ describe('widget data from the running app', () => {
     expect(fromAppData(null, null, TODAY)).toBeNull();
     expect(fromAppData(null, {}, TODAY)).toBeNull();
   });
-  it("uses the app's data only when both files are today's", () => {
-    const r = fromAppData(null, { forecast: F, stations: STATIONS }, TODAY)!;
+  it("uses the app's data only when both files are today's and the app loaded them under 2 h ago", () => {
+    const now = 1_000_000_000;
+    const r = fromAppData(null, { forecast: F, stations: STATIONS, updatedAt: now - 60_000 }, TODAY, now)!;
     expect(r.use).toBe(true);
     expect(r.changed).toBe(true);
-    expect(fromAppData(null, { forecast: F }, TODAY)!.use).toBe(false);
+    expect(r.snap.fetchedAt).toBe(now - 60_000);   // the app's load time, so isFresh ages it like a widget fetch
+    expect(fromAppData(null, { forecast: F, updatedAt: now }, TODAY, now)!.use).toBe(false);
+    // a morning load in a backgrounded app must not hide the afternoon run (pipeline republishes during the day)
+    expect(fromAppData(null, { forecast: F, stations: STATIONS, updatedAt: now - TODAY_FRESH_MS }, TODAY, now)!.use).toBe(false);
+    // no load time (an app build without it): not usable, the widget fetches for itself
+    expect(fromAppData(null, { forecast: F, stations: STATIONS }, TODAY, now)!.use).toBe(false);
+  });
+  it("keeps a same-day cache the widget fetched after the app's load", () => {
+    const now = 1_000_000_000;
+    const later = { ...compactForecast(F), live: [] };   // stands in for the afternoon run of the same day
+    const cache = mergeSnapshot(null, { forecast: later, stations: compactStations(STATIONS) }, now - 60_000);
+    const r = fromAppData(cache, { forecast: F, stations: STATIONS, updatedAt: now - 3600_000 }, TODAY, now)!;
+    expect(r.use).toBe(false);
+    expect(r.changed).toBe(false);
+    expect(r.snap.forecast).toBe(cache.forecast);
+    // and a newer app load replaces the same day's cache
+    const r2 = fromAppData(cache, { forecast: F, stations: STATIONS, updatedAt: now - 1000 }, TODAY, now)!;
+    expect(r2).toMatchObject({ use: true, changed: true });
+    expect(r2.snap.forecast!.live).toEqual(F.live);
   });
   it("doesn't let a backgrounded app's stale query cache stop a fetch", () => {
     const now = 1_000_000_000;

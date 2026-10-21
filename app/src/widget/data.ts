@@ -8,7 +8,7 @@ import Storage from '@/lib/storage';
 import type { Forecast, Fuel, Stations } from '@/lib/types';
 
 import {
-  FIX_KEY, compactForecast, compactStations, fromAppData, fuelKey, parseFix, type WidgetFix, isFresh, mergeSnapshot, modeKey, parseFuel, parseMode, type StationMode,
+  FIX_KEY, type AppData, appDataUsable, compactForecast, compactStations, fromAppData, fuelKey, parseFix, type WidgetFix, isFresh, mergeSnapshot, modeKey, parseFuel, parseMode, type StationMode,
   type WidgetPrefs, type WidgetSnapshot,
 } from './logic';
 
@@ -74,11 +74,12 @@ async function getJson<T extends { schema: number }>(name: string): Promise<T> {
   }
 }
 
-// ---- the app registers its query cache here (src/widget/sync.ts), so in-app refreshes don't refetch
-type AppData = () => { forecast?: Forecast; stations?: Stations };
-let appData: AppData | null = null;
-let lastApp: { prev: WidgetSnapshot | null; f?: Forecast; s?: Stations; today: string; out: ReturnType<typeof fromAppData> } | null = null;
-export function setWidgetDataSource(fn: AppData | null) {
+// ---- the app registers its query cache here (src/widget/sync.ts), so in-app refreshes don't refetch. `updatedAt` is
+// when the app got the data (react-query dataUpdatedAt): without it the widget can't tell the morning's data from the
+// afternoon run's, so it treats app data as older than its cache and fetches for itself.
+let appData: (() => AppData) | null = null;
+let lastApp: { prev: WidgetSnapshot | null; f?: Forecast; s?: Stations; at?: number; today: string; out: ReturnType<typeof fromAppData> } | null = null;
+export function setWidgetDataSource(fn: (() => AppData) | null) {
   appData = fn;
   lastApp = null;
 }
@@ -86,24 +87,24 @@ export function setWidgetDataSource(fn: AppData | null) {
 // fromAppData compacts ~900 stations; while the app is alive every widget redraw would redo it. The inputs are the
 // same objects until the app refetches or the cache changes (readCache reuses its parse), so keep the last result.
 
-function appSnapshot(prev: WidgetSnapshot | null, today: string) {
+function appSnapshot(prev: WidgetSnapshot | null, today: string, now: number) {
   const data = appData?.();
-  const f = data?.forecast, s = data?.stations;
-  if (lastApp && lastApp.prev === prev && lastApp.f === f && lastApp.s === s && lastApp.today === today) return lastApp.out;
-  const out = fromAppData(prev, data, today);
-  lastApp = { prev, f, s, today, out };
-  return out;
+  const f = data?.forecast, s = data?.stations, at = data?.updatedAt;
+  const hit = lastApp && lastApp.prev === prev && lastApp.f === f && lastApp.s === s && lastApp.at === at && lastApp.today === today;
+  const out = hit ? lastApp!.out : fromAppData(prev, data, today, now);
+  if (!hit) lastApp = { prev, f, s, at, today, out };
+  return out && { ...out, use: appDataUsable(out.todays, out.at, now) };   // `use` ages with the clock, so not cached
 }
 
 /**
- * The best snapshot available: app data if the app has it, else the cache if it's today's (or under 30 min old),
- * else a fetch. A failed fetch falls back to the cache (null only if nothing was ever loaded).
+ * The best snapshot available: the app's data if it's today's, newer than the cache and under 2 h old, else the cache
+ * if it's today's and under 2 h old (or any data under 30 min old: logic.ts isFresh), else a fetch. A failed fetch falls back to the cache (null only if nothing was ever loaded).
  */
 export async function loadSnapshot(opts: { allowFetch: boolean }): Promise<WidgetSnapshot | null> {
   const now = Date.now();
   const today = sydneyToday();
   let cache = readCache();
-  const app = appSnapshot(cache, today);
+  const app = appSnapshot(cache, today, now);
   if (app) {
     if (app.changed) await writeCache(app.snap);
     if (app.use) return app.snap;
