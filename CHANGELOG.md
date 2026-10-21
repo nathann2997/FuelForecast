@@ -4,6 +4,38 @@ All notable changes to the FuelForecast pipeline and app. Newest first.
 
 ## 2026-10-22 — Bowser 0.6.0 (in progress): owner's feedback round
 
+### iOS build (new; see `docs/IOS.md`)
+- **Bowser now builds for iPhone.** EAS iOS simulator build 46497e9c compiled and contains the WidgetKit extension: https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/46497e9c-bfac-45fb-90ec-33b53c98d856
+  - The JS layout fixes below came after that build.
+  - Installing on a real iPhone needs an Apple Developer Program account (TestFlight recommended).
+- **iOS home-screen and lock-screen widget** (`expo-widgets` + `@expo/ui` SwiftUI, `widget/ios-widget.tsx`): one `BowserWidget` in small, medium, large, lock-screen rectangular and inline sizes.
+  - Small: the call, the rise line, and your cheapest station.
+  - Medium and large: 3 or 6 pinned or cheapest-nearby stations. Each row opens its station.
+  - Built from the shared `buildModel` via `widget/ios-model.ts`.
+- **Widget timeline** (`widget/render.ios.ts`): the app pushes it when data, pins, fuel or area change.
+  - Entries at the next 7 Sydney midnights keep "rise from tomorrow" and "as of" right while Bowser is closed (DST-safe `sydneyMidnight`).
+- **Background refresh on iOS** (`widget/register.ios.ts`, `expo-background-task`): fetches the API, pushes the widget and keeps the rise alert current while Bowser is closed. It runs every 4 h at most, when iOS allows.
+- `widget/sync.ts` keeps the widget in step on iOS as well as Android. The welcome screen's widget tip has iOS steps.
+- **Config:**
+  - Version 0.6.0 (runtime 0.6.0 on both platforms).
+  - `ios.supportsTablet: false`, `ITSAppUsesNonExemptEncryption: false`.
+  - EAS `simulator` profile; `production` auto-increments the build number.
+- **The Android APK is unchanged by this.** The iOS-only native modules (`expo-widgets`, `@expo/ui`, `expo-background-task`, `expo-task-manager`, `unimodules-app-loader`) are excluded from Android autolinking in `app/package.json`.
+- **QA audit, fixes applied:**
+  - Excluded `unimodules-app-loader` from Android too. It's a transitive native dependency of task-manager and would have changed the APK.
+  - Fitted the small, medium and large layouts to WidgetKit heights:
+    - Small: 2-line headline, with "as of" in the header.
+    - Medium and large: "as of" on the caption line, and a tighter row stack.
+    - Large: capped at 6 rows.
+  - Stale rows use the note's colour.
+  - The timeline covers a week, not 2 days.
+  - The lock-screen inline widget gets a tap URL and background.
+  - Light-mode contrast on the medium widget's rise line.
+  - Updated stale "no-op on iOS" comments.
+- **Open:**
+  - The expo-location "Always" usage string still appears on iOS, though iOS never asks for it. App Review may question it.
+  - The iOS widget has no buttons (fuel or mode) yet.
+
 ### 1. Faster widget taps (native: needs the 0.6.0 APK)
 All of this is in the widget library patch (`app/patches/react-native-android-widget+0.23.0.patch`).
 - **Pinned/Nearest/Cheapest and fuel-chip taps skip WorkManager while Bowser is running.** If the app is open or was used recently, the tap's redraw starts at once. WorkManager's enqueue and job scheduling had been most of a warm tap's delay.

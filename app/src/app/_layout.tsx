@@ -34,7 +34,7 @@ onlineManager.setEventListener((setOnline) => {
 
 export default function RootLayout() {
   const scheme = useColorScheme();
-  useWidgetSync(queryClient);   // keeps the Android home-screen widget in step (no-op elsewhere)
+  useWidgetSync(queryClient);   // keeps the home-screen widget in step (no-op on web)
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => focusManager.setFocused(s === 'active'));

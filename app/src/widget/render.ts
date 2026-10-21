@@ -1,3 +1,3 @@
-// Web and iOS: there is no home-screen widget (iOS widget is out of scope), so refreshing does nothing.
-// The Android implementation is ./render.android.ts; keep the exports in step.
+// Web: there is no home-screen widget, so refreshing does nothing.
+// Android: ./render.android.ts; iOS: ./render.ios.ts. Keep the exports in step.
 export function requestWidgetRefresh(): void {}

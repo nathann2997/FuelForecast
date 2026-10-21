@@ -1,2 +1,2 @@
-// Web and iOS: no widget task to register. The Android implementation is ./register.android.ts.
+// Web: no widget task to register. Android: ./register.android.ts; iOS (background refresh): ./register.ios.ts.
 export {};

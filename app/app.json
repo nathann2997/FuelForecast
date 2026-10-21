@@ -2,14 +2,18 @@
   "expo": {
     "name": "Bowser",
     "slug": "fuel-forecast",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fuelforecast",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.nathann2997.fuelforecast"
+      "bundleIdentifier": "com.nathann2997.fuelforecast",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -89,7 +93,30 @@
             "enableMinifyInReleaseBuilds": false
           }
         }
-      ]
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "BowserWidget",
+              "displayName": "Bowser",
+              "description": "Today's fill-up call, when prices are likely to rise, and your cheapest nearby or pinned stations.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium",
+                  "systemLarge",
+                  "accessoryRectangular",
+                  "accessoryInline"
+                ]
+              },
+              "android": null
+            }
+          ]
+        }
+      ],
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true,

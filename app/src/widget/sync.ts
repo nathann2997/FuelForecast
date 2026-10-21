@@ -1,4 +1,5 @@
-// Keeps the Android widget in step with the app: mounted once from the root layout. A no-op on web and iOS.
+// Keeps the home-screen widget (Android, and iOS via ./render.ios.ts) in step with the app: mounted once from the root
+// layout. A no-op on web.
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
@@ -33,7 +34,7 @@ export function useWidgetSync(client: QueryClient) {
   }, [client, s.fuel, s.alerts]);
 
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    if (Platform.OS === 'web') return;
     setWidgetDataSource(() => ({
       forecast: client.getQueryData<Forecast>(['forecast']),
       stations: client.getQueryData<Stations>(['stations']),
@@ -51,6 +52,6 @@ export function useWidgetSync(client: QueryClient) {
 
   const homeKey = s.home ? `${s.home.la},${s.home.lo}` : '';
   useEffect(() => {
-    if (Platform.OS === 'android') requestWidgetRefresh();
+    if (Platform.OS !== 'web') requestWidgetRefresh();
   }, [s.fuel, homeKey, s.radiusKm, s.members]);
 }

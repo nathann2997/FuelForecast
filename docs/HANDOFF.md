@@ -10,6 +10,7 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [~] **iOS build** (2026-10-22, see `docs/IOS.md` and the CHANGELOG 0.6.0 "iOS build" section): the app plus an iOS WidgetKit widget (`expo-widgets`) and background refresh. EAS iOS simulator build 46497e9c compiled with the widget extension. Not pushed or OTA'd. **Blocked on the owner:** an Apple Developer Program account, plus a choice of TestFlight (recommended) or ad hoc. Then run `npx eas-cli build -p ios --profile production --auto-submit` interactively once so EAS can create the certificates, both bundle IDs and the app group. **Next:** the device checks in `docs/IOS.md`.
 - [x] Phase 1 — headless pipeline (`fetch.py`, `.github/workflows/daily.yml`)
 - [x] Phase 2 — static JSON API (`export_api.py`)
 - [x] Go-live (2026-10-21): QA audit + fixes, pushed to main, secrets set, Pages enabled, first run passed in 94 s (run 39513415528), `data` branch seeded, API live

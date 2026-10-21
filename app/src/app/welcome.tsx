@@ -45,9 +45,11 @@ export default function Welcome() {
       {Platform.OS !== 'web' ? (
         <Step n={3} title="Stay ahead">
           <AlertsSwitch />
-          {Platform.OS === 'android' ? (
-            <T kind="small">Tip: add the Bowser widget. Long-press your home screen, then Widgets.</T>
-          ) : null}
+          <T kind="small">
+            {Platform.OS === 'ios'
+              ? 'Tip: add the Bowser widget. Touch and hold your Home Screen, tap Edit, then Add Widget.'
+              : 'Tip: add the Bowser widget. Long-press your home screen, then Widgets.'}
+          </T>
         </Step>
       ) : null}
 
