@@ -1,5 +1,5 @@
-// Android: the headless task the widget provider runs when a widget is added, resized, tapped on its mode row, fuel
-// chip or ⟳ button, deleted, or due for its periodic update (updatePeriodMillis in app.json). Imported from the app entry
+// Android: the headless task the widget provider runs when a widget is added, resized, tapped on its mode row or fuel
+// chip, deleted, or due for its periodic update (updatePeriodMillis in app.json). Imported from the app entry
 // (index.ts) before expo-router.
 import { registerWidgetTaskHandler, type WidgetTaskHandler } from 'react-native-android-widget';
 
@@ -7,10 +7,13 @@ import { syncAlerts } from '@/lib/alerts';
 import type { Fuel } from '@/lib/types';
 
 import { clearWidget, loadSnapshot, readCache, saveFuel, saveMode } from './data';
-import { FUEL_ACTION, LOCATE_ACTION, MODE_ACTION, parseFuel, parseMode, type StationMode } from './logic';
+import { FUEL_ACTION, MODE_ACTION, parseFuel, parseMode, type StationMode } from './logic';
 import { prepareLocation } from './location';
 import { modelFor } from './model';
 import { renderWidgetFor } from './widgets';
+
+/** The ⟳ button's click action before 0.6.0 (see the WIDGET_CLICK branch) */
+const STALE_LOCATE_ACTION = 'LOCATE';
 
 export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetAction, clickAction, clickActionData, renderWidget }) => {
   const id = widgetInfo.widgetId;
@@ -21,12 +24,14 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
   let fetch = widgetAction !== 'WIDGET_RESIZED';   // a resize only re-lays out, so reuse what's cached
   const tapped: { mode?: StationMode; fuel?: Fuel } = {};
   let saving: Promise<void> | null = null;
-  // Location: a last-known read on added/periodic updates (no GPS wake-up), a fresh fix on ⟳, nothing otherwise
-  let locate: { fresh?: boolean; skip?: boolean } = { skip: widgetAction === 'WIDGET_RESIZED' };
+  // Location: a last-known read on added/periodic updates (no GPS wake-up), nothing on resizes and taps
+  let locate: { skip?: boolean } = { skip: widgetAction === 'WIDGET_RESIZED' };
   if (widgetAction === 'WIDGET_CLICK') {
     // OPEN_URI taps (stations, the rest of the widget) open the app natively and never get here. The mode row sends
-    // MODE { mode }; the fuel chip sends FUEL { fuel } (the next fuel in the cycle); ⟳ sends LOCATE. Save the choice
-    // for this widget and redraw from the cache so the switch is quick; fetch only when nothing is cached.
+    // MODE { mode }; the fuel chip sends FUEL { fuel } (the next fuel in the cycle). Save the choice for this widget
+    // and redraw from the cache so the switch is quick; fetch only when nothing is cached. LOCATE comes from the ⟳
+    // button removed in 0.6.0, still on a widget drawn by 0.5.0: a plain redraw (no location read), which removes it.
+    // Anything else is ignored.
     const mode = clickAction === MODE_ACTION ? parseMode(clickActionData?.mode) : null;
     const fuel = clickAction === FUEL_ACTION ? parseFuel(clickActionData?.fuel) : null;
     if (mode) {
@@ -37,8 +42,8 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
       tapped.fuel = fuel;
       saving = saveFuel(id, fuel);
       locate = { skip: true };
-    } else if (clickAction === LOCATE_ACTION) {
-      locate = { fresh: true };
+    } else if (clickAction === STALE_LOCATE_ACTION) {
+      locate = { skip: true };
     } else return;
     fetch = false;
   }

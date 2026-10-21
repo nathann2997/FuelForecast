@@ -316,7 +316,7 @@ index f818d97..c90ed01 100644
          );
      }
 diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
-index 647d8f4..75a51d4 100644
+index 647d8f4..cdd1a82 100644
 --- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
 +++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
 @@ -7,13 +7,25 @@ import android.content.Intent;
@@ -356,8 +356,8 @@ index 647d8f4..75a51d4 100644
      }
 +
 +    // Bowser patch (faster taps): the app's click actions that only redraw from the cached snapshot (src/widget/logic.ts
-+    // MODE_ACTION, FUEL_ACTION), well under a second. Anything that may wait on GPS or the network (LOCATE) keeps
-+    // WorkManager, which holds the process for as long as the task needs.
++    // MODE_ACTION, FUEL_ACTION), well under a second. Any other click (today only a stale LOCATE from a widget drawn by 0.5.0) keeps WorkManager, which holds the
++    // process for as long as the task needs, so a click that may wait on GPS or the network is safe there.
 +    private static final java.util.Set<String> QUICK_CLICKS = new java.util.HashSet<>(java.util.Arrays.asList("MODE", "FUEL"));
 +    private static final long QUICK_CLICK_HOLD_MS = 5_000;
 +

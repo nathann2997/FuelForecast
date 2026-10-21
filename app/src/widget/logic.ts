@@ -112,7 +112,6 @@ export type WidgetModel = {
   sydney: { long: string; mid: string; short: string; tone: NoteTone } | null;   // "237.9 now → 240.4 in 7 days", "237.9 → 240.4 in 7 days", "237.9 → 240.4"
   asOf: string | null;          // "as of 20 Oct" when the data isn't today's (Sydney date)
   stationMode: StationMode | null;   // the medium widget's selected mode row tab (null for the small widget)
-  canLocate: boolean;           // show the ⟳ (LOCATE) button: background location granted and the area is GPS or unset
   mode: ListMode;
   caption: string | null;       // "Near Parramatta 2150" (none for pinned: the mode row says it)
   rows: WidgetRow[];
@@ -296,7 +295,7 @@ export function buildModel(
   const rows = chooseRows(snap, prefs, pins, max, mode);
   const best = rows.rows.filter((x) => !x.stale).reduce<WidgetRow | null>((a, x) => (!a || Number(x.price) < Number(a.price) ? x : a), null);
   return {
-    fuel, fuelCode: prefs.fuel, nextFuel: nextFuel(prefs.fuel), canLocate: false, ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...rows,
+    fuel, fuelCode: prefs.fuel, nextFuel: nextFuel(prefs.fuel), ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...rows,
     best: best ? { price: best.price, name: best.name, uri: best.uri } : null,
   };
 }
@@ -439,8 +438,6 @@ export type WidgetFix = { la: number; lo: number; at: number };
 export const FIX_KEY = 'widget.loc';
 /** A stored fix older than this isn't "where you are" any more; the saved area is used instead. */
 export const FIX_MAX_AGE_MS = 6 * 60 * 60 * 1000;
-/** Custom click action the ⟳ button sends: get a fresh fix and redraw. */
-export const LOCATE_ACTION = 'LOCATE';
 /** Label for a live fix: the caption reads "Near you". */
 export const LIVE_LABEL = 'you';
 

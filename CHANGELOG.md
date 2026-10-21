@@ -27,6 +27,16 @@ All of this is in the widget library patch (`app/patches/react-native-android-wi
 - **The compact small widget (under 150 dp) shows the plain pill**, since there is no room for the dots.
 - **The in-app fuel button keeps its ▾**, because it really does open a picker.
 
+### 3. No more "refresh" that doesn't refresh (JS)
+- **The widget's ⟳ button is gone**, and so is its `LOCATE` action.
+  - It only asked the phone for a new GPS fix, yet it looked like a data refresh, and the data itself only changes when the daily file is published.
+  - The widget still follows your location from the last known position on its regular redraws (no GPS wake-ups).
+  - A tap on a ⟳ still drawn by 0.5.0 redraws the widget without it (no location read, no fetch).
+  - The mode tabs now use the full row.
+  - Code removed: `canLocate` on the model, `LOCATE_ACTION`, and `currentFix` and its 8 s timeout in `widget/location.ts`.
+- **The stale-data banner no longer says "pull down to refresh"**: "Showing prices from Tue 21 Oct. Today's update hasn't arrived yet."
+- `docs/TESTING.md`'s widget-location check no longer mentions ⟳.
+
 ## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
 
 ### Added

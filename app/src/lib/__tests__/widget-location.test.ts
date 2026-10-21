@@ -1,5 +1,5 @@
 // The widget's live location: origin resolution (pure) and the headless handler's location paths (periodic last-known
-// read, ⟳ LOCATE fresh fix with its timeout and fallback, permission denied, typed suburb). expo-location is mocked.
+// read, no GPS wake-ups, permission denied, typed suburb, the ⟳ button gone). expo-location is mocked.
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { buildWidgetTree } from 'react-native-android-widget/src/api/build-widget-tree';
@@ -9,7 +9,7 @@ import { CACHE_KEY } from '../../widget/data';
 import {
   FIX_KEY, FIX_MAX_AGE_MS, LIVE_LABEL, buildModel, compactForecast, compactStations, resolveOrigin, type WidgetSnapshot,
 } from '../../widget/logic';
-import { LAST_KNOWN, LOCATE_TIMEOUT_MS, toFix } from '../../widget/location';
+import { LAST_KNOWN, toFix } from '../../widget/location';
 import { widgetTaskHandler } from '../../widget/register.android';
 import { MEDIUM, renderWidgetFor } from '../../widget/widgets';
 import type { Forecast, Station } from '../types';
@@ -134,7 +134,7 @@ describe('widget handler location', () => {
     const nodes = drawn(render.mock.calls[0][0]);
     expect(rowIds(nodes)).toEqual(['b1', 'b2']);
     expect(texts(nodes)).toContain('Near you');
-    expect(hasLocate(nodes)).toBe(true);
+    expect(hasLocate(nodes)).toBe(false);   // no ⟳ since 0.6.0
   });
 
   it('reuses the stored fix when there is no new one', async () => {
@@ -143,51 +143,26 @@ describe('widget handler location', () => {
     expect(rowIds(drawn(render.mock.calls[0][0]))).toEqual(['b1', 'b2']);
   });
 
-  it('⟳ LOCATE gets a fresh fix, stores it and redraws without fetching', async () => {
-    mockLoc.current = () => Promise.resolve(pos(BONDI));
+  it('a LOCATE tap from a widget still drawn by 0.5.0 (its ⟳) redraws without the button: no location read, no fetch', async () => {
+    mockLoc.last = pos(BONDI);
     const render = await run({ widgetAction: 'WIDGET_CLICK', clickAction: 'LOCATE', clickActionData: {} });
-    expect(mockLoc.calls.current).toBe(1);
-    expect(JSON.parse(mockStore.get(FIX_KEY)!)).toMatchObject(BONDI);
-    expect(rowIds(drawn(render.mock.calls[0][0]))).toEqual(['b1', 'b2']);
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(hasLocate(drawn(render.mock.calls[0][0]))).toBe(false);
+    expect(mockLoc.calls.last + mockLoc.calls.current).toBe(0);
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
-  it('⟳ falls back to the last-known position after the 8 s timeout', async () => {
-    jest.useFakeTimers();
-    mockLoc.current = () => new Promise<Pos>(() => {});   // never answers
-    mockLoc.last = pos(BONDI);
-    const done = run({ widgetAction: 'WIDGET_CLICK', clickAction: 'LOCATE', clickActionData: {} });
-    await jest.advanceTimersByTimeAsync(LOCATE_TIMEOUT_MS);
-    const render = await done;
-    expect(mockLoc.calls.last).toBe(1);
-    expect(rowIds(drawn(render.mock.calls[0][0]))).toEqual(['b1', 'b2']);
-  });
-
-  it('⟳ with no fix at all keeps the saved area', async () => {
-    jest.useFakeTimers();
-    mockLoc.current = () => Promise.reject(new Error('location off'));
-    const done = run({ widgetAction: 'WIDGET_CLICK', clickAction: 'LOCATE', clickActionData: {} });
-    await jest.advanceTimersByTimeAsync(LOCATE_TIMEOUT_MS);
-    const render = await done;
-    expect(mockStore.has(FIX_KEY)).toBe(false);
-    expect(rowIds(drawn(render.mock.calls[0][0]))).toEqual(['p1', 'p2']);
-  });
-
-  it('permission denied: no location reads, no ⟳, the saved area', async () => {
+  it('permission denied: no location reads, the saved area', async () => {
     mockLoc.bg = 'denied';
     mockLoc.last = pos(BONDI);
     mockStore.set(FIX_KEY, JSON.stringify({ ...BONDI, at: Date.now() }));   // an old fix from when it was granted
-    for (const over of [{}, { widgetAction: 'WIDGET_CLICK' as const, clickAction: 'LOCATE', clickActionData: {} }]) {
-      const render = await run(over);
-      const nodes = drawn(render.mock.calls[0][0]);
-      expect(rowIds(nodes)).toEqual(['p1', 'p2']);
-      expect(hasLocate(nodes)).toBe(false);
-    }
+    const render = await run({});
+    expect(rowIds(drawn(render.mock.calls[0][0]))).toEqual(['p1', 'p2']);
     expect(mockLoc.calls.last + mockLoc.calls.current).toBe(0);
     expect(mockStore.has(FIX_KEY)).toBe(false);   // N1: the old coordinates are deleted
   });
 
-  it('a typed suburb is respected: no location reads, no ⟳', async () => {
+  it('a typed suburb is respected: no location reads', async () => {
     mockStore.set(FIX_KEY, JSON.stringify({ ...BONDI, at: Date.now() }));
     settings({ label: 'Parramatta 2150', ...PARRA });
     mockLoc.last = pos(BONDI);
@@ -196,7 +171,6 @@ describe('widget handler location', () => {
     expect(mockLoc.calls.last + mockLoc.calls.current).toBe(0);
     expect(rowIds(nodes)).toEqual(['p1', 'p2']);
     expect(texts(nodes)).toContain('Near Parramatta 2150');
-    expect(hasLocate(nodes)).toBe(false);
     expect(mockStore.has(FIX_KEY)).toBe(false);   // N1: deleted for a typed suburb too
   });
 
@@ -246,15 +220,13 @@ describe('widget handler location', () => {
   });
 });
 
-describe('⟳ button rendering', () => {
+describe('no ⟳ button (removed in 0.6.0: it only re-read the location, and looked like a data refresh)', () => {
   const base = buildModel(SNAP, { fuel: 'U91', home: { label: 'x', ...PARRA }, radiusKm: 5, members: true }, [], F.asof, 10, 'nearest');
   for (const height of [110, 150, 180, 220])
-    it(`shows only when the widget may locate, keeping the list rule (${height} dp)`, () => {
-      for (const canLocate of [true, false]) {
-        const nodes = drawn(renderWidgetFor(MEDIUM, { height, width: 250 }, { ...base, canLocate }));
-        expect(hasLocate(nodes)).toBe(canLocate);
-        const list = nodes.find((n) => n.type === 'ListWidget');
-        if (list) expect(list.props?.height as number).toBeGreaterThanOrEqual(height < 166 ? 28 : 44);
-      }
+    it(`never draws one, keeping the list rule (${height} dp)`, () => {
+      const nodes = drawn(renderWidgetFor(MEDIUM, { height, width: 250 }, base));
+      expect(hasLocate(nodes)).toBe(false);
+      const list = nodes.find((n) => n.type === 'ListWidget');
+      if (list) expect(list.props?.height as number).toBeGreaterThanOrEqual(height < 166 ? 28 : 44);
     });
 });

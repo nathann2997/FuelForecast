@@ -298,7 +298,7 @@ export function StaleBanner({ asof }: { asof: string | undefined }) {
   return (
     <View style={[styles.banner, { backgroundColor: c.actBg }]}>
       <T kind="small" color={c.actFg}>
-        Showing prices from {nice(asof)}. Today’s update hasn’t arrived yet; pull down to refresh.
+        Showing prices from {nice(asof)}. Today’s update hasn’t arrived yet.
       </T>
     </View>
   );

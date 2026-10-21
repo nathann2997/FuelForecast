@@ -11,7 +11,7 @@ import { Colors } from '@/constants/theme';
 import type { Tone } from '@/lib/outlook';
 
 import {
-  FUEL_ACTION, FUEL_CYCLE, FUEL_DOTS, LOCATE_ACTION, MED, MODE_ACTION, ROW, SMALL_STYLE, STATION_MODES, TODAY_URI, compactHeadline, fuelLabel, mediumForecastLine, mediumLayout,
+  FUEL_ACTION, FUEL_CYCLE, FUEL_DOTS, MED, MODE_ACTION, ROW, SMALL_STYLE, STATION_MODES, TODAY_URI, compactHeadline, fuelLabel, mediumForecastLine, mediumLayout,
   compactRowWidths, fuelDotsW, smallCompact, smallBottomLine, smallRiseLine, type NoteTone, type WidgetModel, type WidgetRow,
 } from './logic';
 
@@ -36,12 +36,6 @@ function noteColor(c: Pal, t: NoteTone) {
   if (t === 'flat' || t === 'calm') return c.muted;
   return toneColors(c, t).fg;
 }
-
-/** The ⟳ cell's width (dp); the mode row's height makes it at least 22 x 40 */
-const LOCATE_W = 40;
-/** A circular-arrow "refresh location" icon, drawn as SVG so it doesn't depend on the launcher's fonts */
-const locateSvg = (stroke: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 const open = { clickAction: 'OPEN_URI', clickActionData: { uri: TODAY_URI } } as const;
 
@@ -108,9 +102,9 @@ function Small({ m, c, width, height }: { m: WidgetModel; c: Pal; width: number;
   );
 }
 
-/** Pinned · Nearest · Cheapest (+ ⟳). Each tab fills a third of the width and the row's full height, so the tap
+/** Pinned · Nearest · Cheapest. Each tab fills a third of the width and the row's full height, so the tap
  *  target is as large as the widget allows; a tap sends the MODE click action to the task handler
- *  (register.android.ts). The ⟳ cell sits inside the same row, so the header budgets don't change. */
+ *  (register.android.ts). */
 function ModeRow({ m, c, height }: { m: WidgetModel; c: Pal; height: number }) {
   return (
     <FlexWidget style={{ width: 'match_parent', height, marginTop: MED.modeGap, backgroundColor: hex(c.sunk), borderRadius: 10, padding: 2, flexDirection: 'row', alignItems: 'center' }}>
@@ -127,16 +121,6 @@ function ModeRow({ m, c, height }: { m: WidgetModel; c: Pal; height: number }) {
           </FlexWidget>
         );
       })}
-      {m.canLocate ? (
-        // ⟳: a fresh location fix for this widget (LOCATE click action). Only shown when the widget may use location
-        // (background permission, GPS or unset area); a typed suburb is the user's choice, so no button then.
-        <FlexWidget
-          clickAction={LOCATE_ACTION}
-          accessibilityLabel="Update my location"
-          style={{ width: LOCATE_W, height: 'match_parent', marginLeft: 2, borderRadius: 8, backgroundColor: hex(c.surface), justifyContent: 'center', alignItems: 'center' }}>
-          <SvgWidget svg={locateSvg(c.fg2)} style={{ width: 16, height: 16 }} />
-        </FlexWidget>
-      ) : null}
     </FlexWidget>
   );
 }

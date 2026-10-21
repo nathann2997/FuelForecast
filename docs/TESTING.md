@@ -21,7 +21,7 @@ No Expo account is needed on Android.
 - **Stations**: are the nearby stations and prices right? The arrow button on each row should open Google Maps directions straight away. Try **Filters** (brand, when to fill, max price) and the pin button; pinned stations stay at the top and on Today.
 - **Station page**: tap a station. Does the price chart (1W to 1Y, drag along it) and the station's own forecast make sense? Does the page scroll normally when you swipe up from the chart?
 - **Widget**: long-press your home screen → Widgets → **Bowser**. Add the small and the wide one. Tap the fuel chip (e.g. **U91 ▾**) to switch fuel on that widget. On the wide one, scroll the station list and tap **Pinned · Nearest · Cheapest**: does the list switch, and does each widget remember its own choice? Does tapping a station open its page? Tell us if any tap does nothing. Does it update the next morning?
-- **Widget location (0.4.0)**: in **More → Widget location**, tap **Allow all the time** (Android will open Settings; choose *Allow all the time*). Your area must be *Use my location*. Then drive somewhere and tap **⟳** on the wide widget: do Nearest/Cheapest switch to stations around you?
+- **Widget location (0.4.0)**: in **More → Widget location**, tap **Allow all the time** (Android will open Settings; choose *Allow all the time*). Your area must be *Use my location*. Then go somewhere and open Bowser briefly (or wait for the widget's next update, every few hours): do Nearest/Cheapest switch to stations around you? (The ⟳ button was removed in 0.6.0.)
 - **Trends**: does the chart read well; can you drag along it?
 - **More**: change fuel, tank size and area; do the other tabs follow?
 - Anything confusing, slow or broken: send a screenshot and what you tapped.

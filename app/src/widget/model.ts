@@ -18,8 +18,8 @@ export function modelFor(
 ): WidgetModel {
   const pins = readPins();
   const settings = readPrefs();
-  const { origin, canLocate } = resolveOrigin(settings.home, loc.bgGranted, readFix(), loc.now ?? Date.now());
+  const { origin } = resolveOrigin(settings.home, loc.bgGranted, readFix(), loc.now ?? Date.now());
   const prefs = { ...settings, home: origin, fuel: resolveFuel(tapped.fuel ?? readFuel(widgetId), settings.fuel) };
   const mode = widgetName === MEDIUM ? resolveMode(tapped.mode ?? readMode(widgetId), snap, prefs, pins) : undefined;
-  return { ...buildModel(snap, prefs, pins, sydneyToday(), MAX_ROWS, mode), canLocate: widgetName === MEDIUM && canLocate };
+  return buildModel(snap, prefs, pins, sydneyToday(), MAX_ROWS, mode);
 }
