@@ -44,6 +44,10 @@ Plan and specs: `docs/BOWSER_PLAN.md`. Brand: `docs/BRAND.md`. Ships together wi
   - a price unchanged in the monthly history is carried forward up to 180 days.
 - Remaining gaps in station history are genuine (new or rebranded station codes, or a fuel the station stopped selling).
 
+### Released (2026-10-21)
+- Pushed `2957ac5`. Daily workflow run 39538872516 passed: 866/866 stations have `id`, the `station/` files are live, and there are no warnings.
+- Preview APK 0.3.0 is EAS build `69314a1c` (install page: https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/69314a1c-e1ff-4421-9f09-a208bb7a5ff0).
+
 ### Release order (must follow)
 1. Push to `main`, then run the daily workflow (`workflow_dispatch`) and confirm the live `stations.json` has `id` and `station/<id>.json` loads.
 2. Only then build the 0.3.0 preview APK (`npx eas-cli@latest build -p android --profile preview`) and share it.
