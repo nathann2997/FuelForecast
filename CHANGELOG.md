@@ -14,6 +14,7 @@ All notable changes to the FuelForecast pipeline and app. Newest first.
   - The cached snapshot (a few hundred KB of JSON) was parsed twice per tap. It's now parsed once and reused while the stored text is unchanged.
   - While the app is alive, the app's station data (~900 stations) was re-compacted on every redraw. That's now reused until the app refetches.
   - The old v1 cache key is removed once per run instead of on every cache write.
+- Shipped as an OTA to the `preview` channel, runtime 0.4.0, update group 9b2d229c-6273-4763-b5d4-a9c39d1b9cde. No new APK needed.
 - QA notes, accepted: a tap made within a few ms of another tap can briefly show the previous choice until the next redraw. A tap with an empty cache uses the backgrounded app's data, even if it's old, rather than fetching.
 
 ### Device checks
