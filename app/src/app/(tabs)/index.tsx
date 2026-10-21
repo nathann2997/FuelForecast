@@ -43,7 +43,7 @@ export default function Today() {
 
   return (
     <Screen
-      brand={<BowserWordmark height={22} />}
+      brand={<BowserWordmark height={25} />}
       title="Today"
       subtitle={f ? `Sydney ${fuelName(s.fuel)} · ${dayLabel(f.asof)}` : undefined}
       onRefresh={() => { fq.refetch(); sq.refetch(); hq.refetch(); }}

@@ -2,6 +2,19 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — New logo: the price-drop fuel drop (concept C)
+
+### Changed
+- **New Bowser mark:** an amber fuel drop with a down arrow cut out of it, concept C from `docs/brand/concepts.png`. It replaces the B-shaped pump with a hose (concept B, shipped up to 0.4.0), which read as "B1" at small sizes. The colours, the charcoal background and the drawn "Bowser" wordmark don't change.
+- **All logo files were regenerated from one source:** the 5 SVGs in `app/assets/brand/`, the app icon, the adaptive foreground and background, the monochrome themed icon, the splash, the favicon and `widget-mark.png`. The new `docs/brand/render-brand.mjs` writes them all from the same path data as `brand.tsx`. The drop sits about 10% larger in the icons than the B did, so it carries the same visual weight.
+- **`brand.tsx`:** the mark is now one even-odd path with an 82-unit viewBox. The lockup is 369×80, with the word centred on the taller mark. The home header goes from `height={22}` to `height={25}`, so the word stays the same size.
+- **`docs/BRAND.md`:** a new mark section (geometry, the "download icon" caution and the do/don't rules) and new file sizes.
+- An unreleased redraw (a B with window-and-drop counters) was explored the same day and dropped in favour of C.
+
+### Device checks
+- The launcher icon, adaptive icon and splash are native assets. They need a new build (0.4.x or 0.5.0) and don't arrive by OTA. The in-app header, the "More" tab mark and the bundled widget image ship with the JS bundle.
+- Check the themed (monochrome) icon on Android 13+, and the widget mark in light and dark.
+
 ## 2026-10-21 — Bowser 0.4.0: the widget follows your location (new APK)
 
 ### Added
