@@ -1,0 +1,40 @@
+# EAS Build/Update upload filter. When this file exists eas-cli ignores every .gitignore,
+# so the secret and build patterns from .gitignore and app/.gitignore are repeated here.
+# Only app/ is needed to build the mobile app.
+/sydney/
+/model/
+/api-pull/
+/docs/
+/.github/
+/CHANGELOG.md
+
+# secrets (from .gitignore)
+fuel-api-credentials.md
+credentials.py
+pull_nsw.js
+
+# from .gitignore / app/.gitignore
+.DS_Store
+__pycache__/
+*.pyc
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+.env*.local
+*.tsbuildinfo
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+/app/ios
+/app/android

@@ -2,6 +2,29 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Phase 4: tester distribution (APK + OTA updates, Expo Go)
+
+### Added
+- EAS project `@nathann97/fuel-forecast` (ID `29af590d-…`), linked in `app/app.json` (`owner`, `extra.eas.projectId`, `updates.url`).
+- `expo-updates` with `runtimeVersion: { policy: "appVersion" }` (runtime = `version`, 0.1.0).
+- `app/eas.json`: `preview` profile builds an internal-distribution APK on channel `preview`; `production` on channel `production`.
+- First preview APK build (Android keystore generated and stored by EAS) and first update published to channel `preview` (group `85a68db2-…`).
+- `docs/TESTING.md`: tester guide (APK install, Expo Go live session) and owner commands.
+- `.easignore` at the repo root so EAS uploads only `app/` (it replaces every `.gitignore`, so secret and build patterns are repeated in it).
+
+### Changed
+- Removed duplicated location permissions from `app/app.json` (the `expo-location` plugin adds them).
+
+### QA audit — fixes applied before commit
+- Expo Go cannot load the published update: Expo Go's runtime is `exposdk:58.0.0`, ours is `0.1.0`. Expo Go is documented as a live `npx expo start --tunnel` session instead; the APK is the main tester route.
+- Updates download on one launch and apply on the next cold start (guide corrected).
+- `version` bumps cut existing APKs off from updates; guide says bump only with a new APK for native changes.
+
+### Learnings
+- `eas update --non-interactive` needs `--environment`.
+- In a repo where the app is a subfolder, EAS archives the whole git repo (first upload 53 MB, mostly pipeline data) unless a root `.easignore` exists.
+- On Android, Expo Go needs no sign-in; the Play Store copy can lag a new SDK, so testers use https://expo.dev/go.
+
 ## 2026-10-21 — Phase 3: Android POC app (Expo SDK 58)
 
 ### Added

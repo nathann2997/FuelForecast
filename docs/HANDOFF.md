@@ -14,7 +14,7 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - [x] Phase 2 — static JSON API (`export_api.py`)
 - [x] Go-live (2026-10-21): QA audit + fixes, pushed to main, secrets set, Pages enabled, first run passed in 94 s (run 39513415528), `data` branch seeded, API live
 - [~] Phase 3 — Expo app in `/app` built (Today / Stations / History / About; react-query + expo-sqlite kv-store cache, expo-location, custom react-native-svg chart instead of victory-native). QA audited and fixed, committed. Not yet run on a real Android device (next: Expo Go on the owner's phone).
-- [ ] Phase 4 — EAS Build preview APK (needs owner's Expo account login: `npx eas-cli@latest login`), EAS Update. CI for `/app` done (`app-ci.yml`).
+- [~] Phase 4 — EAS project `@nathann97/fuel-forecast` linked; first preview APK build started (build 2d86c615); update published to channel `preview`; tester guide `docs/TESTING.md`. Next: share the install link, collect tester feedback, verify OTA reaches an installed APK.
 
 ## Key facts
 - Node 22 at `~/.local/node/bin` (on PATH via `~/.zshrc`); run app checks with `cd app && npx tsc --noEmit && npx expo lint && npx jest`.
@@ -26,6 +26,8 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Secrets never in git: `sydney/pipeline/credentials.py`, `sydney/pipeline/pull_nsw.js`, `fuel-api-credentials.md` are gitignored.
 
 ## Open risks
+- Expo Go can't load our EAS updates (runtime 0.1.0 vs exposdk:58.0.0); Expo Go is live-session only.
+- Owner has two Expo accounts (nathann97, nathannguy); the project lives on nathann97.
 - AIP / FRED worked from GitHub runners on the first run; both stay best-effort (model forward-fills, `meta.warnings` flags staleness).
 - GitHub cron can start 10–30 min late; scheduled workflows pause after 60 days of no repo activity (daily `data` commits count).
 - NSW FuelCheck licence terms matter only if the app goes public.
