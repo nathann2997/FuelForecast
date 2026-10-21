@@ -31,7 +31,6 @@ All notable changes to the FuelForecast pipeline and app. Newest first.
 - `station-actions.tsx` keeps only `notify` and `PINS_FULL`.
 - Version 0.5.0. The runtime changes, so 0.4.0 installs don't get this by OTA and need the new APK.
 - Preview APK: EAS build 9a04b5ad, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/9a04b5ad-01dc-413b-b85e-91b7216a3c9c
-- Preview APK: EAS build 9a04b5ad, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/9a04b5ad-01dc-413b-b85e-91b7216a3c9c
 
 ### QA audit, fixes applied
 - **Alerts rewritten as once per cycle.** Keying them on the rise date would have meant a new alert every day, or none at all.
