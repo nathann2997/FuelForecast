@@ -8,7 +8,7 @@ All notable changes to the FuelForecast pipeline and app. Newest first.
 - EAS project `@nathann97/fuel-forecast` (ID `29af590d-…`), linked in `app/app.json` (`owner`, `extra.eas.projectId`, `updates.url`).
 - `expo-updates` with `runtimeVersion: { policy: "appVersion" }` (runtime = `version`, 0.1.0).
 - `app/eas.json`: `preview` profile builds an internal-distribution APK on channel `preview`; `production` on channel `production`.
-- First preview APK build (Android keystore generated and stored by EAS) and first update published to channel `preview` (group `85a68db2-…`).
+- First preview APK built in ~25 min incl. free-tier queue (107 MB universal APK; Android keystore generated and stored by EAS) and first update published to channel `preview` (group `85a68db2-…`).
 - `docs/TESTING.md`: tester guide (APK install, Expo Go live session) and owner commands.
 - `.easignore` at the repo root so EAS uploads only `app/` (it replaces every `.gitignore`, so secret and build patterns are repeated in it).
 

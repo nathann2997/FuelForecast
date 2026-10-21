@@ -14,7 +14,7 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - [x] Phase 2 — static JSON API (`export_api.py`)
 - [x] Go-live (2026-10-21): QA audit + fixes, pushed to main, secrets set, Pages enabled, first run passed in 94 s (run 39513415528), `data` branch seeded, API live
 - [~] Phase 3 — Expo app in `/app` built (Today / Stations / History / About; react-query + expo-sqlite kv-store cache, expo-location, custom react-native-svg chart instead of victory-native). QA audited and fixed, committed. Not yet run on a real Android device (next: Expo Go on the owner's phone).
-- [~] Phase 4 — EAS project `@nathann97/fuel-forecast` linked; first preview APK build started (build 2d86c615); update published to channel `preview`; tester guide `docs/TESTING.md`. Next: share the install link, collect tester feedback, verify OTA reaches an installed APK.
+- [~] Phase 4 — EAS project `@nathann97/fuel-forecast` linked; first preview APK built (build 2d86c615, 107 MB universal APK, install page https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/2d86c615-d10f-4f6f-978b-1cd0696726ec); update published to channel `preview`; tester guide `docs/TESTING.md`. Next: share the install link, collect tester feedback, verify OTA reaches an installed APK.
 
 ## Key facts
 - Node 22 at `~/.local/node/bin` (on PATH via `~/.zshrc`); run app checks with `cd app && npx tsc --noEmit && npx expo lint && npx jest`.
