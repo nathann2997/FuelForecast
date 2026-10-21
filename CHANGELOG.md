@@ -2,6 +2,31 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — Widget: Pinned · Nearest · Cheapest (OTA to 0.3.0)
+
+### Added
+- The medium widget has a tappable mode row: **Pinned · Nearest · Cheapest**.
+  - Each placed widget keeps its own mode, stored under kv `widget.mode.<widgetId>` and cleared when the widget is removed.
+  - Pinned shows your pins in pin order.
+  - Nearest shows fresh stations (≤7 days) within the radius, closest first, with the distance.
+  - Cheapest shows fresh stations within the radius, cheapest first, with the gap to the median.
+  - All modes respect the members-only setting.
+- Default mode: Pinned when at least one pin has a price for your fuel, otherwise Cheapest. Existing widgets therefore behave as before until you tap a tab.
+- How a tab tap works: the custom click action `MODE` runs the headless task, which saves the mode and redraws that widget from the cache, fetching only if there's no cache. The in-app refresh draws each widget in its own mode.
+- At the compact 110 dp size the header is one line ("as of" joins the headline) and the tab labels don't scale with system font size.
+- New `src/widget/model.ts`. Tests: mode logic, every mode built through the library's tree builder, and a handler test (`widget-handler.test.ts`). 110 tests in total.
+
+### QA audit: no blockers; 4 should-fix items fixed
+- A tap draws the tapped mode even if saving it fails.
+- A tap on a widget with no cache now loads data.
+- The default no longer strands users whose pins don't sell their fuel.
+- Handler tests added.
+
+### Risks (device)
+- Up to 7 tap areas per widget. The library gives each tap PendingIntent a millisecond-timestamp request code with `FLAG_CANCEL_CURRENT` (`RNWidget.java:208-213`), so two areas created in the same millisecond can cancel one another. Issue #154 (taps stop working after redraws) also applies.
+- If any tab or row stops responding, the fix is a native patch (unique request codes / PR #161), which needs a new APK (0.4.0).
+- `app.json`'s BowserMedium picker description is out of date; update it at the next native build.
+
 ## 2026-10-21 — Fix: blank home-screen widget (OTA to 0.3.0)
 
 On a device the widget was transparent and only opened the app when tapped.

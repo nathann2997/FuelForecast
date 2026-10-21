@@ -83,7 +83,7 @@ export type WidgetPrefs = { fuel: Fuel; home: Place | null; radiusKm: number; me
 export type NoteTone = 'cheap' | 'dear' | 'flat' | Tone;
 export type WidgetRow = { id: string; name: string; price: string; note: string; noteTone: NoteTone; uri: string; a11y: string };
 
-export type ListMode = 'pinned' | 'nearby' | 'no-area' | 'none-nearby' | 'no-data';
+export type ListMode = 'pinned' | 'nearby' | 'nearest' | 'no-pins' | 'no-area' | 'none-nearby' | 'no-data';
 
 export type WidgetModel = {
   fuel: string;                 // short fuel label, "U91"
@@ -91,6 +91,7 @@ export type WidgetModel = {
   head: string;                 // verdict headline, or a prompt when there is no data
   rise: string | null;          // "Likely to rise from Sat 24 Oct"
   asOf: string | null;          // "as of 20 Oct" when the data isn't today's (Sydney date)
+  stationMode: StationMode | null;   // the medium widget's selected mode row tab (null for the small widget)
   mode: ListMode;
   caption: string | null;       // "Your stations" / "Cheapest near Parramatta 2150"
   rows: WidgetRow[];
@@ -135,28 +136,43 @@ function toRow(s: WStation, fuel: Fuel, median: number | undefined): WidgetRow |
   };
 }
 
-/** Pinned stations selling the fuel (pin order), else the cheapest fresh stations near home, else a prompt. */
-export function chooseRows(
-  snap: WidgetSnapshot | null, prefs: WidgetPrefs, pins: string[], max = MAX_ROWS,
-): Pick<WidgetModel, 'mode' | 'caption' | 'rows' | 'message'> {
+// ---- the medium widget's list mode (Pinned · Nearest · Cheapest), chosen per widget from the mode row
+
+export type StationMode = 'pinned' | 'nearest' | 'cheapest';
+export const STATION_MODES: readonly [StationMode, string][] = [['pinned', 'Pinned'], ['nearest', 'Nearest'], ['cheapest', 'Cheapest']];
+/** Custom click action the mode row sends (clickActionData: { mode }). */
+export const MODE_ACTION = 'MODE';
+export const modeKey = (widgetId: number) => `widget.mode.${widgetId}`;
+
+export const parseMode = (v: unknown): StationMode | null =>
+  STATION_MODES.some(([m]) => m === v) ? (v as StationMode) : null;
+
+/**
+ * The widget's saved mode, else Pinned when at least one pin has a price for the user's fuel, else Cheapest (so a
+ * 0.3.0 widget whose pins don't sell the fuel keeps showing the cheapest nearby, as it did). The default isn't
+ * saved, so a widget the user never switched follows their pins.
+ */
+export function resolveMode(saved: unknown, snap: WidgetSnapshot | null, prefs: WidgetPrefs, pins: string[]): StationMode {
+  const m = parseMode(saved);
+  if (m) return m;
   const list = snap?.stations?.stations;
-  if (!list) return { mode: 'no-data', caption: null, rows: [], message: 'Open Bowser to load prices' };
-  const median = snap?.forecast?.live.find((r) => r.fuel === prefs.fuel)?.now;
+  return list && pins.length && pinnedRows(list, prefs, pins, undefined, 1).length ? 'pinned' : 'cheapest';
+}
 
-  if (pins.length) {
-    const byId = new Map(list.map((s) => [s.id, s]));
-    const rows = pins
-      .map((id) => byId.get(id))
-      .map((s) => (s ? toRow(s, prefs.fuel, median) : null))
-      .filter((r): r is WidgetRow => r != null)
-      .slice(0, max);
-    if (rows.length) return { mode: 'pinned', caption: 'Your stations', rows, message: null };
-  }
+type Rows = Pick<WidgetModel, 'mode' | 'caption' | 'rows' | 'message'>;
 
-  const home = prefs.home;
-  if (!home) return { mode: 'no-area', caption: null, rows: [], message: 'Open Bowser to set your area' };
+function pinnedRows(list: WStation[], prefs: WidgetPrefs, pins: string[], median: number | undefined, max: number): WidgetRow[] {
+  const byId = new Map(list.map((s) => [s.id, s]));
+  return pins
+    .map((id) => byId.get(id))
+    .map((s) => (s ? toRow(s, prefs.fuel, median) : null))
+    .filter((r): r is WidgetRow => r != null)
+    .slice(0, max);
+}
 
-  const near = list
+/** Fresh stations selling the fuel within the radius of home, respecting members; cheapest or nearest first. */
+function areaRows(list: WStation[], prefs: WidgetPrefs, home: Place, sort: 'price' | 'distance', median: number | undefined, max: number) {
+  return list
     .map((s) => {
       const p = s.p[prefs.fuel];
       if (!p || p[0] == null || (!prefs.members && s.m)) return null;
@@ -165,16 +181,52 @@ export function chooseRows(
       return d > prefs.radiusKm ? null : { s, price: p[0], d };
     })
     .filter((x): x is { s: WStation; price: number; d: number } => x != null)
-    .sort((a, b) => a.price - b.price || a.d - b.d)
+    .sort(sort === 'price' ? (a, b) => a.price - b.price || a.d - b.d : (a, b) => a.d - b.d || a.price - b.price)
     .slice(0, max)
-    .map((x) => toRow(x.s, prefs.fuel, median)!);
-  if (!near.length)
-    return { mode: 'none-nearby', caption: null, rows: [], message: `No fresh ${FUEL_SHORT[prefs.fuel]} prices within ${prefs.radiusKm} km` };
-  return { mode: 'nearby', caption: `Cheapest near ${home.label}`, rows: near, message: null };
+    .map((x) => {
+      const r = toRow(x.s, prefs.fuel, median)!;
+      if (sort === 'price') return r;
+      const dist = `${x.d.toFixed(1)} km`;
+      return { ...r, note: dist, noteTone: 'flat' as const, a11y: `${r.name}, ${r.price} cents, ${dist} away` };
+    });
 }
 
-/** Everything both widget sizes need. `today` is the Sydney calendar date (lib/format sydneyToday). */
-export function buildModel(snap: WidgetSnapshot | null, prefs: WidgetPrefs, pins: string[], today: string, max = MAX_ROWS): WidgetModel {
+/**
+ * The station list. With a `mode` (the medium widget): exactly that mode. Without one: pinned stations, else the
+ * cheapest near home (the behaviour before the mode row).
+ */
+export function chooseRows(
+  snap: WidgetSnapshot | null, prefs: WidgetPrefs, pins: string[], max = MAX_ROWS, mode?: StationMode,
+): Rows {
+  const list = snap?.stations?.stations;
+  if (!list) return { mode: 'no-data', caption: null, rows: [], message: 'Open Bowser to load prices' };
+  const median = snap?.forecast?.live.find((r) => r.fuel === prefs.fuel)?.now;
+  const fuel = FUEL_SHORT[prefs.fuel];
+
+  if (mode === 'pinned' || (!mode && pins.length)) {
+    const rows = pinnedRows(list, prefs, pins, median, max);
+    if (rows.length) return { mode: 'pinned', caption: 'Your stations', rows, message: null };
+    if (mode === 'pinned')
+      return pins.length
+        ? { mode: 'no-pins', caption: null, rows: [], message: `Your pinned stations don't list ${fuel}` }
+        : { mode: 'no-pins', caption: null, rows: [], message: 'No pinned stations. Pin one in Bowser' };
+  }
+
+  const home = prefs.home;
+  if (!home) return { mode: 'no-area', caption: null, rows: [], message: 'Open Bowser to set your area' };
+  const nearest = mode === 'nearest';
+  const rows = areaRows(list, prefs, home, nearest ? 'distance' : 'price', median, max);
+  if (!rows.length) return { mode: 'none-nearby', caption: null, rows: [], message: `No fresh ${fuel} prices within ${prefs.radiusKm} km` };
+  return nearest
+    ? { mode: 'nearest', caption: `Nearest to ${home.label}`, rows, message: null }
+    : { mode: 'nearby', caption: `Cheapest near ${home.label}`, rows, message: null };
+}
+
+/** Everything both widget sizes need. `today` is the Sydney calendar date (lib/format sydneyToday).
+ *  `mode` is the medium widget's list mode (resolveMode); the small widget leaves it out. */
+export function buildModel(
+  snap: WidgetSnapshot | null, prefs: WidgetPrefs, pins: string[], today: string, max = MAX_ROWS, mode?: StationMode,
+): WidgetModel {
   const fuel = FUEL_SHORT[prefs.fuel] ?? prefs.fuel;
   const f = snap?.forecast;
   const r = f?.live.find((x) => x.fuel === prefs.fuel);
@@ -183,12 +235,18 @@ export function buildModel(snap: WidgetSnapshot | null, prefs: WidgetPrefs, pins
   const base = r && f
     ? { tone: toneOf(r.verdict.cls), head: r.verdict.head, rise: riseText(r, f.asof, today) }
     : { tone: 'calm' as Tone, head: 'Open Bowser', rise: "to load today's outlook" };
-  return { fuel, ...base, asOf: asOfLabel(dates[0], today), ...chooseRows(snap, prefs, pins, max) };
+  return { fuel, ...base, asOf: asOfLabel(dates[0], today), stationMode: mode ?? null, ...chooseRows(snap, prefs, pins, max, mode) };
 }
 
-/** How many station rows fit in the medium widget's height (dp). */
-export function rowsThatFit(heightDp: number): { rows: number; caption: boolean } {
-  const caption = heightDp >= 150;
-  const avail = heightDp - 24 - 50 - (caption ? 16 : 0);
-  return { rows: Math.max(1, Math.min(MAX_ROWS, Math.floor(avail / 24))), caption };
+/**
+ * The medium widget's layout for its height (dp): padding 20, the verdict header (one line when compact), the mode
+ * row, an optional caption, then 22 dp per station row. At the 110 dp minimum: compact header + mode row + 1 row.
+ */
+export const MEDIUM_LAYOUT = { pad: 20, header: 50, headerCompact: 30, modes: 32, modesCompact: 26, caption: 16, row: 22 } as const;
+export function rowsThatFit(heightDp: number): { rows: number; caption: boolean; compact: boolean } {
+  const L = MEDIUM_LAYOUT;
+  const compact = heightDp < 150;
+  const caption = heightDp >= 190;
+  const avail = heightDp - L.pad - (compact ? L.headerCompact + L.modesCompact : L.header + L.modes) - (caption ? L.caption : 0);
+  return { rows: Math.max(1, Math.min(MAX_ROWS, Math.floor(avail / L.row))), caption, compact };
 }

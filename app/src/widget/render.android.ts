@@ -1,10 +1,8 @@
 // Android: draw both widgets from the best data available. See ./render.ts for the no-op on other platforms.
 import { requestWidgetUpdate } from 'react-native-android-widget';
 
-import { sydneyToday } from '@/lib/format';
-
-import { loadSnapshot, readPins, readPrefs } from './data';
-import { buildModel } from './logic';
+import { loadSnapshot } from './data';
+import { modelFor } from './model';
 import { WIDGET_NAMES, renderWidgetFor } from './widgets';
 
 const DEBOUNCE_MS = 500;
@@ -14,9 +12,9 @@ let running: Promise<void> | null = null;
 async function refreshNow() {
   const snap = await loadSnapshot({ allowFetch: true });
   if (!snap) return;   // nothing loaded yet: leave whatever the widget shows
-  const model = buildModel(snap, readPrefs(), readPins(), sydneyToday());
   for (const name of WIDGET_NAMES) {
-    await requestWidgetUpdate({ widgetName: name, renderWidget: (info) => renderWidgetFor(name, info, model) });
+    // Each placed widget gets its own model: the medium widget's list mode is saved per widget id
+    await requestWidgetUpdate({ widgetName: name, renderWidget: (info) => renderWidgetFor(name, info, modelFor(name, info.widgetId, snap)) });
   }
 }
 

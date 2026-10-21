@@ -10,7 +10,7 @@ import { FlexWidget, ImageWidget, TextWidget, type ColorProp, type WidgetInfo, t
 import { Colors } from '@/constants/theme';
 import type { Tone } from '@/lib/outlook';
 
-import { TODAY_URI, rowsThatFit, type NoteTone, type WidgetModel } from './logic';
+import { MEDIUM_LAYOUT, MODE_ACTION, STATION_MODES, TODAY_URI, rowsThatFit, type NoteTone, type WidgetModel } from './logic';
 
 export const SMALL = 'BowserSmall';
 export const MEDIUM = 'BowserMedium';
@@ -58,32 +58,61 @@ function Small({ m, c }: { m: WidgetModel; c: Pal }) {
   );
 }
 
+/** Pinned · Nearest · Cheapest. Each tab fills a third of the width and the row's full height, so the tap target is
+ *  as large as the widget allows; a tap sends the MODE click action to the task handler (register.android.ts). */
+function ModeRow({ m, c, height }: { m: WidgetModel; c: Pal; height: number }) {
+  return (
+    <FlexWidget style={{ width: 'match_parent', height, marginTop: 4, backgroundColor: hex(c.sunk), borderRadius: 10, padding: 2, flexDirection: 'row', alignItems: 'center' }}>
+      {STATION_MODES.map(([mode, label]) => {
+        const on = m.stationMode === mode;
+        return (
+          <FlexWidget
+            key={mode}
+            clickAction={MODE_ACTION}
+            clickActionData={{ mode }}
+            accessibilityLabel={`${label} stations${on ? ', selected' : ''}`}
+            style={{ flex: 1, height: 'match_parent', borderRadius: 8, backgroundColor: hex(on ? c.chip : c.sunk), justifyContent: 'center', alignItems: 'center' }}>
+            <TextWidget text={label} maxLines={1} allowFontScaling={false} style={{ fontSize: 11, fontWeight: on ? '700' : '500', color: hex(on ? c.onChip : c.muted) }} />
+          </FlexWidget>
+        );
+      })}
+    </FlexWidget>
+  );
+}
+
 function Medium({ m, c, height }: { m: WidgetModel; c: Pal; height: number }) {
   const t = toneColors(c, m.tone);
   const fit = rowsThatFit(height);
   const rows = m.rows.slice(0, fit.rows);
+  const L = MEDIUM_LAYOUT;
   return (
     <FlexWidget
       {...open}
       accessibilityLabel={`Bowser. ${m.fuel}: ${m.head}`}
-      style={{ height: 'match_parent', width: 'match_parent', backgroundColor: hex(c.surface), borderRadius: 22, padding: 10, flexDirection: 'column' }}>
-      {/* the verdict, tinted like Today's hero card */}
-      <FlexWidget style={{ width: 'match_parent', backgroundColor: hex(t.bg), borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center' }}>
-        <ImageWidget image={MARK} imageWidth={22} imageHeight={22} />
+      style={{ height: 'match_parent', width: 'match_parent', backgroundColor: hex(c.surface), borderRadius: 22, padding: L.pad / 2, flexDirection: 'column' }}>
+      {/* the verdict, tinted like Today's hero card; one line when the widget is short */}
+      <FlexWidget style={{ width: 'match_parent', backgroundColor: hex(t.bg), borderRadius: 14, paddingHorizontal: 10, paddingVertical: fit.compact ? 4 : 7, flexDirection: 'row', alignItems: 'center' }}>
+        <ImageWidget image={MARK} imageWidth={fit.compact ? 18 : 22} imageHeight={fit.compact ? 18 : 22} />
         <FlexWidget style={{ flex: 1, flexDirection: 'column', marginLeft: 8 }}>
-          <TextWidget text={m.head} maxLines={1} truncate="END" style={{ fontSize: 15, fontWeight: '700', color: hex(t.fg) }} />
-          {m.rise ? <TextWidget text={m.rise} maxLines={1} truncate="END" style={{ fontSize: 11, color: hex(c.fg2) }} /> : null}
+          {fit.compact && m.asOf ? (
+            // compact: no room for a second line on the right, so "as of" joins the headline
+            <TextWidget text={`${m.head} · ${m.asOf}`} maxLines={1} truncate="END" style={{ fontSize: 14, fontWeight: '700', color: hex(t.fg) }} />
+          ) : (
+            <TextWidget text={m.head} maxLines={1} truncate="END" style={{ fontSize: fit.compact ? 14 : 15, fontWeight: '700', color: hex(t.fg) }} />
+          )}
+          {m.rise && !fit.compact ? <TextWidget text={m.rise} maxLines={1} truncate="END" style={{ fontSize: 11, color: hex(c.fg2) }} /> : null}
         </FlexWidget>
         <FlexWidget style={{ flexDirection: 'column', alignItems: 'flex-end', marginLeft: 6 }}>
           <TextWidget text={m.fuel} style={{ fontSize: 11, fontWeight: '700', color: hex(t.fg) }} />
-          {m.asOf ? <TextWidget text={m.asOf} maxLines={1} style={{ fontSize: 10, color: hex(c.muted) }} /> : null}
+          {m.asOf && !fit.compact ? <TextWidget text={m.asOf} maxLines={1} style={{ fontSize: 10, color: hex(c.muted) }} /> : null}
         </FlexWidget>
       </FlexWidget>
+      <ModeRow m={m} c={c} height={(fit.compact ? L.modesCompact : L.modes) - 4} />
       {fit.caption && m.caption ? (
-        <TextWidget text={m.caption} maxLines={1} truncate="END" style={{ fontSize: 10, fontWeight: '600', color: hex(c.muted), marginTop: 6, marginLeft: 4 }} />
+        <TextWidget text={m.caption} maxLines={1} truncate="END" style={{ fontSize: 10, fontWeight: '600', color: hex(c.muted), marginTop: 4, marginLeft: 4 }} />
       ) : null}
       {rows.length ? (
-        <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', justifyContent: 'space-around', marginTop: 2 }}>
+        <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', justifyContent: 'space-around' }}>
           {rows.map((r) => (
             <FlexWidget
               key={r.id}
@@ -101,7 +130,7 @@ function Medium({ m, c, height }: { m: WidgetModel; c: Pal; height: number }) {
         </FlexWidget>
       ) : (
         <FlexWidget style={{ width: 'match_parent', flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <TextWidget text={m.message ?? ''} maxLines={2} style={{ fontSize: 13, color: hex(c.fg2), textAlign: 'center' }} />
+          <TextWidget text={m.message ?? ''} maxLines={2} style={{ fontSize: 12, color: hex(c.fg2), textAlign: 'center' }} />
         </FlexWidget>
       )}
     </FlexWidget>

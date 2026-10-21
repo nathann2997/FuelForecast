@@ -7,7 +7,10 @@ import { getSettings, normalize } from '@/lib/settings';
 import Storage from '@/lib/storage';
 import type { Forecast, Stations } from '@/lib/types';
 
-import { compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, type WidgetPrefs, type WidgetSnapshot } from './logic';
+import {
+  compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, modeKey, parseMode, type StationMode, type WidgetPrefs,
+  type WidgetSnapshot,
+} from './logic';
 
 const CACHE_KEY = 'widget.cache.v1';
 const SCHEMA = 1;
@@ -92,3 +95,30 @@ export function readPrefs(): WidgetPrefs {
 }
 
 export const readPins = () => readPinsFromStorage();
+
+// ---- the medium widget's list mode, saved per widget id (src/widget/logic.ts resolveMode applies the default)
+
+export function readMode(widgetId: number): StationMode | null {
+  try {
+    return parseMode(Storage.getItemSync(modeKey(widgetId)));
+  } catch {
+    return null;
+  }
+}
+
+export async function saveMode(widgetId: number, mode: StationMode) {
+  try {
+    await Storage.setItem(modeKey(widgetId), mode);
+  } catch {
+    // not saved: this tap still draws the tapped mode (the handler passes it to modelFor), but the next redraw
+    // falls back to the previously saved or default mode
+  }
+}
+
+export async function clearMode(widgetId: number) {
+  try {
+    await Storage.removeItem(modeKey(widgetId));
+  } catch {
+    // a stray key for a deleted widget is harmless
+  }
+}

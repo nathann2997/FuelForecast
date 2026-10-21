@@ -3,7 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import type { Place } from '../geo';
 import type { Forecast, Station, Stations } from '../types';
 import {
-  asOfLabel, buildModel, chooseRows, compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, riseText, rowsThatFit, stationUri,
+  asOfLabel, buildModel, chooseRows, compactForecast, compactStations, fromAppData, isFresh, mergeSnapshot, modeKey, parseMode, resolveMode, riseText, rowsThatFit,
+  stationUri,
   type WidgetPrefs, type WidgetSnapshot,
 } from '../../widget/logic';
 import fixture from './forecast.fixture.json';
@@ -126,8 +127,12 @@ describe('widget cache', () => {
     expect(isFresh(null, TODAY, now)).toBe(false);
   });
   it('fits fewer rows on a short medium widget', () => {
-    expect(rowsThatFit(110)).toEqual({ rows: 1, caption: false });
-    expect(rowsThatFit(180)).toEqual({ rows: 3, caption: true });
+    // the 4x2 minimum (110 dp): compact header + mode row + 1 station row
+    expect(rowsThatFit(110)).toEqual({ rows: 1, caption: false, compact: true });
+    expect(rowsThatFit(150)).toEqual({ rows: 2, caption: false, compact: false });
+    expect(rowsThatFit(180)).toEqual({ rows: 3, caption: false, compact: false });
+    expect(rowsThatFit(220)).toEqual({ rows: 3, caption: true, compact: false });
+    expect(rowsThatFit(60).rows).toBe(1);
   });
 });
 
@@ -169,5 +174,70 @@ describe('widget data from the running app', () => {
     expect(r.snap.forecast!.asof).toBe(TODAY);
     expect(r.snap.stations!.asof).toBe(YDAY);
     expect(r.snap.fetchedAt).toBe(7);
+  });
+});
+
+describe('medium widget list modes', () => {
+  // A line of stations north of home, 0.01° (~1.1 km) apart; prices not in distance order
+  const at = (i: number) => ({ la: home.la + 0.01 * i, lo: home.lo });
+  const LINE: Stations = {
+    schema: 1, asof: TODAY, suburbs: [],
+    stations: [
+      st('a', 'A 1.1 km', 239.9, 0, at(1)),
+      st('b', 'B 2.2 km', 229.9, 0, at(2)),
+      st('c', 'C 3.3 km', 219.9, 0, at(3)),
+      st('d', 'D 0 km stale', 199.9, 9, at(0)),
+      st('e', 'E 4.4 km members', 209.9, 0, { ...at(4), m: 1 }),
+      st('f', 'F 8.9 km too far', 189.9, 0, at(8)),
+    ],
+  };
+  const s = snap({ stations: compactStations(LINE) });
+
+  it('resolves the saved mode, defaulting to Pinned only when a pin has a price for the fuel', () => {
+    expect(resolveMode('nearest', s, prefs(), ['a'])).toBe('nearest');
+    expect(resolveMode(null, s, prefs(), ['a'])).toBe('pinned');
+    expect(resolveMode(null, s, prefs(), [])).toBe('cheapest');
+    expect(resolveMode('bogus', s, prefs(), [])).toBe('cheapest');
+    // 0.3.0 widgets whose pins don't sell the fuel (or are gone) keep the cheapest nearby
+    expect(resolveMode(null, snap(), prefs(), ['7', 'gone'])).toBe('cheapest');
+    expect(resolveMode(null, s, prefs({ fuel: 'P98' }), ['a'])).toBe('cheapest');
+    expect(resolveMode(null, null, prefs(), ['a'])).toBe('cheapest');
+    expect(resolveMode(null, snap(), prefs(), ['7', '1'])).toBe('pinned');
+    expect(parseMode('cheapest')).toBe('cheapest');
+    expect(parseMode(undefined)).toBeNull();
+    expect(modeKey(42)).toBe('widget.mode.42');
+  });
+  it('Nearest: fresh stations in the radius, closest first, with the distance as the note', () => {
+    const r = chooseRows(s, prefs(), [], 3, 'nearest');
+    expect(r.mode).toBe('nearest');
+    expect(r.caption).toBe('Nearest to Parramatta 2150');
+    expect(r.rows.map((x) => x.id)).toEqual(['a', 'b', 'c']);
+    expect(r.rows[0]).toMatchObject({ note: '1.1 km', noteTone: 'flat', price: '239.9', uri: 'fuelforecast://station/a' });
+    expect(chooseRows(s, prefs({ radiusKm: 2 }), [], 3, 'nearest').rows.map((x) => x.id)).toEqual(['a']);
+  });
+  it('Cheapest: fresh stations in the radius, cheapest first, gap to the median as the note', () => {
+    const r = chooseRows(s, prefs({ radiusKm: 5 }), [], 3, 'cheapest');
+    expect(r.mode).toBe('nearby');
+    expect(r.rows.map((x) => x.id)).toEqual(['e', 'c', 'b']);
+    expect(r.rows[1]).toMatchObject({ note: '−18.0c', noteTone: 'cheap' });
+  });
+  it('both area modes respect the members setting', () => {
+    expect(chooseRows(s, prefs({ members: false }), [], 3, 'cheapest').rows.map((x) => x.id)).toEqual(['c', 'b', 'a']);
+    expect(chooseRows(s, prefs({ members: false, radiusKm: 5 }), [], 5, 'nearest').rows.map((x) => x.id)).toEqual(['a', 'b', 'c']);
+  });
+  it('Pinned: pin order, never falling back to the area', () => {
+    expect(chooseRows(s, prefs(), ['c', 'a'], 3, 'pinned').rows.map((x) => x.id)).toEqual(['c', 'a']);
+    expect(chooseRows(s, prefs(), [], 3, 'pinned')).toMatchObject({ mode: 'no-pins', rows: [], message: 'No pinned stations. Pin one in Bowser' });
+    expect(chooseRows(snap(), prefs(), ['7'], 3, 'pinned')).toMatchObject({ mode: 'no-pins', message: "Your pinned stations don't list U91" });
+  });
+  it('keeps the empty states', () => {
+    for (const m of ['nearest', 'cheapest'] as const)
+      expect(chooseRows(s, prefs({ home: null }), [], 3, m).message).toBe('Open Bowser to set your area');
+    expect(chooseRows(null, prefs(), [], 3, 'pinned').mode).toBe('no-data');
+    expect(chooseRows(s, prefs({ fuel: 'P98' }), [], 3, 'nearest').message).toBe('No fresh P98 prices within 5 km');
+  });
+  it('carries the selected mode on the model (null for the small widget)', () => {
+    expect(buildModel(s, prefs(), [], TODAY, 3, 'nearest').stationMode).toBe('nearest');
+    expect(buildModel(s, prefs(), [], TODAY).stationMode).toBeNull();
   });
 });
