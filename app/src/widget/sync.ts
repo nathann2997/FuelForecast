@@ -35,10 +35,17 @@ export function useWidgetSync(client: QueryClient) {
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    setWidgetDataSource(() => ({
-      forecast: client.getQueryData<Forecast>(['forecast']),
-      stations: client.getQueryData<Stations>(['stations']),
-    }));
+    // updatedAt: when the app got its data (the older file), so the widget can tell the morning's data from a later
+    // run's (the pipeline republishes during the day; widget/logic.ts fromAppData). Restored-from-disk data keeps its
+    // original time.
+    setWidgetDataSource(() => {
+      const at = (k: string) => client.getQueryState([k])?.dataUpdatedAt ?? 0;
+      return {
+        forecast: client.getQueryData<Forecast>(['forecast']),
+        stations: client.getQueryData<Stations>(['stations']),
+        updatedAt: Math.min(at('forecast'), at('stations')) || undefined,
+      };
+    });
     const offPins = onPinsChange(() => requestWidgetRefresh());
     const offQueries = client.getQueryCache().subscribe((e) => {
       if (e.type === 'updated' && e.action.type === 'success' && isWidgetData(e.query.queryKey)) requestWidgetRefresh();
