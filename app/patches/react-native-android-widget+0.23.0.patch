@@ -1,8 +1,128 @@
 diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
-index 5650d1e..5c749bc 100644
+index 5650d1e..8162ee3 100644
 --- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
 +++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
-@@ -158,12 +158,12 @@ public class RNWidget {
+@@ -4,6 +4,7 @@ import android.app.PendingIntent;
+ import android.appwidget.AppWidgetManager;
+ import android.content.ComponentName;
+ import android.content.Intent;
++import android.content.res.Configuration;
+ import android.graphics.Bitmap;
+ import android.graphics.Canvas;
+ import android.graphics.Rect;
+@@ -59,55 +60,38 @@ public class RNWidget {
+         }
+     }
+ 
++    // Bowser patch (faster taps): draw the theme the launcher is showing first and push it, then draw the other theme
++    // and patch only its image in. Each theme is a full-size bitmap plus one per list row, all PNG-encoded to disk, so
++    // the visible update no longer waits for the hidden half. layout-night/rn_widget.xml picks the image to show, and
++    // the app follows the system theme (userInterfaceStyle "automatic"), so our uiMode matches the launcher's.
+     public void drawWidget(int widgetId) throws Exception {
+         ReadableMap light = config.getMap("light");
+         ReadableMap dark = config.getMap("dark");
++        boolean night = dark != null
++            && (appContext.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
++        String shown = night ? "dark" : "light";
++        String hidden = night ? "light" : "dark";
++        int width = RNWidgetUtil.getWidgetWidth(appContext, widgetId);
++        int height = RNWidgetUtil.getWidgetHeight(appContext, widgetId);
+ 
+-        ReadableMap configClone = Arguments.makeNativeMap(light.toHashMap());
+         RemoteViews remoteWidgetView = new RemoteViews(appContext.getPackageName(), R.layout.rn_widget);
+-
+         WidgetWithViews widgetWithViews = WidgetFactory.buildWidgetFromRoot(
+-            appContext,
+-            configClone,
+-            RNWidgetUtil.getWidgetWidth(appContext, widgetId),
+-            RNWidgetUtil.getWidgetHeight(appContext, widgetId)
+-        );
++            appContext, Arguments.makeNativeMap((night ? dark : light).toHashMap()), width, height);
+ 
+-        Bitmap bitmap = drawViewToBitmap(widgetWithViews.getRootView());
+-        Uri bitmapUri = saveBitmapToDisk(widgetId, "light", bitmap);
+-        remoteWidgetView.setImageViewUri(R.id.rn_widget_image_light, bitmapUri);
++        Uri bitmapUri = saveBitmapToDisk(widgetId, shown, drawViewToBitmap(widgetWithViews.getRootView()));
++        remoteWidgetView.setImageViewUri(imageViewId(shown), bitmapUri);
++        // Until the second pass (or for good, with no dark config) the hidden theme shows the same image
++        remoteWidgetView.setImageViewUri(imageViewId(hidden), bitmapUri);
+ 
+         if (widgetWithViews.getRootAccessibilityLabel() != null) {
+             remoteWidgetView.setContentDescription(R.id.rn_widget_clickable_container, widgetWithViews.getRootAccessibilityLabel());
+         }
+ 
+-        if (dark != null) {
+-            WidgetWithViews darkWidgetWithViews = WidgetFactory.buildWidgetFromRoot(
+-                appContext,
+-                Arguments.makeNativeMap(dark.toHashMap()),
+-                RNWidgetUtil.getWidgetWidth(appContext, widgetId),
+-                RNWidgetUtil.getWidgetHeight(appContext, widgetId)
+-            );
+-
+-            Bitmap darkBitmap = drawViewToBitmap(darkWidgetWithViews.getRootView());
+-            Uri darkBitmapUri = saveBitmapToDisk(widgetId, "dark", darkBitmap);
+-            remoteWidgetView.setImageViewUri(R.id.rn_widget_image_dark, darkBitmapUri);
+-
+-            List<CollectionView> lightCollectionViews = widgetWithViews.getCollectionViews();
+-            List<CollectionView> darkCollectionViews = darkWidgetWithViews.getCollectionViews();
+-
+-            for (int i = 0; i < Math.min(darkCollectionViews.size(), RNWidgetCollectionService.MAX_COLLECTION_WIDGETS); i++) {
+-                RNWidgetCollectionService.storeCollection(appContext, widgetId, i, lightCollectionViews.get(i).getRenderedViews(), "light");
+-                RNWidgetCollectionService.storeCollection(appContext, widgetId, i, darkCollectionViews.get(i).getRenderedViews(), "dark");
+-            }
+-        } else {
+-            remoteWidgetView.setImageViewUri(R.id.rn_widget_image_dark, bitmapUri);
+-
+-            List<CollectionView> collectionViews = widgetWithViews.getCollectionViews();
+-            for (int i = 0; i < Math.min(collectionViews.size(), RNWidgetCollectionService.MAX_COLLECTION_WIDGETS); i++) {
+-                CollectionView collectionView = collectionViews.get(i);
+-                RNWidgetCollectionService.storeCollection(appContext, widgetId, i, collectionView.getRenderedViews(), "light");
+-                RNWidgetCollectionService.storeCollection(appContext, widgetId, i, collectionView.getRenderedViews(), "dark");
++        List<CollectionView> collectionViews = widgetWithViews.getCollectionViews();
++        for (int i = 0; i < Math.min(collectionViews.size(), RNWidgetCollectionService.MAX_COLLECTION_WIDGETS); i++) {
++            RNWidgetCollectionService.storeCollection(appContext, widgetId, i, collectionViews.get(i).getRenderedViews(), shown);
++            if (dark == null) {
++                RNWidgetCollectionService.storeCollection(appContext, widgetId, i, collectionViews.get(i).getRenderedViews(), hidden);
+             }
+         }
+ 
+@@ -116,8 +100,33 @@ public class RNWidget {
+         }
+         addCollectionViews(widgetId, remoteWidgetView, widgetWithViews);
+ 
+-        AppWidgetManager.getInstance(appContext)
+-            .updateAppWidget(widgetId, remoteWidgetView);
++        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(appContext);
++        appWidgetManager.updateAppWidget(widgetId, remoteWidgetView);
++
++        if (dark == null) {
++            return;
++        }
++        // Second pass: the hidden theme. Its list rows are read by file name when the list next binds (a theme change
++        // rebinds it), so only the main image needs a (partial, merged) update.
++        WidgetWithViews hiddenWidgetWithViews = WidgetFactory.buildWidgetFromRoot(
++            appContext, Arguments.makeNativeMap((night ? light : dark).toHashMap()), width, height);
++        Uri hiddenUri = saveBitmapToDisk(widgetId, hidden, drawViewToBitmap(hiddenWidgetWithViews.getRootView()));
++        List<CollectionView> hiddenCollectionViews = hiddenWidgetWithViews.getCollectionViews();
++        for (int i = 0; i < Math.min(hiddenCollectionViews.size(), RNWidgetCollectionService.MAX_COLLECTION_WIDGETS); i++) {
++            RNWidgetCollectionService.storeCollection(appContext, widgetId, i, hiddenCollectionViews.get(i).getRenderedViews(), hidden);
++        }
++        RemoteViews hiddenImage = new RemoteViews(appContext.getPackageName(), R.layout.rn_widget);
++        hiddenImage.setImageViewUri(imageViewId(hidden), hiddenUri);
++        appWidgetManager.partiallyUpdateAppWidget(widgetId, hiddenImage);
++        // Rebind the rows with fresh cache keys, in case they bound while the hidden-theme files were being rewritten
++        // (only visible if the launcher's theme differs from our guess)
++        for (int i = 0; i < Math.min(hiddenCollectionViews.size(), RNWidgetCollectionService.MAX_COLLECTION_WIDGETS); i++) {
++            appWidgetManager.notifyAppWidgetViewDataChanged(widgetId, lists[i]);
++        }
++    }
++
++    private static int imageViewId(String mode) {
++        return "dark".equals(mode) ? R.id.rn_widget_image_dark : R.id.rn_widget_image_light;
+     }
+ 
+     public WritableMap createPreview(int width, int height) throws Exception {
+@@ -158,12 +167,12 @@ public class RNWidget {
          List<ClickableView> clickableViews = widgetWithViews.getClickableViews();
          for (int i = 0; i < clickableViews.size(); i++) {
              ClickableView clickableView = clickableViews.get(i);
@@ -17,7 +137,7 @@ index 5650d1e..5c749bc 100644
          View clickableWidget = clickableView.getView();
          Rect offsetViewBounds = new Rect();
          clickableWidget.getDrawingRect(offsetViewBounds);
-@@ -194,12 +194,25 @@ public class RNWidget {
+@@ -194,23 +203,58 @@ public class RNWidget {
              clickableRemoteView.setContentDescription(R.id.rn_widget_clickable_area, clickableView.getAccessibilityLabel());
          }
  
@@ -41,12 +161,34 @@ index 5650d1e..5c749bc 100644
 +        return (widgetId << 10) | (index & 0x1FF);
 +    }
 +
++    // Bowser patch (faster taps): an OPEN_URI area starts the activity directly instead of broadcasting to
++    // RNWidgetProvider, which then started the same ACTION_VIEW intent: one hop fewer, and no broadcast queue. The URI is
++    // part of an activity PendingIntent's identity, so a changed URI makes a new record instead of updating in place
++    // (bounded by the number of distinct station URIs).
++    static String openUriOf(String clickAction, ReadableMap clickActionData) {
++        if (!"OPEN_URI".equals(clickAction) || clickActionData == null || !clickActionData.hasKey("uri")) {
++            return null;
++        }
++        return clickActionData.getString("uri");
++    }
++
 +    private void registerClickTask(int id, ClickableView clickableView, RemoteViews widgetView, Integer button, int index) {
++        String uri = openUriOf(clickableView.getClickAction(), clickableView.getClickActionData());
++        if (uri != null) {
++            Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
++            view.setPackage(appContext.getPackageName());
++            view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++            widgetView.setOnClickPendingIntent(button, PendingIntent.getActivity(
++                appContext, clickRequestCode(id, index), view, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
++            return;
++        }
          Intent intent = new Intent(appContext.getPackageName() + ".WIDGET_CLICK");
          intent.setComponent(new ComponentName(appContext, RNWidgetUtil.getWidgetProviderClassName(appContext, widgetName)));
          intent.putExtra("widgetId", id);
-@@ -207,10 +220,10 @@ public class RNWidget {
+         intent.putExtra("clickAction", clickableView.getClickAction());
          intent.putExtra("clickActionData", Arguments.toBundle(clickableView.getClickActionData()));
++        // Bowser patch (faster taps): the foreground broadcast queue, so the tap isn't held behind background broadcasts
++        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
          PendingIntent pendingIntent = PendingIntent.getBroadcast(
              appContext,
 -            (int) System.currentTimeMillis(),
@@ -59,8 +201,57 @@ index 5650d1e..5c749bc 100644
          );
          widgetView.setOnClickPendingIntent(button, pendingIntent);
      }
+@@ -262,7 +306,9 @@ public class RNWidget {
+             }
+         }
+ 
+-        PendingIntent collectionPendingIntentTemplate = createCollectionPendingIntentTemplate(widgetId);
++        PendingIntent collectionPendingIntentTemplate = allOpenUri(collectionView)
++            ? createCollectionActivityTemplate()
++            : createCollectionPendingIntentTemplate(widgetId);
+         Intent remoteAdapterIntent = createCollectionRemoteAdapterIntent(widgetId, collectionId, collectionView);
+ 
+         collectionRemoteView.setPendingIntentTemplate(lists[collectionId], collectionPendingIntentTemplate);
+@@ -345,10 +391,37 @@ public class RNWidget {
+         widgetListItemClickIntent.setComponent(new ComponentName(appContext, RNWidgetUtil.getWidgetProviderClassName(appContext, widgetName)));
+         widgetListItemClickIntent.setAction(appContext.getPackageName() + ".WIDGET_CLICK");
+         widgetListItemClickIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
++        widgetListItemClickIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);   // Bowser patch (faster taps)
+         return PendingIntent.getBroadcast(appContext, 0, widgetListItemClickIntent,
+             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+     }
+ 
++    // Bowser patch (faster taps): when every row of a list opens a URI (Bowser's station rows), the template starts the
++    // activity directly and each row's fill-in intent supplies the URI as its data (RNWidgetCollectionService).
++    private static boolean allOpenUri(CollectionView collectionView) {
++        List<CollectionViewItem> items = collectionView.getRenderedViews();
++        for (CollectionViewItem item : items) {
++            if (openUriOf(item.getClickAction(), item.getClickActionData()) == null) {
++                return false;
++            }
++            // Nested areas go through the same template (their fill-in intents), so they must open URIs too
++            for (ClickableView nested : item.getClickableViews()) {
++                if (openUriOf(nested.getClickAction(), nested.getClickActionData()) == null) {
++                    return false;
++                }
++            }
++        }
++        return !items.isEmpty();
++    }
++
++    private PendingIntent createCollectionActivityTemplate() {
++        Intent view = new Intent(Intent.ACTION_VIEW);
++        view.setPackage(appContext.getPackageName());
++        view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++        // Mutable: the fill-in intent sets the data URI
++        return PendingIntent.getActivity(appContext, 0, view, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
++    }
++
+     private String convertBitmapToBase64(Bitmap bitmap) {
+         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
 diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java
-index f818d97..c342ca1 100644
+index f818d97..c90ed01 100644
 --- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java
 +++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetCollectionService.java
 @@ -95,8 +95,8 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
@@ -92,7 +283,16 @@ index f818d97..c342ca1 100644
          clickableRemoteView.setOnClickPendingIntent(R.id.rn_widget_clickable_area, pendingIntent);
  
          Intent fillInIntent = createFillInIntent(clickableArea);
-@@ -154,7 +154,9 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+@@ -151,10 +151,18 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+ 
+         Intent fillInIntent = new Intent();
+         fillInIntent.putExtras(extras);
++        // Bowser patch (faster taps): an all-OPEN_URI list has an ACTION_VIEW activity template (RNWidget), which takes
++        // its URI from here. A broadcast template ignores the data: RNWidgetProvider reads clickActionData.
++        Bundle data = bundle.getBundle("clickActionData");
++        if ("OPEN_URI".equals(bundle.getString("clickAction")) && data != null && data.getString("uri") != null) {
++            fillInIntent.setData(Uri.parse(data.getString("uri")));
++        }
          return fillInIntent;
      }
  
@@ -103,7 +303,7 @@ index f818d97..c342ca1 100644
          Intent intent = new Intent(mContext.getPackageName() + ".WIDGET_CLICK");
          intent.setComponent(new ComponentName(mContext, RNWidgetUtil.getWidgetProviderClassName(mContext, widgetName)));
          intent.putExtra("widgetId", mAppWidgetId);
-@@ -162,9 +164,9 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
+@@ -162,9 +170,9 @@ class ListRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
          intent.putExtra("clickActionData", clickableArea.getBundle("clickActionData"));
          return PendingIntent.getBroadcast(
              mContext,
@@ -115,3 +315,113 @@ index f818d97..c342ca1 100644
                  | PendingIntent.FLAG_MUTABLE
          );
      }
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
+index 647d8f4..75a51d4 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
+@@ -7,13 +7,25 @@ import android.content.Intent;
+ import android.content.SharedPreferences;
+ import android.net.Uri;
+ import android.os.Bundle;
++import android.os.Handler;
++import android.os.Looper;
+ 
+ import androidx.work.Data;
+ 
++import com.facebook.react.ReactApplication;
++import com.facebook.react.ReactHost;
+ import com.facebook.react.bridge.Arguments;
++import com.facebook.react.bridge.ReactContext;
++import com.facebook.react.jstasks.HeadlessJsTaskConfig;
++import com.facebook.react.jstasks.HeadlessJsTaskContext;
++import com.facebook.react.jstasks.HeadlessJsTaskEventListener;
+ 
+ import org.json.JSONObject;
+ 
++import java.util.HashMap;
++import java.util.Map;
++import java.util.concurrent.atomic.AtomicBoolean;
++
+ public class RNWidgetProvider extends AppWidgetProvider {
+     @Override
+     public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager, int appWidgetId, Bundle newOptions) {
+@@ -151,6 +163,79 @@ public class RNWidgetProvider extends AppWidgetProvider {
+         }
+ 
+         Data data = RNWidgetJsCommunication.buildData(context, getClass().getSimpleName(), widgetId, "WIDGET_CLICK", additionalData);
++        if (QUICK_CLICKS.contains(incomingIntent.getStringExtra("clickAction")) && startClickTaskNow(context, data)) {
++            return;
++        }
+         RNWidgetJsCommunication.startBackgroundTask(context, data);
+     }
++
++    // Bowser patch (faster taps): the app's click actions that only redraw from the cached snapshot (src/widget/logic.ts
++    // MODE_ACTION, FUEL_ACTION), well under a second. Anything that may wait on GPS or the network (LOCATE) keeps
++    // WorkManager, which holds the process for as long as the task needs.
++    private static final java.util.Set<String> QUICK_CLICKS = new java.util.HashSet<>(java.util.Arrays.asList("MODE", "FUEL"));
++    private static final long QUICK_CLICK_HOLD_MS = 5_000;
++
++    // Bowser patch (faster taps): with React already running (the app open or recently used), run a quick click's
++    // headless task straight away instead of through WorkManager, whose enqueue and job scheduling were most of a warm
++    // tap's delay. goAsync() keeps this receiver's process alive until the task finishes, or 5 s at most: the click
++    // intents carry FLAG_RECEIVER_FOREGROUND, whose 10 s limit counts from dispatch, and a held foreground broadcast
++    // delays the next one. Updates, resizes and deletes keep WorkManager. Returns false (nothing started) to fall back
++    // to WorkManager.
++    private boolean startClickTaskNow(Context context, Data data) {
++        final ReactContext reactContext;
++        try {
++            Context app = context.getApplicationContext();
++            if (!(app instanceof ReactApplication)) {
++                return false;
++            }
++            ReactHost host = ((ReactApplication) app).getReactHost();
++            reactContext = host == null ? null : host.getCurrentReactContext();
++            if (reactContext == null || !reactContext.hasActiveReactInstance()) {
++                return false;
++            }
++        } catch (Exception e) {
++            return false;
++        }
++
++        Map<String, Object> arguments = new HashMap<>(data.getKeyValueMap());
++        arguments.put("screenInfo", RNWidgetUtil.getScreenInfo(context.getApplicationContext()).toHashMap());
++        HeadlessJsTaskConfig taskConfig = new HeadlessJsTaskConfig("RNWidgetBackgroundTask", Arguments.makeNativeMap(arguments), 30 * 1000, true);
++
++        final HeadlessJsTaskContext taskContext = HeadlessJsTaskContext.getInstance(reactContext);
++        final PendingResult pending = goAsync();
++        final AtomicBoolean finished = new AtomicBoolean(false);
++        final int[] taskId = {-1};
++        final Handler handler = new Handler(Looper.getMainLooper());
++        final HeadlessJsTaskEventListener[] listener = new HeadlessJsTaskEventListener[1];
++        final Runnable finish = () -> {
++            if (finished.compareAndSet(false, true)) {
++                taskContext.removeTaskEventListener(listener[0]);
++                pending.finish();
++            }
++        };
++        listener[0] = new HeadlessJsTaskEventListener() {
++            @Override
++            public void onHeadlessJsTaskStart(int id) {
++            }
++
++            @Override
++            public void onHeadlessJsTaskFinish(int id) {
++                if (id == taskId[0]) {
++                    handler.post(finish);
++                }
++            }
++        };
++        try {
++            // onReceive runs on the main thread, which startTask requires; finish events also arrive on it, after this
++            // returns, so taskId is set before any can match
++            taskContext.addTaskEventListener(listener[0]);
++            taskId[0] = taskContext.startTask(taskConfig);
++        } catch (Exception e) {
++            e.printStackTrace();
++            finish.run();
++            return false;
++        }
++        handler.postDelayed(finish, QUICK_CLICK_HOLD_MS);
++        return true;
++    }
+ }

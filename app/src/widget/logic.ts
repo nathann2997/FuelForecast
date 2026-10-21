@@ -187,7 +187,8 @@ function toRow(s: WStation, fuel: Fuel, median: number | undefined): WidgetRow |
 
 export type StationMode = 'pinned' | 'nearest' | 'cheapest';
 export const STATION_MODES: readonly [StationMode, string][] = [['pinned', 'Pinned'], ['nearest', 'Nearest'], ['cheapest', 'Cheapest']];
-/** Custom click action the mode row sends (clickActionData: { mode }). */
+/** Custom click action the mode row sends (clickActionData: { mode }). MODE and FUEL are named in the widget library
+ *  patch (RNWidgetProvider QUICK_CLICKS: redraw-only taps that skip WorkManager), so rename them in both places. */
 export const MODE_ACTION = 'MODE';
 export const modeKey = (widgetId: number) => `widget.mode.${widgetId}`;
 

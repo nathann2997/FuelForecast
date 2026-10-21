@@ -2,6 +2,23 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Bowser 0.6.0 (in progress): owner's feedback round
+
+### 1. Faster widget taps (native: needs the 0.6.0 APK)
+All of this is in the widget library patch (`app/patches/react-native-android-widget+0.23.0.patch`).
+- **Pinned/Nearest/Cheapest and fuel-chip taps skip WorkManager while Bowser is running.** If the app is open or was used recently, the tap's redraw starts at once. WorkManager's enqueue and job scheduling had been most of a warm tap's delay.
+  - Only `MODE` and `FUEL` take this path; ⟳ (which can wait on GPS) still goes through WorkManager.
+  - The receiver stays alive (`goAsync`) for at most 5 s.
+- **The redraw shows sooner.** The theme the launcher is showing is drawn and pushed first, then the other theme.
+  - Each theme is a full-size PNG plus one per list row, so the visible change no longer waits for the hidden half.
+- **Station rows and the rest of the widget open Bowser directly.** They are now activity intents, which removes the hop through a broadcast and the widget receiver.
+- **Remaining tap broadcasts go through Android's foreground queue** (`FLAG_RECEIVER_FOREGROUND`).
+- **QA audit, fixes applied:**
+  - The direct path is limited to redraw-only taps, with a 5 s hold (was 9 s for every click).
+  - Dropped an early `ReactHost.start()` that could make a cold tap get lost.
+  - List rows rebind after the second-theme pass.
+  - The all-links check covers nested tap areas.
+
 ## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
 
 ### Added
