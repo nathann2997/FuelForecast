@@ -2,6 +2,16 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-21 — API: 7-day station forecast in stations.json
+
+- `stations.json` fuel tuples gain index 5: the station's 7-day forecast price, `round(fc.now + fc.d7, 1)`, taken from the same forecast as `station/{id}.json`. It's for the widget, which can't fetch per-station files.
+- It's added inside the fail-soft station block, so on a day the station files fail the tuples stay at 5 items. `SCHEMA` stays 1 (an additive change), and `types.ts` `StationPrice` gains an optional 6th item.
+- QA: no blockers.
+  - The dashboard, `forecast.json`, `history.json` and all station files are byte-identical to before.
+  - `stations.json` differs only by index 5. It's +15 KB raw and +6 KB gzipped.
+  - The installed app reads tuples by index, so it ignores the extra item.
+  - A forced failure leaves 5-item tuples and exits 0.
+
 ## 2026-10-21 — Widget: scrollable station list and per-widget fuel chip (OTA to 0.3.0)
 
 ### Added

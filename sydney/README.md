@@ -25,7 +25,7 @@ API (`https://nathann2997.github.io/FuelForecast/api/v1/`), static JSON regenera
 |---|---|
 | `meta.json` | schema version, generated time, as-of date per source, file sizes (`station/` = total bytes of the station files, `station/count` = how many). Check `asof` for staleness |
 | `forecast.json` | `live[]` per fuel (now, d1/d3/d7/d14 with lo/hi ranges, p_jump7, `verdict`), `ctx`, `stats`, `brands`, `bt` (backtest) |
-| `stations.json` | `stations[]` with `id` (NSW station code) and `p: {fuel: [price, days since update, advice code, advice label, reason]}`; `suburbs[]` centroids for radius search |
+| `stations.json` | `stations[]` with `id` (NSW station code) and `p: {fuel: [price, days since update, advice code, advice label, reason, 7-day forecast price]}` (index 5 = the station file's `fc.now + fc.d7`; left off, tuple length 5, on a day the station files failed); `suburbs[]` centroids for radius search |
 | `station/{id}.json` | one station (`StationDetail` in `app/src/lib/types.ts`): `hist[fuel]` end-of-day price for the 400 days from `start` to `asof` (monthly history, then the `archive/` snapshots, then today; carried forward up to 30 days, else null), `profile` (`typ`, `lag`, `part`, `n`), and `fc[fuel]`, the station's own 14-day forecast (`now`, d/lo/hi at 1/3/7/14 days, `rise` date, `adv` as in `stations.json`). Method in `pipeline/station_api.py`. About 8 KB each |
 | `history.json` | `hist[fuel].{med,p10,p90}` and `tgp.{ulp,dl}`, daily from `start` |
 

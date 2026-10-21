@@ -53,7 +53,8 @@ if len(ids) != len(data["stations"]) or len(set(ids)) != len(ids):
 app_stations = [dict(id=i, **s) for i, s in zip(ids, data["stations"])]
 stations = {"schema": SCHEMA, "asof": data["snap_asof"],
             "fields": {"id": "NSW station code (station/{id}.json)", "n": "name", "b": "brand", "s": "suburb", "pc": "postcode", "la": "lat", "lo": "lon", "m": "members only (0/1)",
-                       "p": "fuel -> [price c/L, days since update, advice code, advice label, advice reason]"},
+                       "p": "fuel -> [price c/L, days since update, advice code, advice label, advice reason, "
+                            "7-day forecast price c/L (= station/{id}.json fc.now + fc.d7; absent if station files failed)]"},
             "stations": app_stations, "suburbs": suburbs, "suburb_stats": data["suburbs"]}
 history = {"schema": SCHEMA, "start": data["start"], "hist": data["hist"], "tgp": data["tgp"]}
 
@@ -77,7 +78,8 @@ forecast = {"schema": SCHEMA, "asof": ctx["asof"], "live": [dict(r, verdict=verd
 age = lambda d: (dt.date.fromisoformat(today) - dt.date.fromisoformat(d)).days if d else 999
 warnings = [f"{k} is {age(ctx.get(k))} days old" for k, lim in [("tgp_last", 10), ("fred_last", 21)] if age(ctx.get(k)) > lim]
 
-# per-station files fail soft: on an exception or a failed check, publish everything else without station/ and warn
+# per-station files fail soft: on an exception or a failed check, publish everything else without station/ (and
+# stations.json without the 7-day price at p[fuel][5]) and warn
 st_txt = {}
 try:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -87,6 +89,15 @@ try:
     st_errs = station_api.check(details, app_stations)
     if st_errs: raise RuntimeError(f"{len(st_errs)} check(s) failed, e.g. {'; '.join(st_errs[:3])}")
     st_txt = {i: json.dumps(d, separators=(",", ":"), allow_nan=False) for i, d in details.items()}
+    # p[fuel][5]: the 7-day forecast price from the same fc, for the widget (new dicts/lists: build.py's data untouched)
+    f7 = lambda fc: round(fc["now"] + fc["d7"], 1) + 0.0
+    # index 5 (7-day station forecast) belongs to this script; build.py fills 0-4 only
+    with_fc = [dict(s, p={f: list(pr[:5]) + [f7(details[s["id"]]["fc"][f])] for f, pr in s["p"].items()}) for s in app_stations]
+    bad = [f"{s['id']} {f}" for s in with_fc for f, pr in s["p"].items()
+           if len(pr) != 6 or not isinstance(pr[5], float) or pr[5] != pr[5] or not 50 < pr[5] < 800
+           or pr[5] != f7(json.loads(st_txt[s["id"]])["fc"][f])]
+    if bad: raise RuntimeError(f"stations.json 7-day price check failed for {len(bad)}, e.g. {bad[:3]}")
+    stations["stations"] = with_fc
 except Exception as e:
     st_txt = {}; warnings.append(f"station files unavailable: {type(e).__name__}: {e}"[:500])
     print("!" * 70 + f"\nexport_api: WARNING {warnings[-1]}\n  publishing without station/\n" + "!" * 70)

@@ -86,7 +86,7 @@ export type Forecast = {
 
 export type AdviceCode = 'now' | 'by' | 'ok' | 'wait' | 'hi' | 'any' | 'chk';
 // [price c/L, days since update, advice code, advice label, advice reason]
-export type StationPrice = [number, number | null, AdviceCode, string, string];
+export type StationPrice = [number, number | null, AdviceCode, string, string, number?];   // [5]: 7-day forecast price c/L (fc.now + fc.d7), absent if the station files failed
 
 export type Station = {
   id: string;     // NSW FuelCheck station code, stable across days (key for pins and station/{id}.json)
