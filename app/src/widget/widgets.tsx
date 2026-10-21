@@ -11,8 +11,8 @@ import { Colors } from '@/constants/theme';
 import type { Tone } from '@/lib/outlook';
 
 import {
-  FUEL_ACTION, LOCATE_ACTION, MED, MODE_ACTION, ROW, SMALL_STYLE, STATION_MODES, TODAY_URI, compactHeadline, fuelLabel, mediumForecastLine, mediumLayout,
-  compactRowWidths, smallCompact, smallBottomLine, smallRiseLine, type NoteTone, type WidgetModel, type WidgetRow,
+  FUEL_ACTION, FUEL_CYCLE, FUEL_DOTS, LOCATE_ACTION, MED, MODE_ACTION, ROW, SMALL_STYLE, STATION_MODES, TODAY_URI, compactHeadline, fuelLabel, mediumForecastLine, mediumLayout,
+  compactRowWidths, fuelDotsW, smallCompact, smallBottomLine, smallRiseLine, type NoteTone, type WidgetModel, type WidgetRow,
 } from './logic';
 
 export const SMALL = 'BowserSmall';
@@ -45,16 +45,29 @@ const locateSvg = (stroke: string) =>
 
 const open = { clickAction: 'OPEN_URI', clickActionData: { uri: TODAY_URI } } as const;
 
-/** The fuel this widget shows, as a chip: a tap cycles U91 -> E10 -> P98 -> Diesel for this widget only (FUEL click
- *  action with the next fuel; register.android.ts saves it). Fixed font size so large system text can't overflow it. */
-function FuelChip({ m, c, fg, height }: { m: WidgetModel; c: Pal; fg: string; height: number }) {
+/** Four step dots, the `on`-th filled and the rest faint: where this fuel sits in the tap cycle */
+const fuelDotsSvg = (on: number, color: string) => {
+  const { size, gap } = FUEL_DOTS;
+  const r = size / 2;
+  const dots = FUEL_CYCLE.map((_, i) =>
+    `<circle cx="${r + i * (size + gap)}" cy="${r}" r="${r}" fill="${color}" fill-opacity="${i === on ? 1 : 0.4}"/>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fuelDotsW} ${size}" width="${fuelDotsW}" height="${size}">${dots}</svg>`;
+};
+
+/** The fuel this widget shows, as a chip: a tap steps U91 -> E10 -> P98 -> Diesel for this widget only (FUEL click
+ *  action with the next fuel; register.android.ts saves it). Step dots, not a ▾: there is no menu. The compact small
+ *  widget has no room for them, so it shows the pill alone. Fixed font size so large system text can't overflow it. */
+function FuelChip({ m, c, fg, height, dots = true }: { m: WidgetModel; c: Pal; fg: string; height: number; dots?: boolean }) {
   return (
     <FlexWidget
       clickAction={FUEL_ACTION}
       clickActionData={{ fuel: m.nextFuel }}
-      accessibilityLabel={`Fuel: ${m.fuel}. Tap to show ${fuelLabel(m.nextFuel)}`}
+      accessibilityLabel={`Fuel: ${m.fuel}, ${FUEL_CYCLE.indexOf(m.fuelCode) + 1} of ${FUEL_CYCLE.length}. Tap to show ${fuelLabel(m.nextFuel)}`}
       style={{ height, paddingHorizontal: 10, borderRadius: height / 2, backgroundColor: hex(c.surface), borderWidth: 1, borderColor: hex(c.line), flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-      <TextWidget text={`${m.fuel} ▾`} maxLines={1} allowFontScaling={false} style={{ fontSize: 12, fontWeight: '700', color: hex(fg) }} />
+      <TextWidget text={m.fuel} maxLines={1} allowFontScaling={false} style={{ fontSize: 12, fontWeight: '700', color: hex(fg) }} />
+      {dots ? (
+        <SvgWidget svg={fuelDotsSvg(FUEL_CYCLE.indexOf(m.fuelCode), fg)} style={{ width: fuelDotsW, height: FUEL_DOTS.size, marginLeft: FUEL_DOTS.margin }} />
+      ) : null}
     </FlexWidget>
   );
 }
@@ -73,7 +86,7 @@ function Small({ m, c, width, height }: { m: WidgetModel; c: Pal; width: number;
       <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center' }}>
         <ImageWidget image={MARK} imageWidth={s.mark} imageHeight={s.mark} />
         <FlexWidget style={{ flex: 1 }} />
-        <FuelChip m={m} c={c} fg={t.fg} height={s.chip} />
+        <FuelChip m={m} c={c} fg={t.fg} height={s.chip} dots={!compact} />
       </FlexWidget>
       <FlexWidget style={{ flex: 1 }} />
       <TextWidget text={m.head} maxLines={2} truncate="END" allowFontScaling={false} style={{ fontSize: s.head, fontWeight: '700', color: hex(t.fg) }} />

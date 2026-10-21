@@ -19,6 +19,14 @@ All of this is in the widget library patch (`app/patches/react-native-android-wi
   - List rows rebind after the second-theme pass.
   - The all-links check covers nested tap areas.
 
+### 2. Widget fuel chip: step dots instead of a dropdown arrow (JS)
+- **The arrow is gone.** "U91 ▾" looked like a dropdown, but a tap steps to the next fuel; there is no menu.
+- **Step dots replace it.** The chip now shows the fuel and four dots, with this fuel's dot filled (U91 ● ○ ○ ○, E10 ○ ● ○ ○, …), a carousel cue for "one of four, tap for the next".
+  - The dots are drawn as SVG in the chip's text colour (`FUEL_DOTS` and `fuelDotsW` in `widget/logic.ts`).
+  - `chipW` counts their width, so the medium widget's headline and forecast lines still fit at 300 dp.
+- **The compact small widget (under 150 dp) shows the plain pill**, since there is no room for the dots.
+- **The in-app fuel button keeps its ▾**, because it really does open a picker.
+
 ## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
 
 ### Added

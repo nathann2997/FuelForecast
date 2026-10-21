@@ -374,8 +374,13 @@ export const fitsLine = (text: string, widthDp: number, sp: number) => text.leng
 export const firstFit = (candidates: string[], widthDp: number, sp: number) =>
   candidates.find((c) => fitsLine(c, widthDp, sp)) ?? candidates[candidates.length - 1];
 
-/** Width of the fuel chip: 10+10 padding around "Diesel ▾" etc. at 12 sp */
-export const chipW = (m: Pick<WidgetModel, 'fuel'>) => 20 + `${m.fuel} ▾`.length * 12 * AVG_EM;
+/** The fuel chip's step dots: one per fuel in FUEL_CYCLE, the widget's own filled. They say "one of four, tap for the
+ *  next" where a ▾ promised a dropdown that doesn't exist. */
+export const FUEL_DOTS = { size: 4, gap: 2.5, margin: 5 } as const;
+export const fuelDotsW = FUEL_DOTS.size * 4 + FUEL_DOTS.gap * 3;
+/** Width of the fuel chip: 10+10 padding around "Diesel" etc. at 12 sp, plus the step dots when shown */
+export const chipW = (m: Pick<WidgetModel, 'fuel'>, dots = true) =>
+  20 + m.fuel.length * 12 * AVG_EM + (dots ? FUEL_DOTS.margin + fuelDotsW : 0);
 
 /** Compact medium headline: the verdict, then "as of", then the Sydney forecast, each only if it fits. */
 export function compactHeadline(m: Pick<WidgetModel, 'head' | 'asOf' | 'sydney' | 'fuel'>, widthDp: number): string {

@@ -48,7 +48,10 @@ const selectedTab = (rep: unknown) =>
 /** The fuel chip in a rendered widget: its label and the fuel a tap switches to */
 const chip = (rep: unknown) => {
   const node = walk(buildWidgetTree((rep as { light: never }).light) as Node).find((n) => n.props?.clickAction === 'FUEL')!;
-  return { label: (node.children?.[0]?.props as { text: string }).text, next: (node.props?.clickActionData as { fuel: string }).fuel };
+  const svg = (node.children?.[1]?.props as { svgString?: string } | undefined)?.svgString;
+  // the step dots: which of the four is filled (null when the chip has none)
+  const step = svg ? svg.match(/fill-opacity="[^"]+"/g)!.findIndex((x) => x === 'fill-opacity="1"') : null;
+  return { label: (node.children?.[0]?.props as { text: string }).text, next: (node.props?.clickActionData as { fuel: string }).fuel, step };
 };
 
 const INFO = { widgetName: MEDIUM, widgetId: ID, width: 320, height: 180, screenInfo: { screenHeightDp: 800, screenWidthDp: 400, density: 2, densityDpi: 320 } };
@@ -159,7 +162,7 @@ describe('widget task handler', () => {
     const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'E10' } });
     expect(mockStore.get(`widget.fuel.${ID}`)).toBe('E10');
     expect(render).toHaveBeenCalledTimes(1);
-    expect(chip(render.mock.calls[0][0])).toEqual({ label: 'E10 ▾', next: 'P98' });
+    expect(chip(render.mock.calls[0][0])).toEqual({ label: 'E10', next: 'P98', step: 1 });
     expect(globalThis.fetch).not.toHaveBeenCalled();
     // the app's fuel is untouched
     expect(JSON.parse(mockStore.get('settings.v1')!).fuel).toBe('U91');
@@ -172,20 +175,27 @@ describe('widget task handler', () => {
     try {
       const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'DL' }, widgetInfo: { ...INFO, widgetName: SMALL } });
       expect(mockStore.has(`widget.fuel.${ID}`)).toBe(false);
-      expect(chip(render.mock.calls[0][0])).toEqual({ label: 'Diesel ▾', next: 'U91' });
+      expect(chip(render.mock.calls[0][0])).toEqual({ label: 'Diesel', next: 'U91', step: 3 });
     } finally {
       storage.setItem = orig;
     }
+  });
+
+  it('the fuel chip shows step dots, except on the compact small widget (no room)', async () => {
+    let render = await run({ widgetAction: 'WIDGET_UPDATE' });
+    expect(chip(render.mock.calls[0][0])).toEqual({ label: 'U91', next: 'E10', step: 0 });
+    render = await run({ widgetAction: 'WIDGET_UPDATE', widgetInfo: { ...INFO, widgetName: SMALL, width: 110, height: 110 } });
+    expect(chip(render.mock.calls[0][0])).toEqual({ label: 'U91', next: 'E10', step: null });
   });
 
   it("tapping back to the app's fuel removes the widget's own, so it follows the app again", async () => {
     mockStore.set(`widget.fuel.${ID}`, 'DL');
     const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'U91' } });
     expect(mockStore.has(`widget.fuel.${ID}`)).toBe(false);
-    expect(chip(render.mock.calls[0][0]).label).toBe('U91 ▾');
+    expect(chip(render.mock.calls[0][0]).label).toBe('U91');
     mockStore.set('settings.v1', JSON.stringify({ fuel: 'E10', home, radiusKm: 5 }));
     const again = await run({ widgetAction: 'WIDGET_UPDATE' });
-    expect(chip(again.mock.calls[0][0]).label).toBe('E10 ▾');
+    expect(chip(again.mock.calls[0][0]).label).toBe('E10');
   });
 
   it('a bad or missing fuel neither saves nor renders', async () => {
@@ -198,10 +208,10 @@ describe('widget task handler', () => {
 
   it('a redraw uses the saved fuel, else the app\'s', async () => {
     let render = await run({ widgetAction: 'WIDGET_UPDATE' });
-    expect(chip(render.mock.calls[0][0]).label).toBe('U91 ▾');
+    expect(chip(render.mock.calls[0][0]).label).toBe('U91');
     mockStore.set(`widget.fuel.${ID}`, 'P98');
     render = await run({ widgetAction: 'WIDGET_UPDATE' });
-    expect(chip(render.mock.calls[0][0]).label).toBe('P98 ▾');
+    expect(chip(render.mock.calls[0][0]).label).toBe('P98');
   });
 
   it('falls back to the v1 cache (4-item prices, no forecast) when v2 is missing, e.g. offline right after the OTA', async () => {
