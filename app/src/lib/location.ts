@@ -17,24 +17,58 @@ export async function locate(): Promise<Place> {
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
       new Promise<never>((_, no) => setTimeout(() => no(new Error('Location timed out. Try again, or search a suburb.')), 15000)),
     ]));
+  noteFix();
   return { label: 'your location', la: pos.coords.latitude, lo: pos.coords.longitude, gps: true };
 }
 
-/** A fresh fix without prompting, when permission was already given; null otherwise */
+/** A fresh fix without prompting, when permission was already given; null otherwise. A last-known position is reused
+ *  only if under 2 min old, so "nearby" follows a moving phone. */
 export async function quietLocate(): Promise<Place | null> {
+  const started = fixSeq;
   try {
     const { status } = await Location.getForegroundPermissionsAsync();
-    if (status !== 'granted') return null;
+    if (status !== 'granted' || !(await Location.hasServicesEnabledAsync())) {
+      noteNoLocation(started);
+      return null;
+    }
     const pos =
-      (await Location.getLastKnownPositionAsync({ maxAge: 10 * 60 * 1000 })) ??
+      (await Location.getLastKnownPositionAsync({ maxAge: 2 * 60 * 1000 })) ??
       (await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
         new Promise<null>((ok) => setTimeout(() => ok(null), 10000)),
       ]));
-    return pos ? { label: 'your location', la: pos.coords.latitude, lo: pos.coords.longitude, gps: true } : null;
+    if (!pos) return null;   // no fix in time (indoors, say): not a reason to call the area stale
+    noteFix();
+    return { label: 'your location', la: pos.coords.latitude, lo: pos.coords.longitude, gps: true };
   } catch {
     return null;
   }
+}
+
+// ---- Is the GPS area live? Stations says "Near you in Parramatta" while it is, and "Parramatta (last known)" once
+// the phone can't locate at all (permission withdrawn, location off). null until either happens this session.
+let fixLive: boolean | null = null;
+let fixSeq = 0;   // counts fixes, so a read can tell whether one landed while it ran
+const fixListeners = new Set<() => void>();
+function setFixLive(v: boolean) {
+  if (v === fixLive) return;
+  fixLive = v;
+  fixListeners.forEach((l) => l());
+}
+function noteFix() {
+  fixSeq += 1;
+  setFixLive(true);
+}
+/** A read that started at fix count `started` found location unavailable; a fix since (e.g. "Use my location") wins */
+function noteNoLocation(started: number) {
+  if (fixSeq === started) setFixLive(false);
+}
+export const getFixLive = () => fixLive;
+export function subscribeFixLive(l: () => void) {
+  fixListeners.add(l);
+  return () => {
+    fixListeners.delete(l);
+  };
 }
 
 // ---- Background location, for the Android home-screen widget ("Allow all the time"). Android only for now.

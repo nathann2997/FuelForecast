@@ -31,6 +31,35 @@ export function findSuburb(suburbs: Suburb[], query: string): Place | null {
   return { label, la, lo };
 }
 
+/** The suburb whose centre (the mean of its stations) is nearest a point, if within `maxKm`: a GPS fix's place name,
+ *  from the stations file's suburb list (offline, the same names the area search uses). Names with digits are skipped:
+ *  the list has a few unparsed addresses and "Postcode 2153" placeholders. */
+export function nearestSuburb(suburbs: Suburb[], la: number, lo: number, maxKm = 3): Suburb | null {
+  let best: Suburb | null = null;
+  let bestD = maxKm;
+  for (const x of suburbs) {
+    if (/\d/.test(x.s)) continue;
+    const d = km(la, lo, x.la, x.lo);
+    if (d <= bestD) {
+      best = x;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * How the area reads in a "Near …" line. A typed suburb is its label. A GPS area names the suburb you're in: "you in
+ * Parramatta" while live (a fix this session, or none yet), and once the phone can't locate (`live` false) just
+ * "Parramatta" with `lastKnown`, so the list isn't passed off as live. Away from every suburb: "you".
+ */
+export function areaName(home: Place, suburbs: Suburb[], live: boolean | null): { text: string; lastKnown: boolean } {
+  if (!home.gps) return { text: home.label, lastKnown: false };
+  const sub = nearestSuburb(suburbs, home.la, home.lo)?.s;
+  if (live === false) return { text: sub ?? 'your last location', lastKnown: true };
+  return { text: sub ? `you in ${sub}` : 'you', lastKnown: false };
+}
+
 export type StationRow = Station & { price: number; age: number | null; adv: StationPrice; d: number | null };
 
 /** Stations selling `fuel`, filtered by radius from `home` (if any); cheapest first (dashboard order) or nearest first. */

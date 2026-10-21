@@ -7,13 +7,13 @@ import { FilterIcon } from '@/components/icons';
 import { MissingPinItem, rowKey, StationItem } from '@/components/station-row';
 import { Button, Card, Disclosure, Loading, Screen, StaleBanner, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
-import { useArea } from '@/hooks/use-area';
+import { useArea, useAreaLive } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useStations } from '@/lib/api';
 import { WHEN_NOTE } from '@/lib/copy';
 import { applyFilters, brandCounts, filterCount, pinnedRows } from '@/lib/filters';
 import { fuelName, nice } from '@/lib/format';
-import { rankStations } from '@/lib/geo';
+import { areaName, rankStations } from '@/lib/geo';
 import { usePins } from '@/lib/pins';
 import { resetFilters, useSettings } from '@/lib/settings';
 
@@ -23,6 +23,7 @@ export default function Stations() {
   const c = useTheme();
   const s = useSettings();
   const home = useArea();
+  const live = useAreaLive();
   const pins = usePins();
   const sq = useStations();
   const fq = useForecast();
@@ -52,6 +53,7 @@ export default function Stations() {
   const nFilters = filterCount(s);
 
   const r = fq.data?.live.find((x) => x.fuel === s.fuel);
+  const area = home && data ? areaName(home, data.suburbs, live) : null;
   const order = s.pinnedOnly ? 'pinned only' : `${home ? `within ${s.radiusKm} km, ` : ''}${home && s.sort === 'distance' ? 'nearest' : 'cheapest'} first`;
 
   return (
@@ -70,11 +72,15 @@ export default function Stations() {
             <Pressable
               onPress={() => setEditing(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Area: ${home.gps ? 'your location' : home.label}, ${s.radiusKm} kilometres. Change area`}
+              accessibilityLabel={`Area: near ${area!.text}${area!.lastKnown ? ', last known location' : ''}, ${s.radiusKm} kilometres. Change area`}
               style={[styles.area, { backgroundColor: c.surface, borderColor: c.line }]}>
-              <T color={c.fg} style={{ fontWeight: '700', flex: 1 }} numberOfLines={1}>
-                ◎  Near {home.gps ? 'your location' : home.label} · {s.radiusKm} km
+              {/* the place name gives way first; the radius and "last known" always show */}
+              <T color={c.fg} style={{ fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>
+                {home.gps ? '◎  ' : ''}Near {area!.text}
               </T>
+              <T color={c.fg} style={{ fontWeight: '700' }}>· {s.radiusKm} km</T>
+              {area!.lastKnown ? <T kind="small" color={c.muted}>last known</T> : null}
+              <View style={{ flex: 1 }} />
               <T kind="small" color={c.tgp} style={{ fontWeight: '700' }}>Change</T>
             </Pressable>
           ) : (

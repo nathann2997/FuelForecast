@@ -3,9 +3,9 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { directionsUrls } from '../directions';
 import { plainWarnings, widgetLocationCopy } from '../copy';
 import { applyFilters, brandCounts, brandOptions, FILTER_DEFAULTS, filterCount, isFiltered, pinnedRows, type FilterSettings } from '../filters';
-import { rankStations } from '../geo';
+import { areaName, nearestSuburb, rankStations } from '../geo';
 import { DEFAULTS, normalize } from '../settings';
-import type { AdviceCode, Station, StationPrice } from '../types';
+import type { AdviceCode, Station, StationPrice, Suburb } from '../types';
 
 // settings.ts reads storage at import time; give it an empty in-memory store (jest hoists this above the imports)
 jest.mock('../storage', () => {
@@ -172,5 +172,32 @@ describe('widget location copy', () => {
       status: 'Location is off on this phone', action: 'services', note: null, hint: null,
     });
     expect(widgetLocationCopy({ status: 'denied', canAskAgain: true, servicesOff: true }, typed).note).toContain('Manly 2095');
+  });
+});
+
+describe('the area as a place name (Stations "Near …")', () => {
+  const SUBS: Suburb[] = [
+    { s: 'Parramatta', pc: 2150, la: -33.815, lo: 151.003, n: 20 },
+    { s: 'Harris Park', pc: 2150, la: -33.823, lo: 151.007, n: 4 },
+    { s: 'Postcode 2151', pc: 2151, la: -33.8171, lo: 151.0041, n: 1 },   // junk names in the live list: never shown
+    { s: 'Bondi', pc: 2026, la: -33.891, lo: 151.274, n: 6 },
+  ];
+  const at = (la: number, lo: number) => ({ label: 'your location', la, lo, gps: true });
+
+  it('names the nearest real suburb within 3 km, else none', () => {
+    expect(nearestSuburb(SUBS, -33.817, 151.004)?.s).toBe('Parramatta');
+    expect(nearestSuburb(SUBS, -33.824, 151.008)?.s).toBe('Harris Park');
+    expect(nearestSuburb(SUBS, -33.86, 151.05)).toBeNull();   // ~6 km out
+    expect(nearestSuburb(SUBS, -34.5, 150.5)).toBeNull();
+  });
+  it('says where you are for a GPS area, and flags a last known one', () => {
+    expect(areaName(at(-33.817, 151.004), SUBS, true)).toEqual({ text: 'you in Parramatta', lastKnown: false });
+    expect(areaName(at(-33.817, 151.004), SUBS, null)).toEqual({ text: 'you in Parramatta', lastKnown: false });   // no answer yet
+    expect(areaName(at(-33.817, 151.004), SUBS, false)).toEqual({ text: 'Parramatta', lastKnown: true });
+    expect(areaName(at(-34.5, 150.5), SUBS, true)).toEqual({ text: 'you', lastKnown: false });
+    expect(areaName(at(-34.5, 150.5), SUBS, false)).toEqual({ text: 'your last location', lastKnown: true });
+  });
+  it('keeps a typed suburb as typed', () => {
+    expect(areaName({ label: 'Bondi 2026', la: -33.891, lo: 151.274 }, SUBS, false)).toEqual({ text: 'Bondi 2026', lastKnown: false });
   });
 });

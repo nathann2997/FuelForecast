@@ -112,6 +112,29 @@ All of this is in the widget library patch (`app/patches/react-native-android-wi
   - The backtest is gated on how stale it is.
   - The close run moved from 22:43 to 21:13.
 
+### 5. Stations: "Near you in Parramatta", and nearby that follows the phone (JS)
+- **The area line names your suburb.** It read "◎ Near your location"; with a GPS area it now says where you are, e.g. "◎ Near you in Parramatta · 5 km".
+  - The name is the nearest suburb within 3 km (`nearestSuburb` / `areaName` in `lib/geo.ts`), from the stations file's suburb list: offline, with the same names as the area search.
+  - A suburb's position is the average of its stations' positions, so the name can be a neighbouring suburb that has stations.
+  - Names with digits are skipped: the live list has a few "Postcode 2153" placeholders and unparsed addresses (a pipeline cleanup for later).
+  - A typed suburb shows as typed, without the ◎ (which now means "from GPS").
+- **It doesn't pass old positions off as live.** When the phone can't locate at all (permission withdrawn, location switched off), the line reads "Near Parramatta · 5 km · last known".
+  - A read that only times out (indoors) doesn't count.
+  - Any fix marks it live again, including "Use my location".
+  - A slow read that finds no location can't override a fix that landed meanwhile; a counter of fixes decides this (`lib/location.ts`, `useAreaLive`).
+- **Nearby follows the phone more closely** (`hooks/use-area.ts`):
+  - The position is re-read when Stations or Today mounts or comes into focus (at most once a minute), and on every return to the foreground. One read runs at a time across screens.
+  - A cached position is reused only if under 2 min old (was 10).
+  - The list re-sorts when you've moved more than 200 m.
+- **The radius and "last known" never get cut off**; only a long place name does.
+- **QA audit, fixes applied:**
+  - Junk suburb names are skipped.
+  - The live-state race is fixed, with tests (`location-live.test.ts`).
+  - Timeouts no longer count as "last known".
+  - Location reads are deduplicated.
+  - The cutoff is 3 km (was 5).
+  - The truncation-safe layout above.
+
 ## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
 
 ### Added
