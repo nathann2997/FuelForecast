@@ -263,4 +263,4 @@ export function chartSummary(t: TickerData, st: RangeStats, fuel: Fuel, range: R
 export const rangeName = (r: RangeKey) =>
   ({ '1W': 'the last week', '1M': 'the last month', '3M': 'the last 3 months', '6M': 'the last 6 months', '1Y': 'the last year' })[r];
 
-export { openDirections } from './directions';
+export { openInMaps } from './directions';

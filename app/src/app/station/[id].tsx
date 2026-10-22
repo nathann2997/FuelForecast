@@ -7,6 +7,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { MapPinIcon } from '@/components/icons';
 import { ADVICE_TONE } from '@/components/station-row';
 import { TickerChart } from '@/components/ticker-chart';
 import { Badge, Card, Section, StaleBanner, T } from '@/components/ui';
@@ -19,7 +20,7 @@ import { dayLabel, toneOf } from '@/lib/outlook';
 import { MAX_PINS, togglePin, usePins } from '@/lib/pins';
 import { useSettings } from '@/lib/settings';
 import {
-  behaviour, chartSummary, forecastTiles, fuelsSold, openDirections, pickFuel, RANGES, rangeStats, riseText,
+  behaviour, chartSummary, forecastTiles, fuelsSold, openInMaps, pickFuel, RANGES, rangeStats, riseText,
   tankText, ticker, tickerData, type Change, type RangeKey,
 } from '@/lib/station';
 import type { Fuel, Station } from '@/lib/types';
@@ -114,9 +115,9 @@ export default function StationPage() {
           {head ? (
             <View style={{ flexDirection: 'row', gap: Spacing.two }}>
               <ActionButton
-                label="Directions" primary
-                onPress={() => openDirections(head.la, head.lo, name)}
-                icon={<Svg width={18} height={18} viewBox="0 0 24 24"><Path d="M12 2l8 19-8-4-8 4z" fill={c.bg} /></Svg>}
+                label="Map" primary
+                onPress={() => openInMaps(head.la, head.lo, name)}
+                icon={<MapPinIcon color={c.bg} size={18} />}
               />
               <ActionButton
                 label={pinned ? 'Pinned' : 'Pin'} onPress={onPin} selected={pinned}

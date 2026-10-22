@@ -3,13 +3,13 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import { DirectionsIcon, PinIcon } from '@/components/icons';
+import { MapPinIcon, PinIcon } from '@/components/icons';
 import { notify, PINS_FULL } from '@/components/station-actions';
 import { Badge, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useStationDetail } from '@/lib/api';
-import { openDirections } from '@/lib/directions';
+import { openInMaps } from '@/lib/directions';
 import { STALE_DAYS } from '@/lib/filters';
 import { togglePin, usePins } from '@/lib/pins';
 import { brandSuburb, stationName, updatedText } from '@/lib/format';
@@ -28,7 +28,12 @@ export const rowKey = (r: { id?: string; n: string; la: number; lo: number }) =>
 
 const shortFuel = (f: Fuel) => (f === 'DL' ? 'Diesel' : f);
 
-/** Swipe left on a row for Pin/Unpin and Directions. Screen readers get the same two as custom actions on the row. */
+/** Sideways travel (dp, counted from the first touch) before a drag on a row becomes a swipe. The list's
+ *  gesture-handler ScrollView (ui.tsx Screen) cancels a row's pending swipe once it starts scrolling; this threshold
+ *  makes a diagonal start favour the scroll too. A deliberate swipe covers it in a few frames. */
+const SWIPE_START = 24;
+
+/** Swipe left on a row for Pin/Unpin and Map (the station on the map, not navigation). Screen readers get the same two as custom actions on the row. */
 function SwipeRow({ id, name, la, lo, children }: { id?: string; name: string; la?: number; lo?: number; children: (a11y: A11y) => ReactNode }) {
   const c = useTheme();
   const pinned = usePins().includes(id ?? '');
@@ -37,7 +42,7 @@ function SwipeRow({ id, name, la, lo, children }: { id?: string; name: string; l
     if (id && !togglePin(id)) notify(PINS_FULL);
   };
   const go = () => {
-    if (canGo) openDirections(la, lo, name);
+    if (canGo) openInMaps(la, lo, name);
   };
   const then = (m: SwipeableMethods, f: () => void) => () => {
     m.close();
@@ -46,17 +51,21 @@ function SwipeRow({ id, name, la, lo, children }: { id?: string; name: string; l
   const a11y: A11y = {
     accessibilityActions: [
       ...(id ? [{ name: 'pin', label: pinned ? 'Unpin' : 'Pin' }] : []),
-      ...(canGo ? [{ name: 'directions', label: 'Directions' }] : []),
+      ...(canGo ? [{ name: 'map', label: 'Show on map' }] : []),
     ],
-    onAccessibilityAction: (e) => (e.nativeEvent.actionName === 'pin' ? pin() : e.nativeEvent.actionName === 'directions' ? go() : undefined),
+    onAccessibilityAction: (e) => (e.nativeEvent.actionName === 'pin' ? pin() : e.nativeEvent.actionName === 'map' ? go() : undefined),
   };
   return (
     <Swipeable
       friction={2}
       rightThreshold={40}
+      // Let vertical scrolling win: a swipe needs SWIPE_START dp sideways (default 10), so only a clearly horizontal
+      // drag becomes one
+      dragOffsetFromRight={-SWIPE_START}
+      dragOffsetFromLeft={SWIPE_START}
       overshootRight={false}
       renderRightActions={(_p, _t, m) => (
-        // Hidden from screen readers: the row's own accessibilityActions offer Pin and Directions
+        // Hidden from screen readers: the row's own accessibilityActions offer Pin and Show on map
         <View style={styles.swipe} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
           {id ? (
             <Pressable onPress={then(m, pin)} accessibilityRole="button" accessibilityLabel={pinned ? `Unpin ${name}` : `Pin ${name}`} style={[styles.swipeBtn, { backgroundColor: c.chip }]}>
@@ -65,9 +74,9 @@ function SwipeRow({ id, name, la, lo, children }: { id?: string; name: string; l
             </Pressable>
           ) : null}
           {canGo ? (
-            <Pressable onPress={then(m, go)} accessibilityRole="button" accessibilityLabel={`Directions to ${name}`} style={[styles.swipeBtn, { backgroundColor: c.tgp }]}>
-              <DirectionsIcon color="#ffffff" size={22} />
-              <T kind="small" color="#ffffff" style={{ fontWeight: '700' }}>Go</T>
+            <Pressable onPress={then(m, go)} accessibilityRole="button" accessibilityLabel={`Show ${name} on the map`} style={[styles.swipeBtn, { backgroundColor: c.tgp }]}>
+              <MapPinIcon color="#ffffff" size={22} />
+              <T kind="small" color="#ffffff" style={{ fontWeight: '700' }}>Map</T>
             </Pressable>
           ) : null}
         </View>
@@ -80,14 +89,14 @@ function SwipeRow({ id, name, la, lo, children }: { id?: string; name: string; l
 type A11y = Pick<PressableProps, 'accessibilityActions' | 'onAccessibilityAction'>;
 
 /** One station: name, where, the when-to-fill chip, price and gap to the median. Tapping opens the station page;
- *  swiping left shows Pin and Directions. A pinned station shows a small pin by its name. */
+ *  swiping left shows Pin and Map. A pinned station shows a small pin by its name. */
 export function StationItem({ r, median, last }: { r: StationRow; median: number | undefined; last?: boolean }) {
   const c = useTheme();
   const [, , code, label] = r.adv;
   const name = stationName(r.n);
   const gap = median != null ? r.price - median : null;
   const stale = r.age != null && r.age > STALE_DAYS;
-  const hasId = !!r.id;   // an old cached stations.json has no ids: no station page and no pin, Directions still works
+  const hasId = !!r.id;   // an old cached stations.json has no ids: no station page and no pin, Map still works
   const pinned = usePins().includes(r.id);
 
   return (

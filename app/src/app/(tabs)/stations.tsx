@@ -112,7 +112,7 @@ export default function Stations() {
           </View>
 
           {!pins.length && total > 0 ? (
-            <T kind="small" style={{ marginTop: -Spacing.two }}>Swipe a station left to pin it or get directions.</T>
+            <T kind="small" style={{ marginTop: -Spacing.two }}>Swipe a station left to pin it or see it on the map.</T>
           ) : null}
 
           {pinned.length ? (

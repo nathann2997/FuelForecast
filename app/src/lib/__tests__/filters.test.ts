@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { directionsUrls } from '../directions';
+import { mapUrls } from '../directions';
 import { plainWarnings, widgetLocationCopy } from '../copy';
 import { applyFilters, brandCounts, brandOptions, FILTER_DEFAULTS, filterCount, isFiltered, pinnedRows, type FilterSettings } from '../filters';
 import { areaName, nearestSuburb, rankStations } from '../geo';
@@ -104,12 +104,19 @@ describe('settings', () => {
   });
 });
 
-describe('directions', () => {
-  it('uses Google navigation on Android, Apple Maps on iOS and the maps URL on the web', () => {
-    const web = 'https://www.google.com/maps/dir/?api=1&destination=-33.8,151.2&travelmode=driving';
-    expect(directionsUrls('android', -33.8, 151.2)).toEqual(['google.navigation:q=-33.8,151.2', web]);
-    expect(directionsUrls('ios', -33.8, 151.2, 'BP Manly')).toEqual(['maps://?daddr=-33.8,151.2&dirflg=d&q=BP%20Manly', web]);
-    expect(directionsUrls('web', -33.8, 151.2)).toEqual([web]);
+describe('show on map', () => {
+  it('drops a named pin (geo: on Android, Apple Maps on iOS, the Google Maps URL on the web), never starts navigation', () => {
+    const web = 'https://www.google.com/maps/search/?api=1&query=-33.8,151.2';
+    expect(mapUrls('android', -33.8, 151.2, 'BP Manly')).toEqual(['geo:0,0?q=-33.8,151.2(BP%20Manly)', web]);
+    expect(mapUrls('android', -33.8, 151.2)).toEqual(['geo:0,0?q=-33.8,151.2', web]);
+    // brackets and & in station names stay inside the label
+    expect(mapUrls('android', -33.8, 151.2, 'BP Mosman (9542)')[0]).toBe('geo:0,0?q=-33.8,151.2(BP%20Mosman%20%289542%29)');
+    expect(mapUrls('android', -33.8, 151.2, 'Jack & Co')[0]).toBe('geo:0,0?q=-33.8,151.2(Jack%20%26%20Co)');
+    expect(mapUrls('ios', -33.8, 151.2, 'BP Manly')).toEqual(['maps://?ll=-33.8,151.2&q=BP%20Manly', web]);
+    expect(mapUrls('web', -33.8, 151.2)).toEqual([web]);
+    for (const os of ['android', 'ios', 'web']) {
+      for (const u of mapUrls(os, -33.8, 151.2, 'X')) expect(u).not.toMatch(/navigation|daddr|\/dir\/|destination/);
+    }
   });
 });
 

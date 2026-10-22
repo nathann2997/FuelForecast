@@ -5,7 +5,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import {
   type TextProps,
   type ViewStyle,
 } from 'react-native';
+import { RefreshControl as GHRefreshControl, ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -42,10 +42,14 @@ export function Screen({
 }) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
-  // Android SDK 58 is edge-to-edge, so the window no longer resizes for the keyboard: pad for it here
+  // Android SDK 58 is edge-to-edge, so the window no longer resizes for the keyboard: pad for it here.
+  // Gesture-handler's ScrollView, not react-native's: the station rows' swipe (station-row.tsx) is a gesture-handler
+  // pan, which a react-native ScrollView can't cancel, so a scroll that drifted sideways turned into a swipe mid-way.
+  // This one takes part in gesture arbitration: once it starts scrolling, it cancels the rows' pending swipes.
+  // Its RefreshControl must come from gesture-handler too.
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
-    <ScrollView
+    <GHScrollView
       style={{ flex: 1, backgroundColor: c.bg }}
       contentContainerStyle={{
         paddingTop: insets.top + Spacing.four,
@@ -54,7 +58,7 @@ export function Screen({
         gap: Spacing.four,
       }}
       keyboardShouldPersistTaps="handled"
-      refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.muted} /> : undefined}>
+      refreshControl={onRefresh ? <GHRefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.muted} /> : undefined}>
       <View style={styles.header}>
         <View style={{ flex: 1, gap: 2 }}>
           {onBack ? (
@@ -69,7 +73,7 @@ export function Screen({
         {fuel ? <FuelChip /> : null}
       </View>
       {children}
-    </ScrollView>
+    </GHScrollView>
     </KeyboardAvoidingView>
   );
 }

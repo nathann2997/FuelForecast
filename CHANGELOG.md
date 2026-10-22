@@ -136,6 +136,25 @@ All of this is in the widget library patch (`app/patches/react-native-android-wi
   - The cutoff is 3 km (was 5).
   - The truncation-safe layout above.
 
+### 6. Scrolling no longer gets caught by the station-row swipe (JS, OTA at runtime 0.6.0)
+- **Cause:** the swipe (gesture-handler `ReanimatedSwipeable`) started after only 10 dp of sideways travel. The screens scrolled in react-native's `ScrollView`, which can't cancel a gesture-handler pan. So any scroll that drifted 10 dp sideways in total became a swipe mid-scroll and stopped scrolling.
+- **The screens now scroll in gesture-handler's `ScrollView`**, with its `RefreshControl` (`Screen` in `components/ui.tsx`). It takes part in gesture arbitration: once it starts scrolling, it cancels the rows' pending swipes.
+- **A swipe now needs 24 dp sideways** (`SWIPE_START` in `components/station-row.tsx`), so a diagonal start favours the scroll. A deliberate swipe still opens Pin/Unpin and Map as before.
+- The fuel sheet's scroll view is unchanged (it has no swipe rows).
+
+### 7. "Directions" shows the station on the map instead of starting a trip (JS, OTA at runtime 0.6.0)
+- **The station page's button and the row's swipe button now open the maps app on a named pin for the station.** They used to start turn-by-turn navigation. Google Maps / Apple Maps offer directions from there if wanted.
+  - **Android:** `geo:0,0?q=lat,lng(name)` (was `google.navigation:`).
+  - **iOS:** `maps://?ll=…&q=name` (was `daddr`).
+  - **Web fallback:** a Google Maps search URL (was a directions URL).
+  - Brackets in station names ("BP Mosman (9542)") are encoded so the Android label stays whole.
+  - The functions are now `openInMaps` / `mapUrls` in `lib/directions.ts`. A test checks that no URL can start navigation.
+- **Labels and icons match the behaviour:**
+  - The Map buttons use a map-pin icon (`MapPinIcon`), not the navigation arrow.
+  - The station page's button and the swipe button say **Map** (were "Directions" / "Go").
+  - The screen-reader action is "Show on map".
+  - The swipe hint reads "Swipe a station left to pin it or see it on the map."
+
 ## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
 
 ### Added

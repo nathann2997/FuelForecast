@@ -1,4 +1,4 @@
-// Shared bits for the station actions (pin and Directions): the "pins full" message and how it's shown.
+// Shared bits for the station actions (pin and Map): the "pins full" message and how it's shown.
 import { Alert, Platform, ToastAndroid } from 'react-native';
 
 import { MAX_PINS } from '@/lib/pins';
