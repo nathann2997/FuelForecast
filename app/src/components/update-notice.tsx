@@ -4,14 +4,16 @@
 // on purpose: the same file is added to older versions' code and shipped to them as an OTA update.
 import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
-import { Linking, Modal, Platform, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 type Release = { version: string; url: string; notes?: string };
 export type UpdateAction = 'shown' | 'update' | 'later';
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
-/** Only links to EAS build pages open from here */
-const SAFE_URL = /^https:\/\/expo\.dev\/[\w\-./?=&%]+$/;
+/** Only Bowser's own EAS build pages open from here (same rule as export_api.py) */
+const SAFE_URL = /^https:\/\/expo\.dev\/accounts\/nathann97\/projects\/fuel-forecast\/builds\/[0-9a-f-]{36}$/;
+/** Once per app process: a root remount (error-boundary retry, Activity re-created) doesn't ask again */
+let asked = false;
 
 /** a > b for x.y.z versions */
 export function newer(a: string, b: string): boolean {
@@ -39,24 +41,29 @@ export function UpdateNotice({ releaseUrl, onAction }: {
   const [rel, setRel] = useState<Release | null>(null);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || asked) return;
     let live = true;
-    // After the splash, so it doesn't race the first screen
+    const ctl = new AbortController();
+    // After the splash (hidden by 2.5 s at the latest), so it doesn't race the first screen
     const t = setTimeout(() => {
-      fetch(releaseUrl, { headers: { Accept: 'application/json' } })
+      const stop = setTimeout(() => ctl.abort(), 8000);   // a stalled connection: not mid-task minutes later
+      fetch(releaseUrl, { headers: { Accept: 'application/json' }, signal: ctl.signal })
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
+          asked = true;   // answered: not again this process (an aborted or failed fetch may retry on remount)
           const p = pendingRelease(j, Platform.OS, Constants.expoConfig?.version);
           if (live && p) {
             setRel(p);
             onAction?.('shown', p.version);
           }
         })
-        .catch(() => {});   // offline: ask next launch
-    }, 1500);
+        .catch(() => {})   // offline: ask next launch
+        .finally(() => clearTimeout(stop));
+    }, 3500);
     return () => {
       live = false;
       clearTimeout(t);
+      ctl.abort();
     };
     // Once per launch
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,13 +78,18 @@ export function UpdateNotice({ releaseUrl, onAction }: {
     setRel(null);
   };
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={() => close('later')} statusBarTranslucent>
+    <Modal transparent animationType="fade" visible onRequestClose={() => close('later')} statusBarTranslucent navigationBarTranslucent>
       <View style={styles.backdrop}>
-        <View style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]} accessibilityRole="alert">
-          <Text style={[styles.title, { color: c.fg }]}>Bowser {rel.version} is available</Text>
-          <Text style={[styles.body, { color: c.fg2 }]}>
-            {rel.notes ?? 'A new version is ready.'} You have {Constants.expoConfig?.version}. Install the update to keep getting fixes and new features.
+        <View style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]} accessibilityViewIsModal>
+          <Text style={[styles.title, { color: c.fg }]} accessibilityRole="header" maxFontSizeMultiplier={1.6}>
+            Bowser {rel.version} is available
           </Text>
+          {/* Scrolls at large text sizes so the buttons stay on screen */}
+          <ScrollView style={{ maxHeight: 220 }}>
+            <Text style={[styles.body, { color: c.fg2 }]} maxFontSizeMultiplier={1.6}>
+              {rel.notes ?? 'A new version is ready.'} You have {Constants.expoConfig?.version}. Install the update to keep getting fixes and new features.
+            </Text>
+          </ScrollView>
           <Pressable
             onPress={() => {
               Linking.openURL(rel.url).catch(() => {});
@@ -85,10 +97,10 @@ export function UpdateNotice({ releaseUrl, onAction }: {
             }}
             accessibilityRole="button"
             style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.8 : 1 }]}>
-            <Text style={styles.primaryText}>Update</Text>
+            <Text style={styles.primaryText} maxFontSizeMultiplier={1.6}>Update</Text>
           </Pressable>
           <Pressable onPress={() => close('later')} accessibilityRole="button" hitSlop={8} style={styles.later}>
-            <Text style={[styles.laterText, { color: c.fg2 }]}>Later</Text>
+            <Text style={[styles.laterText, { color: c.fg2 }]} maxFontSizeMultiplier={1.6}>Later</Text>
           </Pressable>
         </View>
       </View>
