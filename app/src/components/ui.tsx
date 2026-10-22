@@ -170,18 +170,19 @@ export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
 }
 
 export function Button({
-  label, onPress, kind = 'primary', busy,
-}: { label: string; onPress: () => void; kind?: 'primary' | 'secondary'; busy?: boolean }) {
+  label, onPress, kind = 'primary', busy, disabled,
+}: { label: string; onPress: () => void; kind?: 'primary' | 'secondary'; busy?: boolean; disabled?: boolean }) {
   const c = useTheme();
   const primary = kind === 'primary';
   return (
     <Pressable
       onPress={onPress}
-      disabled={busy}
+      disabled={busy || disabled}
       accessibilityRole="button"
+      accessibilityState={disabled ? { disabled: true } : undefined}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: primary ? c.fg : c.surface, borderColor: primary ? c.fg : c.line, opacity: pressed || busy ? 0.7 : 1 },
+        { backgroundColor: primary ? c.fg : c.surface, borderColor: primary ? c.fg : c.line, opacity: disabled ? 0.4 : pressed || busy ? 0.7 : 1 },
       ]}>
       <Text style={{ color: primary ? c.bg : c.fg, fontWeight: '700', fontSize: 15 }}>{busy ? 'Locating…' : label}</Text>
     </Pressable>

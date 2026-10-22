@@ -1,5 +1,6 @@
 // Station list filters (the Filters sheet on the Stations tab) and the pinned group. Pure functions, no React.
-import { km, type Place, type StationRow } from './geo';
+import type { Discounts } from './discounts';
+import { km, stationRow, type Place, type StationRow } from './geo';
 import type { AdviceCode, Fuel, Station } from './types';
 
 export const RADII = [2, 5, 10, 20] as const;
@@ -71,7 +72,7 @@ export function brandOptions(
   return list.filter((b, i) => i < limit || sel.has(b.brand));
 }
 
-/** Rows (already ranked by radius / members / sort) narrowed by brand, advice, max price and freshness. */
+/** Rows (already ranked by radius / members / sort) narrowed by brand, advice, max price (the price you pay) and freshness. */
 export function applyFilters(rows: StationRow[], f: FilterSettings): StationRow[] {
   const codes = new Set<AdviceCode>(ADVICE_GROUPS.filter(([g]) => f.advice.includes(g)).flatMap(([, , c]) => c));
   const brands = new Set(f.brands);
@@ -88,18 +89,18 @@ export function applyFilters(rows: StationRow[], f: FilterSettings): StationRow[
 export type PinnedItem = { id: string; row: StationRow; station: Station } | { id: string; row: null; station: Station | null };
 
 /** Pinned stations in pin order (newest first), whatever the radius and filters; only the fuel applies. */
-export function pinnedRows(stations: Station[], fuel: Fuel, pins: string[], home: Place | null): PinnedItem[] {
+export function pinnedRows(stations: Station[], fuel: Fuel, pins: string[], home: Place | null, discounts?: Discounts): PinnedItem[] {
   if (!pins.length) return [];
   const byId = new Map(stations.map((s) => [s.id, s]));
   return pins.map((id) => {
     const s = byId.get(id);
     const p = s?.p[fuel];
     if (!s || !p || p[0] == null) return { id, row: null, station: s ?? null };
-    return { id, station: s, row: { ...s, price: p[0], age: p[1], adv: p, d: home ? km(home.la, home.lo, s.la, s.lo) : null } };
+    return { id, station: s, row: stationRow(s, p, home ? km(home.la, home.lo, s.la, s.lo) : null, discounts) };
   });
 }
 
-/** Today's one recommendation: the cheapest fresh price among your pinned stations and the cheapest nearby ones. */
+/** Today's one recommendation: the cheapest fresh price (after your discounts) among your pinned stations and the cheapest nearby ones. */
 export function bestPick(rows: (StationRow | null | undefined)[]): StationRow | null {
   let best: StationRow | null = null;
   for (const r of rows) if (r && r.id && !isStale(r.age) && (!best || r.price < best.price)) best = r;

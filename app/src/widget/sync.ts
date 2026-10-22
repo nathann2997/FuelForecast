@@ -16,7 +16,7 @@ export { requestWidgetRefresh };
 
 const isWidgetData = (k: QueryKey) => k[0] === 'forecast' || k[0] === 'stations';
 
-/** Redraws the widget when fresh forecast/stations data arrives, when pins change, and when fuel or area change.
+/** Redraws the widget when fresh forecast/stations data arrives, when pins change, and when fuel, area or discounts change.
  *  Also keeps the rise alert (lib/alerts.ts) in step with the forecast, the fuel and the alerts switch. */
 export function useWidgetSync(client: QueryClient) {
   const s = useSettings();
@@ -58,7 +58,8 @@ export function useWidgetSync(client: QueryClient) {
   }, [client]);
 
   const homeKey = s.home ? `${s.home.la},${s.home.lo}` : '';
+  const offKey = JSON.stringify(s.discounts);
   useEffect(() => {
     if (Platform.OS !== 'web') requestWidgetRefresh();
-  }, [s.fuel, homeKey, s.radiusKm, s.members]);
+  }, [s.fuel, homeKey, s.radiusKm, s.members, offKey]);
 }

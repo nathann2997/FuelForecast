@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AreaPicker } from '@/components/area-picker';
 import { OutlookChart } from '@/components/outlook-chart';
 import { BowserWordmark } from '@/components/brand';
-import { ADVICE_TONE, MissingPinItem, openStation, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
+import { ADVICE_TONE, MissingPinItem, OffTag, openStation, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
 import { Badge, Card, Disclosure, Loading, Screen, Section, StaleBanner, T, toneColors } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useArea } from '@/hooks/use-area';
@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { horizons, jumpRisk, signalWhy } from '@/lib/copy';
 import { fmt, fuelName, nice, refreshedText, stationName } from '@/lib/format';
+import { offText } from '@/lib/discounts';
 import { bestPick, pinnedRows } from '@/lib/filters';
 import { rankStations } from '@/lib/geo';
 import { dayLabel, dollars, outlook, riseDay } from '@/lib/outlook';
@@ -34,11 +35,14 @@ export default function Today() {
 
   const best = useMemo(() => {
     if (!sq.data || !home) return [];
-    return rankStations(sq.data.stations, s.fuel, { home, radiusKm: s.radiusKm, members: s.members, sort: 'price' })
+    return rankStations(sq.data.stations, s.fuel, { home, radiusKm: s.radiusKm, members: s.members, sort: 'price', discounts: s.discounts })
       .filter((x) => x.age == null || x.age <= STALE_DAYS)
       .slice(0, 3);
-  }, [sq.data, home, s.fuel, s.radiusKm, s.members]);
-  const mine = useMemo(() => (sq.data ? pinnedRows(sq.data.stations, s.fuel, pins, home) : []), [sq.data, s.fuel, pins, home]);
+  }, [sq.data, home, s.fuel, s.radiusKm, s.members, s.discounts]);
+  const mine = useMemo(
+    () => (sq.data ? pinnedRows(sq.data.stations, s.fuel, pins, home, s.discounts) : []),
+    [sq.data, s.fuel, pins, home, s.discounts],
+  );
   const pick = useMemo(() => bestPick([...mine.map((p) => p.row), ...best]), [mine, best]);
   const pickSave = pick && r ? r.now - pick.price : 0;   // c/L under the Sydney median
 
@@ -67,12 +71,15 @@ export default function Today() {
               <Pressable
                 onPress={() => openStation(pick.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`Best for you: ${stationName(pick.n)}, ${pick.price.toFixed(1)} cents, ${pick.adv[3]}`}
+                accessibilityLabel={`Best for you: ${stationName(pick.n)}, ${pick.price.toFixed(1)} cents${pick.off ? ` with your ${offText(pick.off)} off` : ''}, ${pick.adv[3]}`}
                 style={({ pressed }) => [styles.pick, { backgroundColor: c.surface, opacity: pressed ? 0.8 : 1 }]}>
                 <View style={{ flex: 1, gap: 4 }}>
                   <T kind="eyebrow">Best for you</T>
                   <T color={c.fg} style={{ fontWeight: '700', fontSize: 16 }} numberOfLines={1}>{stationName(pick.n)}</T>
-                  <Badge tone={ADVICE_TONE[pick.adv[2]] ?? 'calm'}>{pick.adv[3]}</Badge>
+                  <View style={{ flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' }}>
+                    <Badge tone={ADVICE_TONE[pick.adv[2]] ?? 'calm'}>{pick.adv[3]}</Badge>
+                    {pick.off ? <OffTag off={pick.off} /> : null}
+                  </View>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 2 }}>
                   <T kind="bignum">{pick.price.toFixed(1)}</T>

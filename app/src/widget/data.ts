@@ -123,7 +123,7 @@ export async function loadSnapshot(opts: { allowFetch: boolean }): Promise<Widge
   return s;
 }
 
-/** Fuel, area and members setting as saved by the app (read fresh: the widget task may outlive app changes). */
+/** Fuel, area, members setting and discounts as saved by the app (read fresh: the widget task may outlive app changes). */
 export function readPrefs(): WidgetPrefs {
   let s = getSettings();
   try {
@@ -132,7 +132,7 @@ export function readPrefs(): WidgetPrefs {
   } catch {
     // fall back to the in-memory settings
   }
-  return { fuel: s.fuel, home: s.home, radiusKm: s.radiusKm, members: s.members };
+  return { fuel: s.fuel, home: s.home, radiusKm: s.radiusKm, members: s.members, discounts: s.discounts };
 }
 
 export const readPins = () => readPinsFromStorage();

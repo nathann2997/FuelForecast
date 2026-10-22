@@ -30,18 +30,18 @@ export default function Stations() {
   const [editing, setEditing] = useState(false);
   const [sheet, setSheet] = useState(false);
   // Paging resets whenever the list itself changes (fuel, area, sort or any filter)
-  const sig = [s.fuel, home?.la, home?.lo, s.radiusKm, s.sort, s.members, s.showStale, s.brands.join(','), s.advice.join(','), s.maxPrice, s.pinnedOnly].join('|');
+  const sig = [s.fuel, home?.la, home?.lo, s.radiusKm, s.sort, s.members, s.showStale, s.brands.join(','), s.advice.join(','), s.maxPrice, s.pinnedOnly, JSON.stringify(s.discounts)].join('|');
   const [page, setPage] = useState({ sig, n: PAGE });
   const show = page.sig === sig ? page.n : PAGE;
   const setShow = (n: number) => setPage({ sig, n });
 
   const data = sq.data;
   const ranked = useMemo(
-    () => (data ? rankStations(data.stations, s.fuel, { home, radiusKm: s.radiusKm, members: s.members, sort: s.sort }) : []),
-    [data, s.fuel, home, s.radiusKm, s.members, s.sort],
+    () => (data ? rankStations(data.stations, s.fuel, { home, radiusKm: s.radiusKm, members: s.members, sort: s.sort, discounts: s.discounts }) : []),
+    [data, s.fuel, home, s.radiusKm, s.members, s.sort, s.discounts],
   );
   const brands = useMemo(() => (data ? brandCounts(data.stations, s.fuel) : []), [data, s.fuel]);
-  const pinned = useMemo(() => (data ? pinnedRows(data.stations, s.fuel, pins, home) : []), [data, s.fuel, pins, home]);
+  const pinned = useMemo(() => (data ? pinnedRows(data.stations, s.fuel, pins, home, s.discounts) : []), [data, s.fuel, pins, home, s.discounts]);
 
   const pinSet = new Set(pins);
   const unpinned = (f: typeof s) => applyFilters(ranked, f).filter((x) => !pinSet.has(x.id));

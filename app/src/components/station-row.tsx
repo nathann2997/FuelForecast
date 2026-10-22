@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type PressableProps } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { MapPinIcon, PinIcon } from '@/components/icons';
@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useStationDetail } from '@/lib/api';
 import { openInMaps } from '@/lib/directions';
+import { offText } from '@/lib/discounts';
 import { STALE_DAYS } from '@/lib/filters';
 import { togglePin, usePins } from '@/lib/pins';
 import { brandSuburb, stationName, updatedText } from '@/lib/format';
@@ -107,7 +108,7 @@ export function StationItem({ r, median, last }: { r: StationRow; median: number
             onPress={hasId ? () => openStation(r.id) : undefined}
             disabled={!hasId}
             accessibilityRole={hasId ? 'button' : undefined}
-            accessibilityLabel={`${name}${pinned ? ', pinned' : ''}, ${r.price.toFixed(1)} cents, ${label}`}
+            accessibilityLabel={`${name}${pinned ? ', pinned' : ''}, ${r.price.toFixed(1)} cents${r.off ? ` with your ${offText(r.off)} off, pump price ${r.pump.toFixed(1)}` : ''}, ${label}`}
             accessibilityHint={hasId ? "Opens the station's prices and forecast" : undefined}
             {...a11y}
             style={({ pressed }) => [styles.item, { backgroundColor: pressed ? c.sunk : c.surface }]}>
@@ -121,6 +122,7 @@ export function StationItem({ r, median, last }: { r: StationRow; median: number
               </T>
               <View style={[styles.row, { gap: Spacing.two, marginTop: 2 }]}>
                 <Badge tone={ADVICE_TONE[code] ?? 'calm'}>{label}</Badge>
+                {r.off ? <OffTag off={r.off} /> : null}
                 {stale ? <T kind="small" color={c.up} numberOfLines={1} style={{ flexShrink: 1 }}>{updatedText(r.age)}</T> : null}
               </View>
             </View>
@@ -135,6 +137,16 @@ export function StationItem({ r, median, last }: { r: StationRow; median: number
           </Pressable>
         )}
       </SwipeRow>
+    </View>
+  );
+}
+
+/** "4c off": your discount at this station's brand, beside the advice chip (the price shown already includes it) */
+export function OffTag({ off }: { off: number }) {
+  const c = useTheme();
+  return (
+    <View style={[styles.off, { borderColor: c.cheap }]}>
+      <Text style={{ color: c.cheap, fontSize: 12, fontWeight: '700' }} numberOfLines={1}>{offText(off)} off</Text>
     </View>
   );
 }
@@ -178,4 +190,5 @@ const styles = StyleSheet.create({
   swipe: { flexDirection: 'row' },
   swipeBtn: { width: 76, alignItems: 'center', justifyContent: 'center', gap: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  off: { borderWidth: 1, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8, alignSelf: 'flex-start' },
 });

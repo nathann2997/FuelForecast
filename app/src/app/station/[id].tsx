@@ -14,6 +14,7 @@ import { Badge, Card, Section, StaleBanner, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { isNotFound, isStationId, useForecast, useHistory, useStationDetail, useStations } from '@/lib/api';
+import { offFor, offText, yourPrice } from '@/lib/discounts';
 import { brandSuburb, fmt, fuelName, nice, stationName, updatedText } from '@/lib/format';
 import { km } from '@/lib/geo';
 import { dayLabel, toneOf } from '@/lib/outlook';
@@ -74,6 +75,7 @@ export default function StationPage() {
   const tone = live ? toneOf(live.verdict.cls) : undefined;   // Sydney verdict tone, for the rise wording
   const badId = !isStationId(id);
   const age = fuel ? row?.p[fuel]?.[1] ?? null : null;
+  const off = head ? offFor(s.discounts, head.b) : 0;   // your discount at this brand; the ticker stays the pump price
   const refresh = () => { q.refetch(); fq.refetch(); hq.refetch(); sq.refetch(); };
 
   return (
@@ -135,7 +137,7 @@ export default function StationPage() {
         {!d ? (
           q.error || badId ? (
             row ? (
-              <ListFallback row={row} preferred={s.fuel} medianOf={(f) => fq.data?.live.find((r) => r.fuel === f)?.now}
+              <ListFallback row={row} preferred={s.fuel} off={off} medianOf={(f) => fq.data?.live.find((r) => r.fuel === f)?.now}
                 notFound={badId || isNotFound(q.error)} onRetry={() => q.refetch()} />
             ) : sq.isPending && !badId ? (
               <LoadingSkeleton />
@@ -195,6 +197,12 @@ export default function StationPage() {
                     {Math.abs(tk.gap) < 0.05 ? 'At the Sydney median' : `${Math.abs(tk.gap).toFixed(1)}c ${tk.gap < 0 ? 'cheaper' : 'dearer'}`}
                   </Text>
                   {Math.abs(tk.gap) < 0.05 ? ` (${live.now.toFixed(1)}c)` : ` than the Sydney median (${live.now.toFixed(1)}c)`}
+                </T>
+              ) : null}
+              {off && tk.price != null ? (
+                <T kind="small" color={c.fg2}>
+                  You pay <Text style={{ color: c.cheap, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{yourPrice(tk.price, off).toFixed(1)}</Text>
+                  {` with your ${offText(off)} off at ${head!.b}`}
                 </T>
               ) : null}
               <T kind="small" color={age != null && age > 7 ? c.up : c.muted}>
@@ -330,8 +338,8 @@ function Move({ ch, label }: { ch: Change; label: string }) {
 /** Today's price, gap and advice from stations.json, for when the station file is missing (404 on a day the
  *  per-station export failed soft) or can't load, and nothing is cached */
 function ListFallback({
-  row, preferred, medianOf, notFound, onRetry,
-}: { row: Station; preferred: Fuel; medianOf: (f: Fuel) => number | undefined; notFound: boolean; onRetry: () => void }) {
+  row, preferred, off, medianOf, notFound, onRetry,
+}: { row: Station; preferred: Fuel; off: number; medianOf: (f: Fuel) => number | undefined; notFound: boolean; onRetry: () => void }) {
   const c = useTheme();
   const sold = (Object.keys(row.p) as Fuel[]).filter((f) => row.p[f]?.[0] != null);
   const order = (['U91', 'E10', 'P98', 'DL'] as Fuel[]).filter((f) => sold.includes(f));
@@ -358,6 +366,12 @@ function ListFallback({
                 {Math.abs(gap) < 0.05 ? 'At the Sydney median' : `${Math.abs(gap).toFixed(1)}c ${gap < 0 ? 'cheaper' : 'dearer'}`}
               </Text>
               {Math.abs(gap) < 0.05 ? ` (${med!.toFixed(1)}c)` : ` than the Sydney median (${med!.toFixed(1)}c)`}
+            </T>
+          ) : null}
+          {off ? (
+            <T kind="small" color={c.fg2}>
+              You pay <Text style={{ color: c.cheap, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{yourPrice(p[0], off).toFixed(1)}</Text>
+              {` with your ${offText(off)} off at ${row.b}`}
             </T>
           ) : null}
           <T kind="small" color={p[1] != null && p[1] > 7 ? c.up : c.muted}>{updatedText(p[1])}</T>

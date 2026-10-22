@@ -1,5 +1,6 @@
 // Pure logic for the Android home-screen widget: what the small and medium widgets say and which stations they list.
 // No React Native or widget-library imports here, so it runs under jest and on every platform.
+import { offFor, offText, yourPrice, type Discounts } from '@/lib/discounts';
 import { km, type Place } from '@/lib/geo';
 import { addDays, nice, stationName } from '@/lib/format';
 import { dayLabel, riseDay, toneOf, type Tone } from '@/lib/outlook';
@@ -21,7 +22,8 @@ const FUEL_SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P98: 'P98', D
 /** [price c/L, days since update, advice code, advice label, 7-day forecast c/L or null] — StationPrice without the
  *  long reason text. The forecast is stations.json index 5, which older files (and fail-soft days) don't have. */
 export type WPrice = [number, number | null, AdviceCode, string, number | null];
-export type WStation = { id: string; n: string; la: number; lo: number; m: 0 | 1; p: Partial<Record<Fuel, WPrice>> };
+/** `b` (brand, for your discounts) since 0.7; a cache written before it has none, so those rows show pump prices */
+export type WStation = { id: string; n: string; b?: string; la: number; lo: number; m: 0 | 1; p: Partial<Record<Fuel, WPrice>> };
 export type WidgetSnapshot = {
   forecast: { asof: string; live: LiveRow[] } | null;
   stations: { asof: string; stations: WStation[] } | null;
@@ -46,7 +48,7 @@ export function compactStations(s: Stations): NonNullable<WidgetSnapshot['statio
           const fc = (v as readonly unknown[])[5];
           p[f] = [v[0], v[1], v[2], v[3], typeof fc === 'number' && Number.isFinite(fc) ? fc : null];
         }
-        return { id: String(x.id), n: x.n, la: x.la, lo: x.lo, m: x.m, p };
+        return { id: String(x.id), n: x.n, b: typeof x.b === 'string' ? x.b : undefined, la: x.la, lo: x.lo, m: x.m, p };
       }),
   };
 }
@@ -59,6 +61,8 @@ export const TODAY_FRESH_MS = 2 * 60 * 60 * 1000;
  *  the last `maxAgeMs` (so a day whose file hasn't landed yet isn't refetched on every redraw). */
 export function isFresh(s: WidgetSnapshot | null, today: string, now: number, maxAgeMs = 30 * 60 * 1000): boolean {
   if (!s?.forecast || !s.stations) return false;
+  // A cache from before 0.7 has no brands, so it can't apply your discounts: refetch rather than wait out its age
+  if (s.stations.stations.length && s.stations.stations[0].b === undefined) return false;
   const age = now - s.fetchedAt;
   if (s.forecast.asof >= today && s.stations.asof >= today) return age < TODAY_FRESH_MS;
   return age < maxAgeMs;
@@ -105,7 +109,9 @@ export const appDataUsable = (todays: boolean, at: number, now: number) => today
 
 // ---- what the widget shows
 
-export type WidgetPrefs = { fuel: Fuel; home: Place | null; radiusKm: number; members: boolean };
+/** `discounts` (cents off by brand, lib/discounts.ts): rows show and rank by the price you pay. Optional so older callers
+ *  and tests that build prefs by hand keep pump prices. */
+export type WidgetPrefs = { fuel: Fuel; home: Place | null; radiusKm: number; members: boolean; discounts?: Discounts };
 
 export type NoteTone = 'cheap' | 'dear' | 'flat' | Tone;
 export type WidgetRow = {
@@ -183,23 +189,32 @@ export const shortAdvice = (label: string) => label.replace(/^(Fill by \S+)\s+\d
 /** Colour for a forecast vs now: dear if it rises by 0.5c or more, cheap if it falls by 0.5c or more, else muted. */
 export const fcTone = (now: number, fc: number): NoteTone => (fc - now >= 0.5 ? 'dear' : now - fc >= 0.5 ? 'cheap' : 'flat');
 
-function toRow(s: WStation, fuel: Fuel, median: number | undefined): WidgetRow | null {
+/** The price you pay at a station: the pump price less your discount at its brand */
+const paid = (s: WStation, pump: number, d: Discounts | undefined) => {
+  const off = s.b ? offFor(d, s.b) : 0;
+  return off ? yourPrice(pump, off) : pump;
+};
+
+function toRow(s: WStation, fuel: Fuel, median: number | undefined, discounts?: Discounts): WidgetRow | null {
   const adv = s.p[fuel];
   if (!adv || adv[0] == null) return null;
   const name = stationName(s.n);
+  const off = s.b ? offFor(discounts, s.b) : 0;
+  const price = paid(s, adv[0], discounts);
   const stale = adv[1] != null && adv[1] > STALE_DAYS;
-  const { note, noteTone } = stale ? { note: `${adv[1]} days old`, noteTone: 'flat' as const } : gapNote(adv[0], median, adv);
-  const f7 = typeof adv[4] === 'number' && Number.isFinite(adv[4]) ? adv[4] : null;
+  const { note, noteTone } = stale ? { note: `${adv[1]} days old`, noteTone: 'flat' as const } : gapNote(price, median, adv);
+  // The 7-day forecast is the pump's; with a discount it moves the same way, so it's shown as your price too
+  const f7 = typeof adv[4] === 'number' && Number.isFinite(adv[4]) ? (off ? yourPrice(adv[4], off) : adv[4]) : null;
   // A stale price's age matters more than its forecast, so it keeps the "N days old" note
   const fc = f7 != null && !stale ? `→ ${f7.toFixed(1)}` : null;
   const advice = shortAdvice(adv[3]);
   return {
-    id: s.id, name, price: adv[0].toFixed(1), uri: stationUri(s.id),
+    id: s.id, name, price: price.toFixed(1), uri: stationUri(s.id),
     advice, adviceTone: ADVICE_TONE[adv[2]] ?? 'calm', dist: null,
     note, noteTone,
-    fc, fcTone: fc ? fcTone(adv[0], f7!) : 'flat',
+    fc, fcTone: fc ? fcTone(price, f7!) : 'flat',
     stale,
-    a11y: `${name}, ${adv[0].toFixed(1)} cents, ${advice}${fc ? `, ${f7!.toFixed(1)} in 7 days` : note ? `, ${note === 'at median' ? 'at the median' : note}` : ''}`,
+    a11y: `${name}, ${price.toFixed(1)} cents${off ? ` with your ${offText(off)} off` : ''}, ${advice}${fc ? `, ${f7!.toFixed(1)} in 7 days` : note ? `, ${note === 'at median' ? 'at the median' : note}` : ''}`,
   };
 }
 
@@ -233,7 +248,7 @@ function pinnedRows(list: WStation[], prefs: WidgetPrefs, pins: string[], median
   const byId = new Map(list.map((s) => [s.id, s]));
   return pins
     .map((id) => byId.get(id))
-    .map((s) => (s ? toRow(s, prefs.fuel, median) : null))
+    .map((s) => (s ? toRow(s, prefs.fuel, median, prefs.discounts) : null))
     .filter((r): r is WidgetRow => r != null)
     .slice(0, max);
 }
@@ -246,13 +261,13 @@ function areaRows(list: WStation[], prefs: WidgetPrefs, home: Place, sort: 'pric
       if (!p || p[0] == null || (!prefs.members && s.m)) return null;
       if (p[1] != null && p[1] > STALE_DAYS) return null;
       const d = km(home.la, home.lo, s.la, s.lo);
-      return d > prefs.radiusKm ? null : { s, price: p[0], d };
+      return d > prefs.radiusKm ? null : { s, price: paid(s, p[0], prefs.discounts), d };
     })
     .filter((x): x is { s: WStation; price: number; d: number } => x != null)
     .sort(sort === 'price' ? (a, b) => a.price - b.price || a.d - b.d : (a, b) => a.d - b.d || a.price - b.price)
     .slice(0, max)
     .map((x) => {
-      const r = toRow(x.s, prefs.fuel, median)!;
+      const r = toRow(x.s, prefs.fuel, median, prefs.discounts)!;
       if (sort === 'price') return r;
       // Nearest: the distance follows the advice on two-line rows; the right keeps the forecast, or the gap
       const dist = `${x.d.toFixed(1)} km`;

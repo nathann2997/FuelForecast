@@ -6,6 +6,7 @@ import { Linking, Platform, Pressable, StyleSheet, Switch, View } from 'react-na
 import { BowserMark } from '@/components/brand';
 import { AlertsSwitch } from '@/components/alerts-switch';
 import { AreaPicker } from '@/components/area-picker';
+import { DiscountsEditor } from '@/components/discounts-editor';
 import { Button, Card, Disclosure, FuelPicker, Loading, Screen, Section, Segmented, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -73,6 +74,9 @@ export default function More() {
                 ) : null}
               </View>
             )}
+          </Field>
+          <Field label="Discounts">
+            <DiscountsEditor stations={sq.data?.stations} />
           </Field>
           <View style={styles.between}>
             <T color={c.fg} style={{ flex: 1 }}>Show members-only sites (Costco)</T>

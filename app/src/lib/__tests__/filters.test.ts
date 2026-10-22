@@ -86,7 +86,7 @@ describe('settings', () => {
   it('fills new fields for settings saved by older versions', () => {
     const old = { fuel: 'E10', radiusKm: 10, members: false, sort: 'distance', tankL: 60, home: { label: 'x', la: -33.8, lo: 151 }, showStale: true };
     // onboarded: an older install with an area skips the welcome screen
-    expect(normalize(old)).toEqual({ ...old, brands: [], advice: [], maxPrice: null, pinnedOnly: false, onboarded: true, alerts: false });
+    expect(normalize(old)).toEqual({ ...old, brands: [], advice: [], maxPrice: null, pinnedOnly: false, onboarded: true, alerts: false, discounts: {} });
     expect(normalize({ fuel: 'E10' }).onboarded).toBe(false);
     expect(normalize({ ...old, onboarded: false }).onboarded).toBe(false);
   });

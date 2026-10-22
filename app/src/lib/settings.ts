@@ -2,6 +2,7 @@
 import Storage from './storage';
 import { useSyncExternalStore } from 'react';
 
+import { cleanDiscounts, type Discounts } from './discounts';
 import { ADVICE_GROUPS, FILTER_DEFAULTS, RADII, type FilterSettings } from './filters';
 import type { Place } from './geo';
 import type { Fuel } from './types';
@@ -12,10 +13,11 @@ export type Settings = FilterSettings & {
   home: Place | null;        // remembered area (GPS fix or suburb), stays on the phone
   onboarded: boolean;        // the welcome screen has been seen (or skipped)
   alerts: boolean;           // a notification the morning before a likely price rise (lib/alerts.ts)
+  discounts: Discounts;      // cents off by brand: lists rank by the price you pay (lib/discounts.ts)
 };
 
 const KEY = 'settings.v1';
-export const DEFAULTS: Settings = { ...FILTER_DEFAULTS, fuel: 'U91', tankL: 50, home: null, onboarded: false, alerts: false };
+export const DEFAULTS: Settings = { ...FILTER_DEFAULTS, fuel: 'U91', tankL: 50, home: null, onboarded: false, alerts: false, discounts: {} };
 
 const FUEL_CODES: readonly Fuel[] = ['U91', 'E10', 'P98', 'DL'];
 const GROUPS = new Set<string>(ADVICE_GROUPS.map(([g]) => g));
@@ -44,6 +46,7 @@ export function normalize(raw: unknown): Settings {
     // Saved before the welcome screen existed: someone who already set an area doesn't need it
     onboarded: typeof o.onboarded === 'boolean' ? o.onboarded : !!okHome,
     alerts: bool('alerts'),
+    discounts: cleanDiscounts(o.discounts),
   };
 }
 

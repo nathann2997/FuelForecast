@@ -1,3 +1,4 @@
+import { offFor, yourPrice, type Discounts } from './discounts';
 import type { Fuel, Station, StationPrice, Suburb } from './types';
 
 /** Great-circle distance in km */
@@ -60,13 +61,21 @@ export function areaName(home: Place, suburbs: Suburb[], live: boolean | null): 
   return { text: sub ? `you in ${sub}` : 'you', lastKnown: false };
 }
 
-export type StationRow = Station & { price: number; age: number | null; adv: StationPrice; d: number | null };
+/** `price` is what you pay: the pump price (`pump`, adv[0]) less your discount at that brand (`off`, 0 if none) */
+export type StationRow = Station & { price: number; pump: number; off: number; age: number | null; adv: StationPrice; d: number | null };
 
-/** Stations selling `fuel`, filtered by radius from `home` (if any); cheapest first (dashboard order) or nearest first. */
+/** One station's row for `fuel` (the price must exist), with your discount applied */
+export function stationRow(s: Station, p: StationPrice, d: number | null, discounts?: Discounts): StationRow {
+  const off = offFor(discounts, s.b);
+  return { ...s, price: off ? yourPrice(p[0], off) : p[0], pump: p[0], off, age: p[1], adv: p, d };
+}
+
+/** Stations selling `fuel`, filtered by radius from `home` (if any); cheapest first (dashboard order) or nearest first.
+ *  "Cheapest" is by the price you pay after `discounts`. */
 export function rankStations(
   stations: Station[],
   fuel: Fuel,
-  opts: { home: Place | null; radiusKm: number; members: boolean; sort?: 'price' | 'distance' },
+  opts: { home: Place | null; radiusKm: number; members: boolean; sort?: 'price' | 'distance'; discounts?: Discounts },
 ): StationRow[] {
   const rows: StationRow[] = [];
   for (const s of stations) {
@@ -74,7 +83,7 @@ export function rankStations(
     if (!p || p[0] == null || (!opts.members && s.m)) continue;
     const d = opts.home ? km(opts.home.la, opts.home.lo, s.la, s.lo) : null;
     if (d != null && d > opts.radiusKm) continue;
-    rows.push({ ...s, price: p[0], age: p[1], adv: p, d });
+    rows.push(stationRow(s, p, d, opts.discounts));
   }
   if (opts.sort === 'distance' && opts.home) return rows.sort((a, b) => a.d! - b.d! || a.price - b.price);
   return rows.sort((a, b) => a.price - b.price || (a.d ?? 0) - (b.d ?? 0));

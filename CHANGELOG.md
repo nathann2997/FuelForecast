@@ -2,6 +2,27 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Bowser 0.7 build A: your price after discounts (JS only, runtime 0.6.1, not shipped)
+
+Plan: `docs/BOWSER_0.7_PLAN.md` §A.
+- **Discounts:** More → Your car → Discounts lists your cents off per brand (a docket, a fuel card, a membership). **+ Add a discount** opens a sheet with a −/+ stepper (1c steps, 1–30c) and a brand picker built from today's brands, with search. Saved in settings (`discounts`), up to 12, cleaned on load (`lib/discounts.ts`), and kept on the phone.
+- **Lists rank by what you pay:**
+  - `StationRow.price` is now pump − discount, and the row also gets `pump` and `off` (`geo.ts stationRow`).
+  - Because of that, Cheapest sort, Max price, Best for you, "saves $ vs avg" and the gap to the median all follow your price.
+  - Rows and Best for you show a green "4c off" chip. Screen readers hear the price with the discount and the pump price.
+- **Station page:** the ticker stays the pump price, with a "You pay 229.9 with your 6c off at 7-Eleven" line under it. The no-history fallback has the same line.
+- **Widget (Android and iOS):**
+  - Rows, the gap note, the 7-day forecast and the small widget's "best" line use your price, and the widget redraws when discounts change.
+  - The widget cache now keeps each station's brand. A cache from before this change has none, so it counts as not fresh and the widget refetches.
+- `Button` gained `disabled`.
+- **Checks:** QA audit done. Fixed from it:
+  - Renaming a discount onto a brand you already had silently overwrote that discount. That brand is now left out of the picker.
+  - Save stayed tappable with no brand chosen.
+  - The fallback had no "You pay" line.
+  - A widget cache without brands showed pump prices for up to 2 h.
+  - The plan said the widget was out of scope.
+  - tsc, lint and jest pass (366). Web preview checked at phone width in light and dark (Today, Stations, More, the sheet, the station page).
+
 ## 2026-10-22 — app-ci fixed: Expo SDK 58 patch updates (app 0.6.1, needs a new APK)
 
 - **Why CI failed:** `expo-doctor` checks against the latest SDK 58 patch releases. Expo published new patches, so 10 packages were one patch behind (`expo` 58.0.16 → 58.0.17, plus constants, linking, network, notifications, router, splash-screen, status-bar, updates and jest-expo). Typecheck, lint and jest were already passing.
