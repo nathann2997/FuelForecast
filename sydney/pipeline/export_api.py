@@ -14,7 +14,7 @@ Every file carries `generated_at` (UTC, when this export ran: the app's "Refresh
 Exits 1 if the output fails sanity checks (nothing should be published then). The per-station files fail soft: if they
 can't be built or fail their checks, the rest is published without station/ and meta.warnings says why.
 """
-import datetime as dt, json, os, runpy, shutil, sys
+import base64, datetime as dt, hashlib, json, os, re, runpy, shutil, sys
 from zoneinfo import ZoneInfo
 
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -141,7 +141,8 @@ try:
     if bad: raise RuntimeError(f"stations.json 7-day price check failed for {len(bad)}, e.g. {bad[:3]}")
     stations["stations"] = with_fc
 except Exception as e:
-    st_txt = {}; warnings.append(f"station files unavailable: {type(e).__name__}: {e}"[:500])
+    # Published in meta.json: keep it to the error, not the runner's file paths
+    st_txt = {}; warnings.append(re.sub(r"(?<![\w.:/-])(?:/[\w.-]+)+/", "", f"station files unavailable: {type(e).__name__}: {e}")[:500])
     print("!" * 70 + f"\nexport_api: WARNING {warnings[-1]}\n  publishing without station/\n" + "!" * 70)
 
 api = f"{OUT}/api/v1"; os.makedirs(api, exist_ok=True)
@@ -153,18 +154,35 @@ shutil.rmtree(f"{api}/station", ignore_errors=True)
 sizes = sorted(len(t) for t in st_txt.values())
 if st_txt:
     os.makedirs(f"{api}/station")
-    for i, txt in st_txt.items(): open(f"{api}/station/{i}.json", "w").write(txt)
-    files["station/"] = sum(sizes); files["station/count"] = len(sizes)
+    for i, txt in st_txt.items():
+        # The id is the NSW station code and becomes a file name: digits only, so "../forecast" can't overwrite a file
+        if re.fullmatch(r"\d+", str(i)): open(f"{api}/station/{i}.json", "w").write(txt)
+        else: print(f"export_api: WARNING skipped station file for a non-numeric code {str(i)[:20]!r}")
+    files["station/"] = sum(sizes); files["station/count"] = len(os.listdir(f"{api}/station"))
 meta = {"schema": SCHEMA, "generated_at": GENERATED_AT, "license": LICENSE,
         "asof": ctx["asof"], "stations_asof": data["snap_asof"], "tgp_last": ctx.get("tgp_last"), "fred_last": ctx.get("fred_last"),
         "history_last": ctx.get("history_last"), "live_model": ctx.get("live_model"), "snapshot_days": ctx.get("snapshot_days"),
         "warnings": warnings, "files": files}
 json.dump(meta, open(f"{api}/meta.json", "w"), indent=1, allow_nan=False)
-html = open(f"{BASE}/out/sydney-pump-outlook.html").read()
+html = open(f"{BASE}/out/sydney-pump-outlook.html", encoding="utf-8").read()
 for old, new in DASHBOARD_CREDITS:
     if old in html: html = html.replace(old, new)
     else: print(f"export_api: WARNING dashboard credit not found: {old[:60]!r}")
-open(f"{OUT}/index.html", "w").write(html)
+# Content-Security-Policy for the published copy only (the template is shared with the Claude scheduled task, whose
+# artifact host wraps the page). Added after the credit rewrite, so it can pin the page's own inline script by hash:
+# an injected <script> or on*= handler won't run, nothing loads from anywhere but cdnjs (Chart.js, which also carries
+# SRI) and Google Fonts, and the page can't make network requests, frames or form posts.
+inline = re.findall(r"<script>(.*?)</script>", html, re.S)
+# Any inline <script ...> with attributes would be blocked by the CSP: refuse to publish rather than ship a dead page
+n_inline = len(re.findall(r"<script(?![^>]*\bsrc=)[^>]*>", html))
+if len(inline) != 1 or n_inline != 1: raise RuntimeError(f"dashboard: expected 1 inline script, found {n_inline}")
+sha = base64.b64encode(hashlib.sha256(inline[0].encode()).digest()).decode()
+csp = (f"default-src 'none'; script-src 'sha256-{sha}' https://cdnjs.cloudflare.com; style-src 'unsafe-inline' "
+       "https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; connect-src 'none'; "
+       "base-uri 'none'; form-action 'none'; object-src 'none'")
+if html.count("<title>") != 1: raise RuntimeError("dashboard: no <title> to put the CSP after")
+html = html.replace("<title>", f'<meta http-equiv="Content-Security-Policy" content="{csp}">\n<title>', 1)
+open(f"{OUT}/index.html", "w", encoding="utf-8").write(html)   # UTF-8 bytes: what the CSP hash was taken over
 print(f"export_api: {ctx['asof']}, {len(data['stations'])} stations, " + ", ".join(f"{k} {v // 1024}KB" for k, v in files.items() if k != "station/count")
       + (f"; station files {len(sizes)}, p50 {sizes[len(sizes) // 2] // 1024}KB, max {sizes[-1] // 1024}KB" if sizes else "; NO station files")
       + (f"; WARNINGS: {warnings}" if warnings else ""))

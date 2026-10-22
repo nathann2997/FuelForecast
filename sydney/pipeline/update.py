@@ -26,6 +26,8 @@ if snap:
     st["suburb"] = st.address.str.extract(r",\s*([^,]+?)\s+NSW\s+\d{4}\s*$")[0].str.title()
     st = st[st.postcode.fillna(0).astype(int).map(is_syd)]
     pr["code"] = pr.stationcode.astype(str); st["code"] = st.code.astype(str)
+    # Station codes become file names downstream (station_api.py, export_api.py): keep NSW's numeric codes only
+    pr = pr[pr.code.str.fullmatch(r"\d+")]; st = st[st.code.str.fullmatch(r"\d+")]
     st["key"] = st.address.str.upper().str.replace(",", " ").str.replace(r"\s+", " ", regex=True).str.strip()
     pr = pr.merge(st[["code", "name", "brand", "postcode", "suburb", "location", "key"]], on="code")
     pr = pr[pr.fueltype.isin(FUELS) & pr.price.between(50, 600)].copy()

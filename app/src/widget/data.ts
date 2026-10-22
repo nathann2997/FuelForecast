@@ -1,6 +1,6 @@
 // Where the widget's data comes from: the app's own query cache when the app is running, otherwise the static API,
 // with a compact copy kept on the phone so the widget can still render (with "as of") when the fetch fails.
-import { API_BASE } from '@/lib/api';
+import { API_BASE, tooBig } from '@/lib/api';
 import { sydneyToday } from '@/lib/format';
 import { readPinsFromStorage } from '@/lib/pins';
 import { getSettings, normalize } from '@/lib/settings';
@@ -66,6 +66,7 @@ async function getJson<T extends { schema: number }>(name: string): Promise<T> {
   try {
     const r = await fetch(`${API_BASE}/${name}.json`, { headers: { Accept: 'application/json' }, signal: ctl.signal });
     if (!r.ok) throw new Error(`${name}.json: HTTP ${r.status}`);
+    if (tooBig(r)) throw new Error(`${name}.json: too large`);
     const j = (await r.json()) as T;
     if (j.schema !== SCHEMA) throw new Error(`${name}.json: schema ${j.schema}`);
     return j;

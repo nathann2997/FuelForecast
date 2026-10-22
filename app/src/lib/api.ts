@@ -14,9 +14,14 @@ export class HttpError extends Error {
 }
 export const isNotFound = (e: unknown) => e instanceof HttpError && e.status === 404;
 
+/** Far above any real file (stations.json is under 1 MB): a bigger declared size isn't parsed */
+export const MAX_JSON_BYTES = 25 * 1024 * 1024;
+export const tooBig = (r: Response) => Number(r.headers.get('content-length') ?? 0) > MAX_JSON_BYTES;
+
 async function getJson<T extends { schema: number }>(name: string): Promise<T> {
   const r = await fetch(`${API_BASE}/${name}.json`, { headers: { Accept: 'application/json' } });
   if (!r.ok) throw new HttpError(`${name}.json: HTTP ${r.status}`, r.status);
+  if (tooBig(r)) throw new Error(`${name}.json: too large`);
   const j = (await r.json()) as T;
   if (j.schema !== SCHEMA) throw new Error(`${name}.json: schema ${j.schema}, app expects ${SCHEMA}. Update the app.`);
   return j;

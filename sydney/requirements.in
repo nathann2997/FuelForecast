@@ -1,0 +1,12 @@
+# Direct dependencies of the pipeline (ranges). requirements.txt is the hash-pinned lock compiled from this file:
+#   uv pip compile requirements.in --python-version 3.11 --python-platform linux --generate-hashes -o requirements.txt
+# (CI runs Python 3.11 on ubuntu; with hashes, pip refuses any file that doesn't match.)
+pandas>=2.1
+numpy>=1.26
+lightgbm>=4.3
+scikit-learn>=1.4
+openpyxl>=3.1
+xlrd>=2.0   # .xls: EIA Brent and RBA F11.1 history (fetch.py pull_macro)
+pyarrow>=15
+requests>=2.31
+defusedxml>=0.7   # openpyxl parses xlsx XML through it when installed (no entity tricks from a scraped workbook)

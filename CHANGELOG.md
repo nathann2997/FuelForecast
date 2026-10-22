@@ -2,6 +2,34 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Web dashboard redesigned to match the Bowser app (`template.html`)
+
+- **Same order as the app's Today screen:** the decision, the place, the saving, then the evidence (`docs/DESIGN.md`).
+- **Look:**
+  - The app's tokens (`constants/theme.ts`) in light and dark, the system font with tabular figures, and the Bowser wordmark.
+  - The Barlow/Plex fonts, the dark price board and the monospace digits are gone.
+- **Hero card:**
+  - Coloured by the decision: amber means act, blue means wait, neutral means no rush.
+  - Shows the verdict, the rise date, and "Best for you" (the cheapest recent price in your area, with the saving per tank).
+  - The saving is in dollars for your tank size.
+  - A 14-day sparkline with the likely range and the rise-day marker, plus a compact 1/3/7/14-day row.
+  - The logic is ported from `lib/outlook.ts`. `verdict()` is unchanged and still mirrored in `export_api.py`.
+- **"Why we think this"** is a collapsed section with the margin text, the jump risk and the ranges.
+- **Stations:**
+  - Area search, or "Use my location".
+  - Radius and Cheapest/Nearest segments, and chips for Members-only, older prices and brands.
+  - Compact app-style rows with an advice chip and the gap to the median. Tapping a row expands it to show the reason, its freshness and a map link.
+  - Prices older than 7 days are hidden by default. The list shows 10 at a time.
+- **Trends:**
+  - A cycle summary line, the history chart, and three key insight cards.
+  - Brand premiums as bars instead of a chart.
+  - "More facts" and "About this chart" are collapsed.
+- **How good is the forecast:**
+  - One plain sentence, then the accuracy table.
+  - "How it works", the backtest chart (drawn when opened) and data freshness are collapsed.
+- Fuel, tank size, area, radius and members-only are remembered in `localStorage`. Every read and write is guarded, so the page works without it.
+- **Unchanged:** the `__DATA__` contract with `build.py` and the three `DASHBOARD_CREDITS` strings. There is still a single inline `<script>` with no `on*=` handlers, so `export_api.py`'s CSP hash still applies. Checked by a headless Chrome render at 390 px and 1280 px, in light and dark, with a suburb search.
+
 ## 2026-10-22 — Data sources, licence notices and "Refreshed" times (pipeline + OTA at runtime 0.6.0)
 
 ### Brent and AUD/USD no longer come from FRED (GitHub pipeline)
@@ -196,6 +224,59 @@ OTA for §6–7 on `preview`, runtime 0.6.0: update group bfa8a90a-4abb-45fd-a95
   - The station page's button and the swipe button say **Map** (were "Directions" / "Go").
   - The screen-reader action is "Show on map".
   - The swipe hint reads "Swipe a station left to pin it or see it on the map."
+
+### 8. Security hardening, no app behaviour change and no new build (review of 22 Oct)
+- **Dashboard: stored XSS fixed** (`sydney/pipeline/build.py`, `template.html`):
+  - **Before:** station names, brands, suburbs and advice text from the NSW API were inserted as raw HTML. The data block wasn't escaped either, so a station name containing `</script>` broke out of it. A test with a crafted name injected an `<img onerror>` and stopped the page's script.
+  - **Data block:** now escaped for an inline script (`\u003c`, `\u003e`, `\u0026`).
+  - **Inserted text:** every API string put into `innerHTML` goes through `esc()`.
+  - **Content-Security-Policy on the GitHub Pages copy only** (`export_api.py`, added after its credit rewrite). It pins the page's inline script by sha256, so an injected `<script>` or `on*=` handler won't run. Scripts load only from cdnjs, styles and fonts only from Google Fonts, and the page can make no network requests, frames, form posts or plugin loads. The Claude task's artifact copy has no CSP (its host wraps the page).
+  - **Chart.js:** loaded with Subresource Integrity (cdnjs's published sha512). The no-referrer policy is set.
+  - **Tested:** the same malicious data now renders inert, and the page, chart and tables work as before.
+- **Workflow: least privilege** (`.github/workflows/daily.yml`). The single job became three:
+
+  | Job | Token | What it does |
+  |---|---|---|
+  | build | read-only | Runs the third-party Python packages with the NSW secrets |
+  | save | `contents` + `actions` write | Runs only git/gh: commits store/ and archive/ to `data`, keep-alive |
+  | deploy | `pages` + `id-token` | Pages only |
+
+  - **The job token is never written to disk.** Checkout uses `persist-credentials: false`. The `data` branch is read anonymously (public repo), and the token reaches only the `git push` command, as a masked auth header. It used to sit in a remote URL and in checkout's saved credentials for the whole job.
+  - **All actions are pinned to commit SHAs** (the same major versions) in both workflows.
+  - **The backtest input is passed via `env`**, not pasted into the script.
+- **App, JS only, ships with the next update:**
+  - **Pins:** only station codes (digits) are kept, so junk from storage or a crafted `fuelforecast://` link is ignored without a "pins full" message.
+  - **Map links:** API coordinates must be numbers to reach a URL.
+  - **API files:** files over 25 MB (by Content-Length) aren't parsed, by the app or the widget.
+  - **Widget:** keeps only stations with a name and real coordinates.
+  - **Tests:** `pins.test.ts` is new and `filters.test.ts` is extended.
+- **Repo:** `.gitignore` now ignores secrets by pattern (`.env*`, `*.pem`, `*.key`, keystores, `*credentials*`, with examples allowed) and `sydney/inbox/`.
+- **Left for a new build:**
+  - The widget image provider is exported, which leaks location.
+  - Android Auto Backup is on.
+  - Unused template permissions are still granted.
+  - OTA code signing isn't set up.
+- **Needs the owner:**
+  - 2FA on Expo and GitHub.
+  - Rotate the NSW secret if this folder has been synced.
+  - Delete `sydney/pipeline/pull_nsw.js`, which is superseded by `fetch.py`.
+- **Pipeline** (on top of the iOS session's 80f4c66):
+  - **Station codes:** must be digits (`update.py`, and again in `export_api.py` before they become `station/{code}.json` file names), so a code like `../forecast` can't overwrite an API file. All 1,321 real codes are digits.
+  - **Downloads** (`fetch.py` `get`):
+    - https only, from `nsw.gov.au`, `aip.com.au`, `eia.gov` and `rba.gov.au` and their subdomains. Scraped AIP and CKAN links are checked, and so is the final URL after redirects.
+    - Each download is streamed with a 100 MB cap; the largest real file is about 7 MB.
+  - **Python dependencies:** locked with hashes for Python 3.11 on Linux (`requirements.txt`, compiled with uv from the new `requirements.in`). These are the versions a fresh install resolves today. pip refuses any file whose hash doesn't match.
+  - **`defusedxml`** added, so openpyxl parses xlsx XML through it.
+  - **Warnings:** `meta.warnings` drops runner file paths from exception text.
+- **QA audit, fixes applied:**
+  - The CSP moved to the Pages copy (and became hash-based).
+  - The save job refuses to save if the `data` branch moved during the build, or if the state artifact has no `store/daily.csv`.
+  - `.gitignore` no longer ignores `*secret*`, which was too broad.
+- **Tested:**
+  - A hostile station name renders as text.
+  - The exported Pages dashboard renders fully under the hash CSP with no refusals, with the EIA/RBA credit rewrite intact.
+  - `fetch.py` downloaded AIP (through its redirect and scraped link) and queried CKAN under the allow-list.
+  - App: tsc, lint and jest (343) pass.
 
 ## 2026-10-22 — Bowser 0.5.0: best pick, welcome, swipe rows, rise alerts (new APK)
 

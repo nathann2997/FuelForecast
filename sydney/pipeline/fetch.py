@@ -12,6 +12,7 @@ Credentials: env NSW_API_KEY / NSW_API_SECRET (GitHub Secrets), else pipeline/cr
 import datetime as dt, io, json, os, re, sys, time, uuid
 from zoneinfo import ZoneInfo
 import requests
+from urllib.parse import urlsplit
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INBOX = sys.argv[2] if len(sys.argv) > 2 else f"{BASE}/inbox"
@@ -24,16 +25,43 @@ is_syd = lambda pc: (2000 <= pc <= 2234) or (2555 <= pc <= 2574) or (2740 <= pc 
 log, failed = [], []
 
 
+# Downloads: https only, from these sites and their subdomains (scraped links included, checked again after redirects),
+# and at most MAX_BYTES each. The largest real file is a ~7 MB monthly history workbook.
+ALLOWED_DOMAINS = ("nsw.gov.au", "aip.com.au", "eia.gov", "rba.gov.au")
+MAX_BYTES = 100 * 1024 * 1024
+
+
+def allowed(url):
+    u = urlsplit(url); h = (u.hostname or "").lower()
+    return u.scheme == "https" and any(h == d or h.endswith("." + d) for d in ALLOWED_DOMAINS)
+
+
+def read_capped(r):
+    """Read the body, stopping past MAX_BYTES (a declared size over it is refused up front)."""
+    try: declared = int(r.headers.get("content-length") or 0)
+    except ValueError: declared = 0   # a malformed header: rely on the streamed count below
+    if declared > MAX_BYTES: r.close(); raise RuntimeError(f"{urlsplit(r.url).hostname}: download too large")
+    buf = bytearray()
+    for chunk in r.iter_content(1 << 16):
+        buf += chunk
+        if len(buf) > MAX_BYTES: r.close(); raise RuntimeError(f"{urlsplit(r.url).hostname}: download too large")
+    r._content = bytes(buf)   # r.content / .text / .json() read this as usual
+
+
 def get(url, tries=4, headers=None, **kw):
     """GET with retries on network errors and 5xx. `headers` may be a callable, rebuilt on every try."""
+    if not allowed(url): raise RuntimeError(f"blocked download from {urlsplit(url).scheme}://{urlsplit(url).hostname}")
     for t in range(tries):
         try:
-            r = requests.get(url, timeout=90, headers=headers() if callable(headers) else headers, **kw)
-            if r.status_code < 500: return r
+            r = requests.get(url, timeout=90, headers=headers() if callable(headers) else headers, stream=True, **kw)
+            if not allowed(r.url): r.close(); raise RuntimeError(f"blocked redirect to {urlsplit(r.url).hostname}")
+            if r.status_code < 500 or t == tries - 1:   # the last 5xx is returned as before; callers check r.ok
+                read_capped(r)
+                return r
+            r.close()
         except requests.RequestException:
             if t == tries - 1: raise
-        if t < tries - 1: time.sleep(4 * (t + 1))
-    return r
+        time.sleep(4 * (t + 1))
 
 
 def creds():
@@ -49,11 +77,12 @@ def creds():
 # ---- NSW FuelCheck live prices (pull_nsw.js)
 def pull_nsw():
     key, secret = creds(); host = "https://api.onegov.nsw.gov.au"
-    tok = get(f"{host}/oauth/client_credential/accesstoken?grant_type=client_credentials", auth=(key, secret)).json()["access_token"]
+    # No redirects for the NSW calls: they carry the API key, which requests would forward to another host
+    tok = get(f"{host}/oauth/client_credential/accesstoken?grant_type=client_credentials", auth=(key, secret), allow_redirects=False).json()["access_token"]
     hdr = lambda: {"Authorization": "Bearer " + tok, "apikey": key, "transactionid": str(uuid.uuid4()),
                    "requesttimestamp": dt.datetime.now(dt.timezone.utc).strftime("%d/%m/%Y %I:%M:%S %p"),
                    "Content-Type": "application/json; charset=utf-8"}
-    r = get(f"{host}/FuelPriceCheck/v1/fuel/prices", headers=hdr)
+    r = get(f"{host}/FuelPriceCheck/v1/fuel/prices", headers=hdr, allow_redirects=False)
     j = r.json() if r.ok else {}
     if not (j.get("stations") and len(j.get("prices", [])) > 1000):
         raise RuntimeError(f"NSW prices: HTTP {r.status_code}, {len(r.content)} bytes, {len(j.get('prices', []))} prices")

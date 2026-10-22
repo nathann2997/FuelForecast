@@ -5,3 +5,16 @@ __pycache__/
 fuel-api-credentials.md
 sydney/pipeline/credentials.py
 sydney/pipeline/pull_nsw.js
+# secrets by pattern, so a new credentials file is ignored too (examples with placeholders stay tracked)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+*credentials*
+!*.example.*
+# raw downloads from the pipeline's fetch step
+sydney/inbox/

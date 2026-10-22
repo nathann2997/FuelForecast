@@ -5,12 +5,14 @@ import Storage from './storage';
 
 const KEY = 'pins.v1';
 export const MAX_PINS = 10;
+/** NSW station codes are digits (same rule as api.ts isStationId, not imported to keep this module light) */
+const isCode = (x: unknown): x is string => typeof x === 'string' && /^\d+$/.test(x);
 
 function load(): string[] {
   try {
     const raw = Storage.getItemSync(KEY);
     const v = raw ? JSON.parse(raw) : [];
-    return Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x).slice(0, MAX_PINS) : [];
+    return Array.isArray(v) ? v.filter(isCode).slice(0, MAX_PINS) : [];
   } catch {
     return [];
   }
@@ -39,6 +41,7 @@ export const isPinned = (id: string) => pins.includes(id);
 /** Pin or unpin; returns false if the pin list is full. Newest pins go first. */
 export function togglePin(id: string): boolean {
   if (!id) return false;   // stations from an old cached stations.json have no id
+  if (!isCode(id)) return true;   // not a station code (e.g. a crafted fuelforecast:// link): nothing to pin, no error
   if (pins.includes(id)) {
     save(pins.filter((p) => p !== id));
     return true;

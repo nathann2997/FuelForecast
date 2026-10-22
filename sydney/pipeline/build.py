@@ -119,7 +119,10 @@ for code, g in S.groupby("code"):
 data = {"stations": sta, "start": str(start.date()), "hist": hist, "tgp": tgp, "live": FC["live"], "ctx": FC["ctx"], "bt": BT,
         "stats": stats, "brands": [{"brand": b, "n": int(r.n), "prem": r1(r.prem)} for b, r in brands.iterrows()],
         "suburbs": subs, "snap_asof": ST["asof"]}
-tpl = open(f"{BASE}/pipeline/template.html").read()
+tpl = open(f"{BASE}/pipeline/template.html", encoding="utf-8").read()
 os.makedirs(f"{BASE}/out", exist_ok=True)
-open(f"{BASE}/out/sydney-pump-outlook.html", "w").write(tpl.replace("__DATA__", json.dumps(data, separators=(",", ":"))))
+# Escaped for an inline <script>: a station name from the NSW API containing "</script>" or "<!--" must not end the block.
+# \u003c etc. are the same characters to the JSON/JS parser. (ensure_ascii already escapes U+2028/U+2029.)
+js = json.dumps(data, separators=(",", ":")).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+open(f"{BASE}/out/sydney-pump-outlook.html", "w", encoding="utf-8").write(tpl.replace("__DATA__", js))
 print("built", asof.date(), len(json.dumps(data)) // 1024, "KB", stats)

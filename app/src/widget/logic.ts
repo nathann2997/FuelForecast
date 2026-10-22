@@ -36,7 +36,9 @@ export function compactStations(s: Stations): NonNullable<WidgetSnapshot['statio
   return {
     asof: s.asof,
     stations: s.stations
-      .filter((x) => x.id)
+      // Only well-formed stations: an id, a name, real coordinates (the API is trusted, but it's input; ids only ever
+      // go into encoded deep links)
+      .filter((x) => x.id && typeof x.n === 'string' && Number.isFinite(x.la) && Number.isFinite(x.lo))
       .map((x: Station) => {
         const p: Partial<Record<Fuel, WPrice>> = {};
         for (const [f, v] of Object.entries(x.p) as [Fuel, Station['p'][Fuel]][]) {

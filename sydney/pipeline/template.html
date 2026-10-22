@@ -1,4 +1,5 @@
 <title>Sydney Pump Price Outlook</title>
+<meta name="referrer" content="no-referrer">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -241,9 +242,11 @@ footer a{color:var(--fg2)}
   </footer>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 const D = __DATA__;
+// Station names, brands, suburbs and advice text come from the NSW API (third-party): escape them before any innerHTML
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 const FUELS = [["U91","Unleaded 91"],["E10","E10"],["P98","Premium 98"],["DL","Diesel"]];
 const live = {}; D.live.forEach(r => live[r.fuel] = r);
 let state = {fuel:"U91", range:"1Y"};
@@ -416,13 +419,13 @@ function renderFresh(){
 const qEl = document.getElementById("q"), radEl = document.getElementById("radius"), memEl = document.getElementById("members");
 const SUBS = {}; D.stations.forEach(s => { const k = s.s+"|"+s.pc; (SUBS[k] = SUBS[k] || {s:s.s, pc:s.pc, la:[], lo:[]}); SUBS[k].la.push(s.la); SUBS[k].lo.push(s.lo); });
 const SUBLIST = Object.values(SUBS).map(x => ({s:x.s, pc:x.pc, la:x.la.reduce((a,b)=>a+b,0)/x.la.length, lo:x.lo.reduce((a,b)=>a+b,0)/x.lo.length})).sort((a,b)=>a.s.localeCompare(b.s));
-document.getElementById("subList").innerHTML = SUBLIST.map(x=>`<option value="${x.s} ${x.pc}"></option>`).join("");
+document.getElementById("subList").innerHTML = SUBLIST.map(x=>`<option value="${esc(x.s)} ${esc(x.pc)}"></option>`).join("");
 const km = (a,b,c,d) => { const r=Math.PI/180, x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2; return 12742*Math.asin(Math.sqrt(x)); };
 let brandSel = null;   // null = all brands
 function brandOptions(){
   const counts = {}; D.stations.forEach(s => { if (s.p[state.fuel]) counts[s.b] = (counts[s.b]||0)+1; });
   const list = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  document.getElementById("brandList").innerHTML = list.map(([b,n]) => `<label><input type="checkbox" value="${b.replace(/"/g,'&quot;')}" ${!brandSel||brandSel.has(b)?"checked":""}> ${b}<span>${n}</span></label>`).join("");
+  document.getElementById("brandList").innerHTML = list.map(([b,n]) => `<label><input type="checkbox" value="${esc(b)}" ${!brandSel||brandSel.has(b)?"checked":""}> ${esc(b)}<span>${n}</span></label>`).join("");
   document.querySelectorAll("#brandList input").forEach(cb => cb.addEventListener("change", () => {
     const on = [...document.querySelectorAll("#brandList input")].filter(x=>x.checked).map(x=>x.value);
     brandSel = on.length === list.length ? null : new Set(on); renderStations(); }));
@@ -450,10 +453,10 @@ function renderStations(){
   if (home) rows = rows.filter(s => s.d <= R);
   rows.sort((a,b) => a.price - b.price || (a.d??0) - (b.d??0));
   const shown = rows.slice(0, 60);
-  document.getElementById("stRows").innerHTML = shown.map((s,i) => `<tr><td class="n">${i+1}</td><td>${s.n.replace(/\s*\(members only\)/i,"")}${s.m?'<span class="tag-m">Members only</span>':""}<div class="why">${s.age==null?"":s.age===0?"Updated today":s.age===1?"Updated 1 day ago":"Updated "+s.age+" days ago"}${s.age>7?" · check before driving":""}</div></td><td>${s.b}</td><td>${s.s} <span class="stale">${s.pc}</span></td><td class="n">${s.d!=null?s.d.toFixed(1)+" km":"–"}</td><td class="n"><b>${s.price.toFixed(1)}</b></td><td class="n ${s.price<med?"cheap":""}">${fmt(s.price-med)}</td><td class="when"><span class="pill ${ADV[s.adv[0]]||"flat"}">${s.adv[1]}</span><div class="why">${s.adv[2]}</div></td></tr>`).join("")
-    || `<tr><td colspan="8">${qEl.value && !home ? `No Sydney suburb matches “${qEl.value}”. Try a postcode.` : "No stations match these filters."}</td></tr>`;
+  document.getElementById("stRows").innerHTML = shown.map((s,i) => `<tr><td class="n">${i+1}</td><td>${esc(s.n.replace(/\s*\(members only\)/i,""))}${s.m?'<span class="tag-m">Members only</span>':""}<div class="why">${s.age==null?"":s.age===0?"Updated today":s.age===1?"Updated 1 day ago":"Updated "+s.age+" days ago"}${s.age>7?" · check before driving":""}</div></td><td>${esc(s.b)}</td><td>${esc(s.s)} <span class="stale">${esc(s.pc)}</span></td><td class="n">${s.d!=null?s.d.toFixed(1)+" km":"–"}</td><td class="n"><b>${s.price.toFixed(1)}</b></td><td class="n ${s.price<med?"cheap":""}">${fmt(s.price-med)}</td><td class="when"><span class="pill ${ADV[s.adv[0]]||"flat"}">${esc(s.adv[1])}</span><div class="why">${esc(s.adv[2])}</div></td></tr>`).join("")
+    || `<tr><td colspan="8">${qEl.value && !home ? `No Sydney suburb matches “${esc(qEl.value)}”. Try a postcode.` : "No stations match these filters."}</td></tr>`;
   const near = home ? [...new Set(rows.map(s=>s.s))] : [];
-  document.getElementById("nearby").innerHTML = home ? `<span class="chip home">${home.label}</span>` + near.filter(n=>!home.label.startsWith(n)).slice(0,24).map(n=>`<span class="chip">${n}</span>`).join("") + (near.length>25?`<span class="chip">+${near.length-25} more</span>`:"") : "";
+  document.getElementById("nearby").innerHTML = home ? `<span class="chip home">${esc(home.label)}</span>` + near.filter(n=>!home.label.startsWith(n)).slice(0,24).map(n=>`<span class="chip">${esc(n)}</span>`).join("") + (near.length>25?`<span class="chip">+${near.length-25} more</span>`:"") : "";
   document.getElementById("stNote").textContent = home
     ? `${rows.length} station${rows.length===1?"":"s"} within ${R} km of ${home.label}, across ${near.length} suburb${near.length===1?"":"s"}, cheapest first${rows.length>60?" (top 60 shown)":""}. Distance is straight-line from the suburb's centre. ${WHEN}`
     : `Cheapest ${shown.length} of ${rows.length} Sydney stations selling ${fuelName(f)} today. Prices are as last reported to FuelCheck; check stations not updated for over a week before driving there. ${WHEN}`;

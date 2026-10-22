@@ -4,8 +4,12 @@ import { Linking, Platform } from 'react-native';
 
 const google = (la: number, lo: number) => `https://www.google.com/maps/search/?api=1&query=${la},${lo}`;
 
-/** URLs to try, in order, for a platform. The last one always works (a web URL). */
+/** URLs to try, in order, for a platform; the last is a web URL that always opens. None if the coordinates aren't numbers. */
 export function mapUrls(os: string, la: number, lo: number, label?: string): string[] {
+  // Coordinates come from the API: only real numbers go into a URL
+  if (!Number.isFinite(Number(la)) || !Number.isFinite(Number(lo))) return [];
+  la = Number(la);
+  lo = Number(lo);
   if (os === 'android') {
     // geo: opens the default maps app on a pin; "(label)" names it. Brackets in the name are encoded too
     // (encodeURIComponent leaves them), or "BP Mosman (9542)" would end the label early

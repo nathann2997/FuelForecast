@@ -114,6 +114,10 @@ describe('show on map', () => {
     expect(mapUrls('android', -33.8, 151.2, 'Jack & Co')[0]).toBe('geo:0,0?q=-33.8,151.2(Jack%20%26%20Co)');
     expect(mapUrls('ios', -33.8, 151.2, 'BP Manly')).toEqual(['maps://?ll=-33.8,151.2&q=BP%20Manly', web]);
     expect(mapUrls('web', -33.8, 151.2)).toEqual([web]);
+    // API coordinates that aren't numbers never reach a URL
+    expect(mapUrls('android', NaN, 151.2)).toEqual([]);
+    expect(mapUrls('ios', '0&x=1' as unknown as number, 151.2)).toEqual([]);
+    expect(mapUrls('web', '-33.8' as unknown as number, 151.2)).toEqual([web]);   // a numeric string is fine
     for (const os of ['android', 'ios', 'web']) {
       for (const u of mapUrls(os, -33.8, 151.2, 'X')) expect(u).not.toMatch(/navigation|daddr|\/dir\/|destination/);
     }
