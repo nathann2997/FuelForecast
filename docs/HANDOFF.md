@@ -10,6 +10,7 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [~] **Bowser 0.7.0: app analytics (EAS Insights + EAS Observe)** (2026-10-22, e5a88a4; CHANGELOG "Bowser 0.7.0: app analytics"). New native modules, so runtime **0.7.0**. Preview APK: EAS build 9e1d7d49, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/9e1d7d49-b7ba-470c-bb1d-350d1d90d33e. OTA to `preview` at runtime 0.7.0: update group ddab8686-10a2-41bf-a27c-6ee46350c190 (with source maps). 0.6.1 phones keep 0.7 A–D (update 874e5ef9) and get no analytics until they install the 0.7.0 APK. Ship future OTAs with `--environment preview --upload-source-maps`. **Next:** send testers the APK link; after a day, check the EAS dashboard (Insights → App usage; Observe → Errors, Navigation, Events) or `npx eas-cli observe:events`; owner decisions in the CHANGELOG entry (store privacy forms, opt-out switch). Users get no update prompt: OTAs apply on the next cold start, and new APKs must be installed by hand (see the 2026-10-22 note on update prompts).
 - [~] **Bowser 0.7, "prove it"** (2026-10-22; plan `docs/BOWSER_0.7_PLAN.md`; CHANGELOG builds A–D): built, QA audited and fixed, committed locally. **Not pushed or shipped.**
   - **The four builds**, built one at a time in this order:
     - A `2cc4ef9`: your price after discounts. It also covers the widget.
