@@ -23,6 +23,7 @@ Owner rule: until Bowser is listed on an app store, every app older than the lat
   | 0.3.0 | cd87c96 |
   | 0.1.0 | 15f9dd8 |
 
+  Published update groups: 0.7.0 bd3b975b, 0.6.1 38c92ce8, 0.6.0 4ba3b268, 0.5.0 83fdf46c, 0.4.0 77d65a40, 0.3.0 e5967a3a. **0.1.0 is unreachable**: its APK was built without expo-updates, so it can't receive any OTA.
   0.7.0 phones get it with this release's OTA. Phones pick it up on their next launch and show the notice on the launch after that.
 - **QA audit:** no high-severity issues. Fixed from it:
   - Links are pinned to Bowser's own EAS build pages, by the same rule in the app and the pipeline (ASCII only).
