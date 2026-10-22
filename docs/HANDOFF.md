@@ -10,6 +10,12 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [x] **Web dashboard redesigned to match the app** (2026-10-22, 05446ef; CHANGELOG "Web dashboard redesigned…"): live.
+  - Only `sydney/pipeline/template.html` changed. `build.py`, `export_api.py`, the store and `out/` were not touched.
+  - Workflow run 39719850502 (build, save and deploy all passed) put it on https://nathann2997.github.io/FuelForecast/, with the CSP hash and the EIA/RBA credits applied.
+  - The Claude scheduled task builds from the same template, so its artifact switches to this design on its next morning run. This supersedes the BOWSER_PLAN note that the dashboard stays untouched.
+  - No app change, so no OTA.
+  - **Next:** check "Use my location" inside the claude.ai artifact (its host may block geolocation; the button shows "Location unavailable" if so).
 - [x] **Data sources, licence notices, "Refreshed" times** (2026-10-22, 80f4c66; CHANGELOG "Data sources…" entry): live.
   - Pushed with 1aa5296. OTA update group 55f0ac2d reached `preview` at runtime 0.6.0.
   - Workflow run 39719369901 published the API with `generated_at`, `attribution`/`license_note` and meta `license`, and Brent and AUD/USD from EIA and the RBA (to 20 Oct).
