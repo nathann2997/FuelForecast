@@ -137,6 +137,7 @@ All of this is in the widget library patch (`app/patches/react-native-android-wi
   - The truncation-safe layout above.
 
 ### 6. Scrolling no longer gets caught by the station-row swipe (JS, OTA at runtime 0.6.0)
+OTA for §6–7 on `preview`, runtime 0.6.0: update group bfa8a90a-4abb-45fd-a953-61ad50b1968a.
 - **Cause:** the swipe (gesture-handler `ReanimatedSwipeable`) started after only 10 dp of sideways travel. The screens scrolled in react-native's `ScrollView`, which can't cancel a gesture-handler pan. So any scroll that drifted 10 dp sideways in total became a swipe mid-scroll and stopped scrolling.
 - **The screens now scroll in gesture-handler's `ScrollView`**, with its `RefreshControl` (`Screen` in `components/ui.tsx`). It takes part in gesture arbitration: once it starts scrolling, it cancels the rows' pending swipes.
 - **A swipe now needs 24 dp sideways** (`SWIPE_START` in `components/station-row.tsx`), so a diagonal start favours the scroll. A deliberate swipe still opens Pin/Unpin and Map as before.
