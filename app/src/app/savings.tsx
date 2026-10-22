@@ -5,13 +5,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { openStation } from '@/components/station-row';
-import { Card, Disclosure, Screen, Section, T } from '@/components/ui';
+import { Button, Card, Disclosure, Screen, Section, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useHistory } from '@/lib/api';
 import { removeFill, useFills, type Fill } from '@/lib/fills';
 import { nice } from '@/lib/format';
 import { fillSaving, money, roundCents, summarise, WINDOW } from '@/lib/savings';
+import { canShare, savingsMessage, shareText } from '@/lib/share';
 import type { History } from '@/lib/types';
 
 const SHORT = { U91: 'U91', E10: 'E10', P98: 'P98', DL: 'Diesel' } as const;
@@ -21,6 +22,7 @@ export default function Savings() {
   const fills = useFills();
   const hq = useHistory();
   const sum = useMemo(() => summarise(fills, hq.data), [fills, hq.data]);
+  const brag = savingsMessage(sum);
   const tone = (v: number) => (roundCents(v) > 0 ? c.cheap : roundCents(v) < 0 ? c.dear : c.fg2);
 
   return (
@@ -57,6 +59,8 @@ export default function Savings() {
               </T>
             ) : null}
           </View>
+
+          {brag && canShare() ? <Button label="Share my savings" kind="secondary" onPress={() => shareText(brag)} /> : null}
 
           <Section title="Your fills">
             <Card style={{ padding: 0, overflow: 'hidden' }}>

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Bowser – a fuel price shared with you</title>
+<style>
+  /* The app's tokens (app/src/constants/theme.ts) */
+  :root {
+    --bg: #f6f6f3; --surface: #ffffff; --sunk: #eeefeb; --line: #e2e3df; --fg: #141618; --fg2: #45494d; --muted: #6f7479;
+    --cheap: #14865c; --dear: #c4511f; --link: #1d62b5; --chip: #ffb22e;
+    --actBg: #fff3d6; --actFg: #7a4a00; --waitBg: #e4eefa; --waitFg: #1b5799; --calmBg: #eceeea; --calmFg: #3d4246;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1113; --surface: #181b1e; --sunk: #131618; --line: #2a2e33; --fg: #eef0f2; --fg2: #c2c7cc; --muted: #8b9197;
+      --cheap: #3cc28f; --dear: #f08a5d; --link: #3987e5;
+      --actBg: #2e2410; --actFg: #ffcf7a; --waitBg: #122238; --waitFg: #9cc6f7; --calmBg: #1d2124; --calmFg: #c2c7cc;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg2); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 24px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 22px; color: var(--fg); letter-spacing: -0.3px; }
+  .brand svg { width: 26px; height: 26px; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+  h1 { margin: 0; font-size: 26px; line-height: 1.15; color: var(--fg); letter-spacing: -0.5px; }
+  .where { font-size: 13px; color: var(--muted); }
+  .price { font-variant-numeric: tabular-nums; font-size: 48px; font-weight: 800; color: var(--fg); letter-spacing: -1.2px; line-height: 1.05; }
+  .price small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 4px; }
+  .gap { font-size: 14px; }
+  .gap b.cheap { color: var(--cheap); } .gap b.dear { color: var(--dear); }
+  .chip { display: inline-block; align-self: flex-start; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 700; }
+  .act { background: var(--actBg); color: var(--actFg); } .wait { background: var(--waitBg); color: var(--waitFg); } .calm { background: var(--calmBg); color: var(--calmFg); }
+  .fuels { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fuels span { background: var(--sunk); border-radius: 12px; padding: 8px 12px; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--fg); }
+  .fuels span i { font-style: normal; color: var(--muted); font-size: 12px; font-weight: 700; margin-right: 6px; }
+  .actions { display: flex; gap: 8px; }
+  .btn { flex: 1; text-align: center; text-decoration: none; font-weight: 700; border-radius: 12px; padding: 14px 12px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); min-height: 48px; }
+  .btn.primary { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+  /* fg2 and a darker link: 12 px text needs 4.5:1 on the page background */
+  .note { font-size: 12px; color: var(--fg2); }
+  .note a { color: var(--link); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">
+    <svg viewBox="9 9 82 82" aria-hidden="true"><path d="M50 10C58 22 78 40 78 62A28 28 0 0 1 22 62C22 40 42 22 50 10ZM45.5 42A4.5 4.5 0 0 1 54.5 42V63.14L59.82 57.82A4.5 4.5 0 0 1 66.18 64.18L53.18 77.18A4.5 4.5 0 0 1 46.82 77.18L33.82 64.18A4.5 4.5 0 0 1 40.18 57.82L45.5 63.14Z" fill="#FFB22E" fill-rule="evenodd"/></svg>
+    Bowser
+  </div>
+
+  <div class="card" id="loading"><span class="where">Loading today’s prices…</span></div>
+  <noscript><div class="card">This page needs JavaScript to show the shared price.</div></noscript>
+
+  <div class="card" id="missing" hidden>
+    <h1>Station not found</h1>
+    <span id="missing-why">This station isn’t in today’s prices. It may have closed or the link may be incomplete.</span>
+  </div>
+
+  <div class="card" id="station" hidden>
+    <span class="eyebrow" id="fuel-day"></span>
+    <h1 id="name"></h1>
+    <span class="where" id="where"></span>
+    <div class="price"><span id="price"></span><small>c/L</small></div>
+    <span class="gap" id="gap"></span>
+    <span class="chip" id="advice"></span>
+    <span id="reason"></span>
+    <div class="fuels" id="fuels"></div>
+  </div>
+
+  <div class="actions" id="actions" hidden>
+    <a class="btn primary" id="open">Have Bowser? Open it</a>
+    <a class="btn" id="dir" target="_blank" rel="noopener noreferrer">Directions</a>
+  </div>
+
+  <p class="note" id="foot">Prices from NSW FuelCheck. Advice is an estimate for planning, not financial advice.</p>
+  <p class="note">Contains NSW Government FuelCheck data © State of New South Wales (NSW Fair Trading), licensed under <a href="https://creativecommons.org/licenses/by-sa/3.0/au/" rel="noopener noreferrer">CC BY-SA 3.0 AU</a>; prices adapted and forecasts added by Bowser. Not endorsed by NSW Fair Trading.</p>
+</main>
+<script>
+(function () {
+  // Built with textContent only: nothing from the URL or the API is ever parsed as HTML.
+  var FUELS = { U91: 'Unleaded 91', E10: 'E10', P98: 'Premium 98', DL: 'Diesel' };
+  var SHORT = { U91: 'U91', E10: 'E10', P98: 'P98', DL: 'Diesel' };
+  var TONE = { now: 'act', by: 'act', wait: 'wait', hi: 'wait', any: 'calm', ok: 'calm', chk: 'calm' };
+  var q = new URLSearchParams(location.search);
+  var id = q.get('id') || '';
+  var want = q.get('f');
+  var $ = function (x) { return document.getElementById(x); };
+  var show = function (x, on) { $(x).hidden = !on; };
+  function missing(why) { show('loading', false); show('missing', true); if (why) $('missing-why').textContent = why; }
+  if (!/^\d{1,12}$/.test(id)) { missing('This link doesn’t name a station.'); return; }
+
+  var api = '../api/v1/';
+  var get = function (n) { return fetch(api + n + '.json', { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
+  var MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var nice = function (s) { var p = String(s).split('-'); return p.length === 3 ? (+p[2]) + ' ' + MO[+p[1] - 1] : ''; };
+  // stationName() in the app (lib/format.ts): ALL-CAPS names in title case, keeping known acronyms. Keep in step.
+  var ACRONYMS = ['BP', 'EG', 'APW', 'NRMA', 'NSW', 'LPG', 'RD', 'ST', 'MT', 'CVRO', 'IGA', 'U-GO'];
+  var title = function (n) {
+    n = String(n).replace(/\s*\(members only\)/i, '').replace(/\s+/g, ' ').trim();
+    if (/[a-z]/.test(n) || !/[A-Z]{4}/.test(n)) return n;
+    return n.split(' ').map(function (w) {
+      return ACRONYMS.indexOf(w) >= 0 ? w : w.toLowerCase().replace(/(^|[-'’(])([a-z])/g, function (_, p, ch) { return p + ch.toUpperCase(); });
+    }).join(' ');
+  };
+  var num = function (v) { return typeof v === 'number' && isFinite(v); };
+
+  Promise.all([get('stations'), get('forecast').catch(function () { return null; })]).then(function (res) {
+    var st = res[0], fc = res[1];
+    var s = (st.stations || []).filter(function (x) { return String(x.id) === id; })[0];
+    if (!s) { missing(); return; }
+    var sold = ['U91', 'E10', 'P98', 'DL'].filter(function (f) { return s.p && s.p[f] && num(s.p[f][0]); });
+    if (!sold.length) { missing('This station has no prices today.'); return; }
+    var fuel = sold.indexOf(want) >= 0 ? want : sold[0];
+    var p = s.p[fuel];
+    var name = title(s.n);
+    document.title = name + ' ' + p[0].toFixed(1) + 'c – Bowser';
+    $('fuel-day').textContent = FUELS[fuel] + (st.asof ? ' · ' + nice(st.asof) : '');
+    $('name').textContent = name;
+    // As brandSuburb() in the app: no brand when the name already says it ("7-Eleven Granville East")
+    var esc = String(s.b || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    var named = esc && new RegExp('(^|\\W)' + esc + '(\\W|$)', 'i').test(name);
+    $('where').textContent = [named ? '' : s.b, s.s, s.m ? 'Members only' : ''].filter(Boolean).join(' · ');
+    $('price').textContent = p[0].toFixed(1);
+    var live = fc && (fc.live || []).filter(function (r) { return r.fuel === fuel; })[0];
+    if (live && num(live.now)) {
+      var g = p[0] - live.now, b = document.createElement('b');
+      if (Math.abs(g) < 0.05) { b.textContent = 'At the Sydney median'; $('gap').appendChild(b); $('gap').appendChild(document.createTextNode(' (' + live.now.toFixed(1) + 'c)')); }
+      else {
+        b.className = g < 0 ? 'cheap' : 'dear'; b.textContent = Math.abs(g).toFixed(1) + 'c ' + (g < 0 ? 'cheaper' : 'dearer');
+        $('gap').appendChild(b); $('gap').appendChild(document.createTextNode(' than the Sydney median (' + live.now.toFixed(1) + 'c)'));
+      }
+    }
+    if (typeof p[3] === 'string' && p[3]) { $('advice').textContent = 'Bowser: ' + p[3]; $('advice').className = 'chip ' + (TONE[p[2]] || 'calm'); } else show('advice', false);
+    if (typeof p[4] === 'string' && p[4]) $('reason').textContent = p[4].replace(/\.$/, '') + '.'; else show('reason', false);
+    if (num(p[1]) && p[1] > 7) { $('reason').textContent = 'Price last updated ' + p[1] + ' days ago, so check it before you drive there.'; show('reason', true); }
+    sold.filter(function (f) { return f !== fuel; }).forEach(function (f) {
+      var el = document.createElement('span'), i = document.createElement('i');
+      i.textContent = SHORT[f]; el.appendChild(i); el.appendChild(document.createTextNode(s.p[f][0].toFixed(1)));
+      $('fuels').appendChild(el);
+    });
+    $('open').href = 'fuelforecast://station/' + encodeURIComponent(id);
+    if (num(s.la) && num(s.lo)) $('dir').href = 'https://www.google.com/maps/dir/?api=1&destination=' + s.la.toFixed(5) + ',' + s.lo.toFixed(5);
+    else show('dir', false);
+    if (st.asof) $('foot').textContent = 'Prices from NSW FuelCheck for ' + nice(st.asof) + '. Advice is an estimate for planning, not financial advice.';
+    show('loading', false); show('station', true); show('actions', true);
+  }).catch(function () { missing('Couldn’t load today’s prices. Try again in a moment.'); });
+})();
+</script>
+</body>
+</html>

@@ -11,6 +11,7 @@ Runs build.py unchanged (so the dashboard HTML is rebuilt too) and reuses the `d
   OUT/api/v1/station/{id}.json  per station (id = NSW station code): 400 days of daily prices, profile, own forecast
                                  (see station_api.py)
   OUT/index.html             the dashboard (its source credits rewritten for this pipeline, see DASHBOARD_CREDITS)
+  OUT/s/index.html           the share page for the app's Share link (share.html, with a hash CSP)
 Every file carries `generated_at` (UTC, when this export ran: the app's "Refreshed" time); the top-level files also carry
 `attribution` and `license_note`, and meta.json has the full licence and source list (LICENSE below). See DATA-LICENSE.md.
 Exits 1 if the output fails sanity checks (nothing should be published then). The per-station files fail soft: if they
@@ -205,6 +206,29 @@ csp = (f"default-src 'none'; script-src 'sha256-{sha}' https://cdnjs.cloudflare.
 if html.count("<title>") != 1: raise RuntimeError("dashboard: no <title> to put the CSP after")
 html = html.replace("<title>", f'<meta http-equiv="Content-Security-Policy" content="{csp}">\n<title>', 1)
 open(f"{OUT}/index.html", "w", encoding="utf-8").write(html)   # UTF-8 bytes: what the CSP hash was taken over
+# The share page (share.html → OUT/s/index.html): a station's prices and advice for a friend without the app, from the
+# app's Share link (…/s/?id=<code>&f=<fuel>). Static, built with textContent only, and pinned by a hash CSP: its one
+# inline script and one style block, fetch() to this site only. Fails soft: no page and a warning.
+shutil.rmtree(f"{OUT}/s", ignore_errors=True)
+try:
+    page = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "share.html"), encoding="utf-8").read()
+    scripts = re.findall(r"<script>(.*?)</script>", page, re.S)
+    styles = re.findall(r"<style>(.*?)</style>", page, re.S)
+    if len(scripts) != 1 or len(re.findall(r"<script\b", page)) != 1 or len(styles) != 1 or len(re.findall(r"<style\b", page)) != 1:
+        raise RuntimeError("expected exactly one inline <script> and one <style>")
+    if re.search(r"\son\w+\s*=|\sstyle\s*=", page): raise RuntimeError("inline handler or style attribute (blocked by the CSP)")
+    h = lambda t: base64.b64encode(hashlib.sha256(t.encode()).digest()).decode()
+    share_csp = (f"default-src 'none'; script-src 'sha256-{h(scripts[0])}'; style-src 'sha256-{h(styles[0])}'; "
+                 "connect-src 'self'; img-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'")
+    # First thing in <head>, so the policy covers every block after it whatever the page's order
+    if page.count("<head>") != 1: raise RuntimeError("no <head> to put the CSP in")
+    page = page.replace("<head>", f'<head>\n<meta http-equiv="Content-Security-Policy" content="{share_csp}">', 1)
+    os.makedirs(f"{OUT}/s"); open(f"{OUT}/s/index.html", "w", encoding="utf-8").write(page)
+except Exception as e:
+    # A GitHub annotation too: every shared link 404s until this is fixed, and the run itself still passes
+    print(f"::warning::share page not published: {type(e).__name__}: {e}")
+    print(f"export_api: WARNING share page not published: {type(e).__name__}: {e}")
+
 try:
     if new_calls: track_api.append(BASE, new_calls)   # everything is written: today's calls are now on record
 except Exception as e:

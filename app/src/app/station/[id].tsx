@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
 import { FillSheet } from '@/components/fill-sheet';
-import { MapPinIcon, PumpIcon } from '@/components/icons';
+import { MapPinIcon, PumpIcon, ShareIcon } from '@/components/icons';
 import { ADVICE_TONE } from '@/components/station-row';
 import { TickerChart } from '@/components/ticker-chart';
 import { Badge, Card, Section, StaleBanner, T } from '@/components/ui';
@@ -21,6 +21,7 @@ import { km } from '@/lib/geo';
 import { dayLabel, toneOf } from '@/lib/outlook';
 import { MAX_PINS, togglePin, usePins } from '@/lib/pins';
 import { useSettings } from '@/lib/settings';
+import { canShare, dealMessage, shareText } from '@/lib/share';
 import {
   behaviour, chartSummary, forecastTiles, fuelsSold, openInMaps, pickFuel, RANGES, rangeStats, riseText,
   tankText, ticker, tickerData, type Change, type RangeKey,
@@ -89,6 +90,15 @@ export default function StationPage() {
           </Svg>
         </IconButton>
         <T numberOfLines={1} style={{ flex: 1, fontWeight: '700', fontSize: 16 }} color={c.fg}>{head ? name : ''}</T>
+        {head && id && fuel && tk?.price != null && canShare() ? (
+          <IconButton
+            label="Share this price"
+            onPress={() => shareText(dealMessage({
+              id, n: head.n, s: head.s, fuel, pump: tk.price!, median: live?.now ?? null, advice: fc?.adv[1] ?? row?.p[fuel]?.[3] ?? null,
+            }))}>
+            <ShareIcon color={c.fg} size={22} />
+          </IconButton>
+        ) : null}
         {head || pinned ? (
           <IconButton label={pinned ? 'Unpin this station' : 'Pin this station'} onPress={onPin} selected={pinned}>
             <PinIcon on={pinned} color={pinned ? c.actStrong : c.fg} />

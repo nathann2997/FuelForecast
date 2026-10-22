@@ -2,6 +2,31 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Bowser 0.7 build D: share a deal, share your savings (pipeline + JS, runtime 0.6.1, not shipped)
+
+Plan: `docs/BOWSER_0.7_PLAN.md` §D.
+- **Station page:** a Share icon in the top bar sends "7-Eleven Granville East (Granville East): Unleaded 91 235.9c/L today, 1.8c under the Sydney median. Bowser says: Fill by Sun 25 Oct." with a link. The message uses the pump price; your discounts aren't shared.
+- **Share page `…/FuelForecast/s/?id=<code>&f=<fuel>`** (`sydney/pipeline/share.html`, published by `export_api.py`):
+  - Shows the station's pump price, gap to the median, Bowser's advice and reason (or a stale-price warning), and its other fuels.
+  - "Have Bowser? Open it" (`fuelforecast://station/<id>`) and Directions buttons.
+  - Light and dark; the CC BY-SA attribution.
+  - Every write uses `textContent`. The id must be digits, and Directions uses numeric coordinates only.
+  - A CSP in `<head>` pins the one inline script and style block by sha256 and limits fetch to the site.
+  - It fails soft: no page, plus a GitHub `::warning::` annotation.
+- **Savings:** "Share my savings" ("Bowser has saved me $23.40 on fuel since 1 Oct (5 fills)…"), shown only when the total is positive.
+- **Web:** share buttons are hidden on browsers without `navigator.share`.
+- **Checks:** QA and security audit done, with no high or medium issues. Fixed from it:
+  - Title-casing now matches the app's `stationName()`.
+  - The stale-price note was hidden when a station had no reason.
+  - Footer contrast below AA in light mode.
+  - The silent web share.
+  - "average" vs "median" wording.
+  - The Open button's wording for friends without the app.
+  - A stray `aria-label`.
+  - CSP placement.
+  - The silent fail-soft.
+  - tsc, lint and jest pass (378). Scratch export rendered in headless Chrome at 320–390 px, light and dark, under the CSP.
+
 ## 2026-10-22 — Bowser 0.7 build C: track record, "Was Bowser right?" (pipeline + JS, runtime 0.6.1, not shipped)
 
 Plan: `docs/BOWSER_0.7_PLAN.md` §C.

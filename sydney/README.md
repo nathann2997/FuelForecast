@@ -30,6 +30,8 @@ API (`https://nathann2997.github.io/FuelForecast/api/v1/`), static JSON regenera
 | `history.json` | `hist[fuel].{med,p10,p90}` and `tgp.{ulp,dl}`, daily from `start` |
 | `track.json` | the track record (`pipeline/track_api.py`): `calls[]` (the first call of each Sydney day per fuel, last 60 days, newest first: `date, fuel, cls, head, now, move, days, status`), `live[fuel]` and `replay[fuel]` tallies (`n, right, close, wrong, from, to`). Each call is scored on the average median over the 7 days after it. Live calls are appended to `store/calls.csv` on the `data` branch; `replay` applies the same verdict rule to the walk-forward backtest. Fails soft (no file plus a `meta.warnings` entry) |
 
+The site also serves `s/?id=<station code>&f=<fuel>`, the share page behind the app's Share button (`pipeline/share.html`, published by `export_api.py` with a hash-pinned CSP). It reads `stations.json` and `forecast.json` from this API and shows the station's pump prices and advice to friends without the app.
+
 ## Credentials
 API keys live in `pipeline/credentials.py` and `pipeline/pull_nsw.js`, which are gitignored (`fetch.py` reads env `NSW_API_KEY` / `NSW_API_SECRET` first). Copy `credentials.example.py` / `pull_nsw.example.js` and fill in your keys.
 
