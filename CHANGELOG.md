@@ -2,6 +2,13 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — app-ci fixed: Expo SDK 58 patch updates (app 0.6.1, needs a new APK)
+
+- **Why CI failed:** `expo-doctor` checks against the latest SDK 58 patch releases. Expo published new patches, so 10 packages were one patch behind (`expo` 58.0.16 → 58.0.17, plus constants, linking, network, notifications, router, splash-screen, status-bar, updates and jest-expo). Typecheck, lint and jest were already passing.
+- **Fix:** `npx expo install --fix`. It also registered `expo-status-bar`'s new config plugin in `app.json`. `expo-doctor` now passes 20/20, `tsc` and lint are clean, and jest passes 343/343.
+- **Version 0.6.1:** the native fingerprint changed (`expo-modules-core`, notifications, updates, the status-bar plugin). The runtime policy is `appVersion`, so the bump keeps future OTA updates off the installed 0.6.0 APKs. Otherwise those APKs would run JS built for newer native modules.
+- **Effect:** 0.6.0 installs keep working but stop receiving OTA updates until a 0.6.1 preview APK is built and installed.
+
 ## 2026-10-22 — Web dashboard redesigned to match the Bowser app (`template.html`)
 
 - **Same order as the app's Today screen:** the decision, the place, the saving, then the evidence (`docs/DESIGN.md`).

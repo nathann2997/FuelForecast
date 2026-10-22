@@ -10,6 +10,7 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [~] **app-ci fixed; app 0.6.1** (2026-10-22; CHANGELOG "app-ci fixed…"). Expo SDK 58 patch updates via `npx expo install --fix`, which also added the `expo-status-bar` plugin in `app.json`. The native fingerprint changed, so `version` moved to 0.6.1 (runtime `appVersion`), and 0.6.0 APKs no longer receive OTAs. This also clears the expo-doctor note in the "Data sources" item. **Next:** build a 0.6.1 preview APK (`npx eas-cli build -p android --profile preview`) and send testers the link. Until then, don't publish OTAs expecting 0.6.0 phones to receive them.
 - [x] **Web dashboard redesigned to match the app** (2026-10-22, 05446ef; CHANGELOG "Web dashboard redesigned…"): live.
   - Only `sydney/pipeline/template.html` changed. `build.py`, `export_api.py`, the store and `out/` were not touched.
   - Workflow run 39719850502 (build, save and deploy all passed) put it on https://nathann2997.github.io/FuelForecast/, with the CSP hash and the EIA/RBA credits applied.

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bowser",
     "slug": "fuel-forecast",
-    "version": "0.6.0",
+    "version": "0.6.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fuelforecast",
@@ -116,7 +116,8 @@
           ]
         }
       ],
-      "expo-background-task"
+      "expo-background-task",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,
