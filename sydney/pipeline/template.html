@@ -1,239 +1,283 @@
-<title>Sydney Pump Price Outlook</title>
+<title>Bowser · Sydney fuel outlook</title>
 <meta name="referrer" content="no-referrer">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-/* Layout: servo price-board identity. Condensed signage type, a dark price board with amber digits for today's call,
-   then forecast strip, evidence chart, driver tips, station finder, brand premiums, model card, data freshness. */
+/* Layout and tokens mirror the Bowser app (app/src/constants/theme.ts, docs/DESIGN.md): the decision, then the place,
+   then the saving, then the evidence. One tone scale (act / wait / calm) colours the hero, the advice chips and the
+   sparkline. System font with tabular figures; light and dark themes match. */
 :root{
-  --bg:#fbfbfa; --surface:#f1f2f0; --line:#dfe1dd; --fg:#141618; --fg2:#45494d; --muted:#767b80;
-  --board:#16191c; --board-fg:#eef0f2; --board-muted:#9aa1a8; --digit:#ffb22e; --chip:#ffb22e; --on-chip:#141618;
-  --retail:#eb6834; --tgp:#2a78d6; --cheap:#1baf7a; --dear:#eb6834; --band:rgba(235,104,52,.12); --fan:rgba(235,104,52,.18);
+  --bg:#f6f6f3; --surface:#ffffff; --sunk:#eeefeb; --line:#e2e3df; --fg:#141618; --fg2:#45494d; --muted:#6f7479;
+  --chip:#ffb22e; --on-chip:#141618;
+  --retail:#eb6834; --tgp:#2a78d6; --cheap:#14865c; --dear:#c4511f; --band:rgba(235,104,52,.12); --fan:rgba(235,104,52,.18);
   --up:#b4361b; --down:#1f6e3a; --flat:#5e6266;
-  --display:"Barlow Condensed", "Arial Narrow", Arial, sans-serif;
-  --body:"Barlow", "Helvetica Neue", Arial, sans-serif;
-  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --act-bg:#fff3d6; --act-fg:#7a4a00; --act-strong:#f0a000;
+  --wait-bg:#e4eefa; --wait-fg:#1b5799; --wait-strong:#2a78d6;
+  --calm-bg:#eceeea; --calm-fg:#3d4246; --calm-strong:#8a9096;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#101214; --surface:#181b1e; --line:#2a2e33; --fg:#eef0f2; --fg2:#c2c7cc; --muted:#8b9197;
-  --board:#05070a; --board-fg:#eef0f2; --board-muted:#8b9197; --digit:#ffb22e; --chip:#ffb22e; --on-chip:#141618;
-  --retail:#d95926; --tgp:#3987e5; --cheap:#199e70; --dear:#d95926; --band:rgba(217,89,38,.16); --fan:rgba(255,178,46,.16);
-  --up:#ff8a6b; --down:#8fdc9f; --flat:#a6abb0; color-scheme:dark}}
+  --bg:#0f1113; --surface:#181b1e; --sunk:#131618; --line:#2a2e33; --fg:#eef0f2; --fg2:#c2c7cc; --muted:#8b9197;
+  --retail:#e5703f; --tgp:#3987e5; --cheap:#3cc28f; --dear:#f08a5d; --band:rgba(217,89,38,.16); --fan:rgba(255,178,46,.16);
+  --up:#ff8a6b; --down:#8fdc9f; --flat:#a6abb0;
+  --act-bg:#2e2410; --act-fg:#ffcf7a; --act-strong:#ffb22e;
+  --wait-bg:#122238; --wait-fg:#9cc6f7; --wait-strong:#3987e5;
+  --calm-bg:#1d2124; --calm-fg:#c2c7cc; --calm-strong:#8b9197; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#101214; --surface:#181b1e; --line:#2a2e33; --fg:#eef0f2; --fg2:#c2c7cc; --muted:#8b9197;
-  --board:#05070a; --board-fg:#eef0f2; --board-muted:#8b9197; --digit:#ffb22e; --chip:#ffb22e; --on-chip:#141618;
-  --retail:#d95926; --tgp:#3987e5; --cheap:#199e70; --dear:#d95926; --band:rgba(217,89,38,.16); --fan:rgba(255,178,46,.16);
-  --up:#ff8a6b; --down:#8fdc9f; --flat:#a6abb0; color-scheme:dark}
+  --bg:#0f1113; --surface:#181b1e; --sunk:#131618; --line:#2a2e33; --fg:#eef0f2; --fg2:#c2c7cc; --muted:#8b9197;
+  --retail:#e5703f; --tgp:#3987e5; --cheap:#3cc28f; --dear:#f08a5d; --band:rgba(217,89,38,.16); --fan:rgba(255,178,46,.16);
+  --up:#ff8a6b; --down:#8fdc9f; --flat:#a6abb0;
+  --act-bg:#2e2410; --act-fg:#ffcf7a; --act-strong:#ffb22e;
+  --wait-bg:#122238; --wait-fg:#9cc6f7; --wait-strong:#3987e5;
+  --calm-bg:#1d2124; --calm-fg:#c2c7cc; --calm-strong:#8b9197; color-scheme:dark}
+.t-act{--t-bg:var(--act-bg);--t-fg:var(--act-fg);--t-strong:var(--act-strong)}
+.t-wait{--t-bg:var(--wait-bg);--t-fg:var(--wait-fg);--t-strong:var(--wait-strong)}
+.t-calm{--t-bg:var(--calm-bg);--t-fg:var(--calm-fg);--t-strong:var(--calm-strong)}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:20px 64px;display:flex;flex-direction:column;gap:48px}
-h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
-h2{font-size:clamp(26px,3vw,36px);font-weight:700;letter-spacing:0}
-h3{font-size:17px;font-weight:700}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg2);font-family:var(--font);font-size:15px;line-height:1.47;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;color:var(--fg);text-wrap:balance}
+h2{font-size:22px;font-weight:700;letter-spacing:-.2px}
+h3{font-size:16px;font-weight:700}
 p{margin:0}
-.num{font-variant-numeric:tabular-nums}
-.mono{font-family:var(--mono)}
-.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.lede{color:var(--fg2);max-width:68ch}
-header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line)}
-.wordmark{font-family:var(--display);font-weight:800;letter-spacing:.02em;font-size:18px}
-.wordmark span{font-weight:500;color:var(--muted);margin-left:10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
-.asof{font-size:13px;color:var(--muted)}
-/* hero */
-.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px;align-items:stretch}
-.hero h1{font-size:clamp(42px,6.4vw,78px);font-weight:800;line-height:.98;text-transform:uppercase;letter-spacing:.005em}
-.hero-left{display:flex;flex-direction:column;gap:18px;justify-content:space-between}
-.controls{display:flex;gap:10px;flex-wrap:wrap}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;background:var(--surface);flex-wrap:wrap}
-.seg button{font:500 13px var(--body);border:0;background:transparent;color:var(--fg2);padding:7px 12px;border-radius:999px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
-.seg button:disabled{opacity:.35;cursor:not-allowed}
-.seg button:focus-visible,.finder input:focus-visible{outline:2px solid var(--tgp);outline-offset:2px}
-select.reg{font:500 14px var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 14px}
-.signal{background:var(--board);color:var(--board-fg);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px;border:1px solid var(--line)}
-.signal .eyebrow,.signal .meta{color:var(--board-muted)}
-.signal .meta b{color:var(--board-fg)}
-.signal .verdict{font-family:var(--display);font-weight:800;font-size:clamp(28px,3.6vw,40px);line-height:1.05}
-.signal .now{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.signal .price{font-family:var(--mono);font-weight:500;font-size:clamp(44px,6vw,72px);line-height:1;color:var(--digit);letter-spacing:-.03em;text-shadow:0 0 18px rgba(255,178,46,.25)}
-.signal .unit{font-weight:600}
-.signal .why{font-size:14px;max-width:52ch}
-.signal .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;border-top:1px solid rgba(0,0,0,.18);padding-top:12px}
-.signal .meta b{font-family:var(--mono);font-weight:500}
-/* horizon strip */
-.horizons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.hz{padding:16px;display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--line);min-width:0}
-.hz:last-child{border-right:0}
-.hz .v{font-family:var(--display);font-weight:700;font-size:26px}
-.hz .r{font-size:12px;color:var(--muted)}
-.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid currentColor;width:max-content}
-.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--flat)}
-/* chart blocks */
-.block{display:flex;flex-direction:column;gap:16px}
-.chartbox{position:relative;height:380px;border:1px solid var(--line);border-radius:14px;padding:14px 10px 6px;background:var(--bg)}
-.chartbox.sm{height:300px}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--fg2)}
+a{color:var(--tgp)}
+button,input,select{font:inherit}
+[hidden]{display:none!important}
+.num,.bignum{font-variant-numeric:tabular-nums}
+.small{font-size:13px;line-height:1.4;color:var(--muted)}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.bignum{font-size:24px;font-weight:800;color:var(--fg);letter-spacing:-.3px;line-height:1.1}
+.cheap{color:var(--cheap)} .dear{color:var(--dear)} .up{color:var(--up)}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 64px;display:flex;flex-direction:column;gap:40px}
+@media (min-width:720px){.wrap{padding-inline:32px}}
+:focus-visible{outline:2px solid var(--tgp);outline-offset:2px}
+
+/* header: wordmark, then the fuel and tank chips (the app's header chip) */
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brandline{display:flex;flex-direction:column;gap:8px}
+.brandline svg{display:block;height:26px;width:120px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.chip-select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background-color:var(--surface);color:var(--fg);font-weight:700;font-size:14px;border-radius:999px;padding:8px 30px 8px 14px;min-height:38px;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+.banner{border-radius:12px;padding:12px 16px;background:var(--act-bg);color:var(--act-fg);font-size:13px}
+
+/* cards, sections, disclosures, segmented controls, chips, badges, buttons (components/ui.tsx) */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.section{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+details.disc{background:var(--surface);border:1px solid var(--line);border-radius:16px}
+details.disc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:16px;font-weight:700;color:var(--fg)}
+details.disc>summary::-webkit-details-marker{display:none}
+details.disc>summary::after{content:"+";margin-left:auto;color:var(--muted);font-weight:400;font-size:18px;line-height:1}
+details.disc[open]>summary::after{content:"\2212"}
+.disc-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:999px;background:var(--sunk);align-self:flex-start}
+.seg button{border:1px solid transparent;background:transparent;color:var(--muted);font-weight:600;font-size:13px;min-height:34px;padding:0 12px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);border-color:var(--line);color:var(--fg);font-weight:700}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--fg2);font-weight:600;font-size:13px;min-height:34px;padding:0 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.badge{display:inline-block;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700;background:var(--t-bg);color:var(--t-fg);white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);font-weight:700;font-size:15px;border-radius:12px;padding:11px 16px;cursor:pointer}
+.btn:disabled{opacity:.7;cursor:progress}
+.link{background:none;border:0;padding:0;color:var(--tgp);font-weight:700;cursor:pointer;text-decoration:none;font-size:15px}
+.link:hover{text-decoration:underline}
+
+/* Today: hero on the left, stations on the right on wide screens */
+.today{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+@media (min-width:960px){.today{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.hero{border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:8px;background:var(--t-bg);color:var(--t-fg)}
+.hero .median{font-size:13px;font-weight:600}
+.hero h1{color:var(--t-fg);font-size:clamp(34px,4.4vw,42px);line-height:1.12;font-weight:800;letter-spacing:-.6px}
+.hero .deadline{font-weight:700}
+.hero .detail{opacity:.92}
+.pick{display:flex;align-items:center;gap:12px;border-radius:14px;padding:12px;margin:4px 0;background:var(--surface);color:var(--fg2);border:0;text-align:left;width:100%;cursor:pointer}
+.pick:hover{opacity:.9}
+.pick .nm{font-weight:700;font-size:16px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick-empty{border-radius:14px;padding:12px;margin:4px 0;background:var(--surface);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.spark{height:132px;margin-top:4px;position:relative}
+.spark svg{position:absolute;inset:0;display:block;overflow:visible}
+.hz{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.hz div{display:flex;flex-direction:column;gap:1px}
+.hz .eyebrow{color:var(--t-fg);opacity:.75;font-size:10px}
+.hz .v{font-weight:600;color:var(--t-fg);font-variant-numeric:tabular-nums}
+.hz .d{font-size:13px;opacity:.8;font-variant-numeric:tabular-nums}
+.fact{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.fact b{color:var(--fg);font-variant-numeric:tabular-nums;font-weight:600}
+
+/* stations (components/station-row.tsx) */
+.areabar{display:flex;flex-direction:column;gap:12px}
+.arearow{display:flex;gap:8px;flex-wrap:wrap}
+.arearow input{flex:1 1 200px;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:12px;padding:10px 14px;font-size:15px}
+.ctl-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.multi{position:relative}
+.multi>summary{list-style:none}
+.multi>summary::-webkit-details-marker{display:none}
+.multi>summary::after{content:"\25BE";color:var(--muted)}
+.multi>summary[aria-pressed="true"]::after{color:var(--bg)}
+.multi-panel{position:absolute;z-index:5;top:calc(100% + 6px);left:0;width:min(300px,86vw);max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.multi-actions{display:flex;gap:8px;margin-bottom:8px}
+#brandList label{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:14px;color:var(--fg)}
+#brandList label span{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.multi{position:static}.multi-panel{left:16px;right:16px;width:auto}}
+.list{padding:0;overflow:hidden}
+.st{border-bottom:1px solid var(--line)}
+.st:last-child{border-bottom:0}
+.st>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 16px}
+.st>summary::-webkit-details-marker{display:none}
+.st>summary:hover,.st[open]>summary{background:var(--sunk)}
+.st-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.st-name{font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-chips{display:flex;gap:8px;align-items:center;margin-top:2px;min-width:0}
+.st-price{text-align:right;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
+.st-price .bignum{font-size:22px}
+.st-price .small{font-weight:600}
+.st-more{padding:4px 16px 14px;display:flex;flex-direction:column;gap:6px;background:var(--sunk)}
+.st-more p{color:var(--fg2);font-size:14px}
+.empty{padding:16px}
+
+/* trends */
+.chartbox{position:relative;height:340px}
+@media (max-width:560px){.chartbox{height:280px}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--fg2)}
 .legend i{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
-.legend i.band{height:10px;opacity:.9}
-.events{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
-.ev{font-size:13px;color:var(--fg2);border-left:2px solid var(--line);padding-left:10px}
-.ev b{display:block;color:var(--fg);font-weight:600}
-/* insights */
-.insights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.ins{background:var(--bg);padding:20px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.ins .big{font-family:var(--display);font-weight:800;font-size:34px;line-height:1}
-.ins .big small{font-size:15px;font-weight:600;color:var(--fg2);margin-left:4px}
-.ins p{color:var(--fg2);font-size:14px}
-.ins .tag{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
-/* finder */
-.finder{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.finder input{font:15px var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:0;flex:1 1 240px}
-.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+.legend i.band{height:10px}
+.cards{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.ins{display:flex;flex-direction:column;gap:4px}
+.ins .small{color:var(--fg2)}
+.brow{display:flex;align-items:center;gap:8px}
+.brow .bn{width:120px;font-size:13px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{flex:1;height:16px;position:relative}
+.track .mid{position:absolute;left:50%;width:1px;height:16px;background:var(--line)}
+.track .bar{position:absolute;top:4px;height:8px;border-radius:4px}
+.brow .bv{width:56px;text-align:right;font-size:13px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+.facts{display:flex;flex-direction:column;gap:12px}
+.facts .fh{display:flex;align-items:baseline;gap:8px}
+.facts .fh b{margin-left:auto;color:var(--fg);font-variant-numeric:tabular-nums}
+
+/* how good is the forecast */
+.tablewrap{overflow-x:auto;padding:4px}
 table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
-th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--surface)}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:700}
+td{color:var(--fg)}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 tr:last-child td{border-bottom:0}
-.tablewrap thead th{position:sticky;top:0;z-index:1}
-.stale{color:var(--muted);font-size:12px}
-/* model */
-.modelgrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start}
-.note{font-size:13px;color:var(--muted);max-width:75ch}
-ul.clean{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--fg2);font-size:14px}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
-footer a{color:var(--fg2)}
-@media (max-width:900px){.hero,.two,.modelgrid{grid-template-columns:minmax(0,1fr)}.insights{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.horizons{grid-template-columns:repeat(2,minmax(0,1fr))}.hz{border-bottom:1px solid var(--line)}}
-@media (max-width:560px){.insights{grid-template-columns:minmax(0,1fr)}.chartbox{height:320px}}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-</style>
-<style>
-.range{display:inline-flex;gap:2px;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
-.range button{font:500 12px var(--body);border:0;background:transparent;color:var(--fg2);padding:5px 10px;border-radius:999px;cursor:pointer}
-.range button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
-.fresh{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.fresh div{background:var(--bg);padding:12px 14px;display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--fg2)}
-.fresh b{font-family:var(--mono);font-weight:500;color:var(--fg);font-size:13px}
-.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end;position:relative}
-.fgroup{display:flex;flex-direction:column;gap:6px;min-width:0}
-.fgroup.grow{flex:1 1 260px}
-.fgroup label,.flabel{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.filters input[type=search],.filters select,.multi summary{font:15px var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:0}
-.multi{position:relative}
-.multi summary{list-style:none;cursor:pointer;min-width:180px}
-.multi summary::-webkit-details-marker{display:none}
-.multi summary::after{content:"▾";float:right;margin-left:10px;color:var(--muted)}
-.multi-panel{position:absolute;z-index:5;top:calc(100% + 6px);left:0;width:min(300px,86vw);max-height:320px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
-.multi-actions{display:flex;gap:8px;margin-bottom:8px}
-.multi-actions button{font:500 12px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--fg2);border-radius:999px;padding:4px 10px;cursor:pointer}
-#brandList label{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:14px;color:var(--fg);text-transform:none;letter-spacing:0;font-weight:400}
-#brandList label span{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
-.check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fg2);padding-bottom:10px}
-.chips{display:flex;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--fg2)}
-.chip{border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface)}
-.chip.home{background:var(--chip);color:var(--on-chip);border-color:transparent;font-weight:600}
-.tag-m{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:1px 7px;margin-left:6px;color:var(--fg2)}
-.cheap{color:var(--down);font-weight:600}
-#stRows .why{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35;white-space:normal}.when{min-width:190px}.when .why{max-width:30ch}
-@media (max-width:560px){.multi{position:static}.multi-panel{left:0;right:0;width:auto}}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+ul.clean{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+ul.clean b{color:var(--fg)}
+.fresh{display:flex;flex-direction:column;gap:8px}
+.fresh div{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.fresh b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:middle}
 .ok{background:var(--down)} .warn{background:var(--up)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:960px){.grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}}
+footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 </style>
 <div class="wrap">
   <header class="top">
-    <div class="wordmark">SYDNEY PUMP OUTLOOK<span>Daily forecast</span></div>
-    <div class="asof" id="asofLine"></div>
+    <div class="brandline">
+      <!-- Bowser lockup: geometry from app/src/components/brand.tsx (docs/BRAND.md) -->
+      <svg viewBox="0 0 369 80" role="img" aria-label="Bowser">
+        <path transform="translate(-22 -10)" style="fill:var(--act-strong)" fill-rule="evenodd" d="M50 10C58 22 78 40 78 62A28 28 0 0 1 22 62C22 40 42 22 50 10ZM45.5 42A4.5 4.5 0 0 1 54.5 42V63.14L59.82 57.82A4.5 4.5 0 0 1 66.18 64.18L53.18 77.18A4.5 4.5 0 0 1 46.82 77.18L33.82 64.18A4.5 4.5 0 0 1 40.18 57.82L45.5 63.14Z"/>
+        <path transform="translate(79 5)" style="stroke:var(--fg)" fill="none" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" d="M6 64V6H20A14 14 0 0 1 20 34H6M20 34H23A15 15 0 0 1 23 64H6M55 46A18 18 0 1 0 91 46A18 18 0 1 0 55 46M107 28L118 64L128.5 37L139 64L150 28M194 32.32C190 28 186 28 180.5 28C172 28 167 32.32 167 37.72C167 44.2 175 45 180.5 46C187 47 195 49 195 55C195 61.12 188 64 180.5 64C173 64 168 61.84 166 58.24M211 46H247A18 18 0 1 0 241.73 58.73M263 64V28M263 45C263 34 270 28 281 28H283"/>
+      </svg>
+      <div class="small" id="asofLine"></div>
+    </div>
+    <div class="controls">
+      <select class="chip-select" id="fuel" aria-label="Fuel"></select>
+      <select class="chip-select" id="tank" aria-label="Tank size"></select>
+    </div>
   </header>
 
-  <section class="hero" aria-labelledby="h1">
-    <div class="hero-left">
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div class="eyebrow">Sydney pump price outlook</div>
-        <h1 id="h1">Fill up now, or wait?</h1>
-        <p class="lede">A daily forecast for Sydney pump prices, trained on every FuelCheck price change in Sydney since 2019, wholesale terminal gate prices, Brent crude and the Australian dollar. Refreshed every morning from the live NSW feed.</p>
+  <div class="banner" id="stale" hidden></div>
+
+  <div class="today">
+    <div class="col">
+      <section class="hero t-calm" id="hero" aria-live="polite" aria-labelledby="verdict"></section>
+      <details class="disc"><summary>Why we think this</summary><div class="disc-body" id="whyBody"></div></details>
+      <button class="link" type="button" id="toTrends" style="align-self:flex-start">Price trends and the cycle →</button>
+    </div>
+
+    <section class="section" id="stations" aria-labelledby="stTitle">
+      <div class="sec-head"><h2 id="stTitle">Cheapest near you</h2><span class="small" id="stCount"></span></div>
+      <div class="card areabar">
+        <label class="eyebrow" for="q">Where do you fill up?</label>
+        <div class="arearow">
+          <input id="q" type="search" list="subList" placeholder="Suburb or postcode, e.g. Parramatta, 2150" autocomplete="off"><datalist id="subList"></datalist>
+          <button class="btn" type="button" id="gps">Use my location</button>
+        </div>
+        <div class="ctl-row">
+          <div class="seg" id="radius" role="group" aria-label="Within"></div>
+          <div class="seg" id="sort" role="group" aria-label="Sort"></div>
+        </div>
+        <div class="ctl-row">
+          <button class="chip" type="button" id="members" aria-pressed="true">Members-only sites</button>
+          <button class="chip" type="button" id="old" aria-pressed="false" hidden></button>
+          <details class="multi" id="brandBox"><summary class="chip" id="brandSummary">All brands</summary>
+            <div class="multi-panel"><div class="multi-actions"><button type="button" class="chip" id="brandAll">Select all</button><button type="button" class="chip" id="brandNone">Clear</button></div><div id="brandList" role="group" aria-label="Brands"></div></div>
+          </details>
+        </div>
       </div>
-      <div class="controls"><div class="seg" id="fuelSeg" role="group" aria-label="Fuel"></div></div>
+      <div class="card list" id="stList" aria-live="polite"></div>
+      <button class="btn" type="button" id="more" hidden>Show more</button>
+      <p class="small" id="stNote"></p>
+    </section>
+  </div>
+
+  <section class="section" id="trends" aria-labelledby="trH">
+    <div><div class="eyebrow" id="trEyebrow"></div><h2 id="trH">Trends</h2></div>
+    <p id="cycle" style="color:var(--fg);font-size:17px;font-weight:600;max-width:70ch"></p>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <div class="sec-head"><div class="seg" id="range" role="group" aria-label="Time range"></div><div class="legend" id="legend"></div></div>
+      <div class="chartbox"><canvas id="main" role="img" aria-label="Sydney pump price and wholesale price over time with forecast"></canvas></div>
     </div>
-    <div class="signal" id="signal" aria-live="polite"></div>
-  </section>
-
-  <section class="block" aria-labelledby="fh">
-    <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
-      <div><div class="eyebrow">Forecast median price, c/L</div><h2 id="fh">Next 14 days</h2></div>
-      <p class="note" style="max-width:54ch" id="hzNote"></p>
-    </div>
-    <div class="horizons" id="horizons"></div>
-  </section>
-
-  <section class="block" aria-labelledby="ch">
-    <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
-      <div><div class="eyebrow">Evidence</div><h2 id="ch">Sydney pump price against wholesale</h2></div>
-      <div class="range" id="range" role="group" aria-label="Time range"></div>
-    </div>
-    <div class="legend" id="legend"></div>
-    <div class="chartbox"><canvas id="main" role="img" aria-label="Sydney pump price and wholesale price over time with forecast"></canvas></div>
-    <p class="note" id="gapNote"></p>
-  </section>
-
-  <section class="block" aria-labelledby="th">
-    <div><div class="eyebrow">What the data says for Sydney drivers</div><h2 id="th">Know the cycle, beat the bowser</h2></div>
-    <div class="insights" id="insights"></div>
-  </section>
-
-  <section class="block" aria-labelledby="sh">
-    <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
-      <div><div class="eyebrow" id="stEyebrow"></div><h2 id="sh">Cheapest stations today</h2></div>
-      <p class="note" style="max-width:52ch">Follows the fuel picked at the top. Search a suburb or postcode to include every station within the radius, so nearby suburbs show up too.</p>
-    </div>
-    <div class="filters">
-      <div class="fgroup grow"><label for="q">Suburb or postcode</label><input id="q" type="search" list="subList" placeholder="All of Sydney, or e.g. Parramatta, 2150" autocomplete="off"><datalist id="subList"></datalist></div>
-      <div class="fgroup"><label for="radius">Within</label><select id="radius"><option value="2">2 km</option><option value="5" selected>5 km</option><option value="10">10 km</option><option value="20">20 km</option></select></div>
-      <div class="fgroup"><span class="flabel" id="brandLabel">Brands</span>
-        <details class="multi" id="brandBox"><summary id="brandSummary">All brands</summary>
-          <div class="multi-panel"><div class="multi-actions"><button type="button" id="brandAll">Select all</button><button type="button" id="brandNone">Clear</button></div><div id="brandList" role="group" aria-labelledby="brandLabel"></div></div>
-        </details></div>
-      <label class="check"><input type="checkbox" id="members" checked> Include members-only sites</label>
-    </div>
-    <div class="chips" id="nearby" aria-live="polite"></div>
-    <div class="tablewrap" style="max-height:460px;overflow:auto"><table><thead><tr><th class="n">#</th><th>Station</th><th>Brand</th><th>Suburb</th><th class="n">Distance</th><th class="n">Price</th><th class="n">vs median</th><th>When to fill</th></tr></thead><tbody id="stRows"></tbody></table></div>
-    <p class="note" id="stNote"></p>
-  </section>
-
-  <section class="block" aria-labelledby="bh">
-    <div><div class="eyebrow" id="brandEyebrow"></div><h3 id="bh">Brand premium vs the Sydney median</h3></div>
-    <div class="chartbox sm" id="brandBoxChart"><canvas id="brands" role="img" aria-label="Average price premium by brand today"></canvas></div>
-    <p class="note" id="brandNote"></p>
-  </section>
-
-  <section class="block" aria-labelledby="mh">
-    <div><div class="eyebrow">Model card</div><h2 id="mh">How the forecast works, and how good it is</h2></div>
-    <div class="modelgrid">
-      <div class="block">
-        <ul class="clean">
-          <li><b>Target.</b> Change in the Sydney median pump price over 1, 3, 7 and 14 days for U91, E10, Premium 98 and diesel, plus the chance of a 5c+ jump within 7 days.</li>
-          <li><b>Inputs.</b> Pump margin over the terminal gate price (TGP) and how it compares with the past year; wholesale moves over 1 to 28 days; Brent crude in Australian dollars and the AUD; how spread out station prices are and how many stations repriced recently; and cycle memory (recent momentum, distance from the 4-week high and low, days since the last price jump).</li>
-          <li><b>Model.</b> Gradient-boosted trees (LightGBM, Huber loss) pooled across the four fuels, with a separate classifier for price jumps.</li>
-          <li><b>Validation.</b> Walk-forward: retrained every month on all data before it, tested on each month from Jan 2021, including the 2022 and 2026 oil shocks. Ranges are 80% intervals from the past year of test errors.</li>
-          <li><b>Cycle memory</b> needs about four weeks of unbroken daily data. Until the daily refresh has built that up after the September gap, the live forecast uses the model without it, which tested almost as well.</li>
-          <li><b>Limits.</b> It reacts to oil and wholesale moves as they happen but cannot see wars, OPEC decisions or excise changes coming.</li>
-        </ul>
+    <div class="grid2">
+      <div class="section">
+        <h3>Know the cycle</h3>
+        <div class="cards" id="insights"></div>
       </div>
-      <div class="block">
-        <div class="tablewrap"><table><thead><tr><th>Horizon</th><th class="n">No change</th><th class="n">Model</th><th class="n">Gain</th><th class="n">Shock months</th><th class="n">Direction</th></tr></thead><tbody id="btTable"></tbody></table></div>
-        <p class="note" id="btNote"></p>
+      <div class="section">
+        <h3>Cheapest brands today</h3>
+        <div class="card" style="display:flex;flex-direction:column;gap:8px" id="brands"></div>
+        <button class="btn" type="button" id="allBrands" hidden></button>
+        <p class="small" id="brandNote"></p>
       </div>
     </div>
-    <div><h3 style="margin-bottom:10px">Backtest: Sydney U91, predicted vs actual 7-day change, last two years</h3>
-      <div class="legend"><span><i style="background:var(--fg)"></i>Actual change</span><span><i style="background:var(--retail)"></i>Model prediction (made 7 days earlier)</span></div>
-    </div>
-    <div class="chartbox sm"><canvas id="bt" role="img" aria-label="Backtest predicted versus actual seven day change"></canvas></div>
+    <details class="disc"><summary>More facts</summary><div class="disc-body facts" id="facts"></div></details>
+    <details class="disc"><summary>About this chart</summary><div class="disc-body"><p class="small" style="color:var(--fg2)">Sydney median vs the wholesale price (terminal gate price). The band spans the cheapest to dearest 10% of stations; the dashed line is the forecast and the shaded fan its 80% range. Hover to read any day.</p><p class="small" id="gapNote"></p></div></details>
   </section>
 
-  <section class="block" aria-labelledby="dh">
-    <div><div class="eyebrow">Data freshness</div><h3 id="dh">What this page was built from</h3></div>
-    <div class="fresh" id="fresh"></div>
+  <section class="section" aria-labelledby="mh">
+    <h2 id="mh">How good is the forecast</h2>
+    <div class="grid2">
+      <div class="section">
+        <p id="accLine" style="color:var(--fg)"></p>
+        <div class="card tablewrap"><table><thead><tr><th>Horizon</th><th class="n">No change</th><th class="n">Model</th><th class="n">Gain</th><th class="n">Shock months</th><th class="n">Direction</th></tr></thead><tbody id="btTable"></tbody></table></div>
+        <p class="small" id="btNote"></p>
+      </div>
+      <div class="section">
+        <details class="disc"><summary>How it works</summary><div class="disc-body">
+          <ul class="clean">
+            <li><b>Target.</b> Change in the Sydney median pump price over 1, 3, 7 and 14 days for U91, E10, Premium 98 and diesel, plus the chance of a 5c+ jump within 7 days.</li>
+            <li><b>Inputs.</b> Pump margin over the terminal gate price (TGP) and how it compares with the past year; wholesale moves over 1 to 28 days; Brent crude in Australian dollars and the AUD; how spread out station prices are and how many stations repriced recently; and cycle memory (recent momentum, distance from the 4-week high and low, days since the last price jump).</li>
+            <li><b>Model.</b> Gradient-boosted trees (LightGBM, Huber loss) pooled across the four fuels, with a separate classifier for price jumps.</li>
+            <li><b>Validation.</b> Walk-forward: retrained every month on all data before it, tested on each month from Jan 2021, including the 2022 and 2026 oil shocks. Ranges are 80% intervals from the past year of test errors.</li>
+            <li><b>Cycle memory</b> needs about four weeks of unbroken daily data. Until the daily refresh has built that up after the September gap, the live forecast uses the model without it, which tested almost as well.</li>
+            <li><b>Limits.</b> It reacts to oil and wholesale moves as they happen but cannot see wars, OPEC decisions or excise changes coming.</li>
+          </ul>
+          <p class="small" id="liveModel"></p>
+        </div></details>
+        <details class="disc" id="btBox"><summary>Backtest: predicted vs actual</summary><div class="disc-body">
+          <p class="small">Sydney U91, 7-day change, last two years.</p>
+          <div class="legend"><span><i style="background:var(--fg)"></i>Actual change</span><span><i style="background:var(--retail)"></i>Model prediction (made 7 days earlier)</span></div>
+          <div class="chartbox" style="height:280px"><canvas id="bt" role="img" aria-label="Backtest predicted versus actual seven day change"></canvas></div>
+        </div></details>
+        <details class="disc"><summary>Data freshness</summary><div class="disc-body fresh" id="fresh"></div></details>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -247,69 +291,301 @@ footer a{color:var(--fg2)}
 const D = __DATA__;
 // Station names, brands, suburbs and advice text come from the NSW API (third-party): escape them before any innerHTML
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+const $ = (id) => document.getElementById(id);
 const FUELS = [["U91","Unleaded 91"],["E10","E10"],["P98","Premium 98"],["DL","Diesel"]];
 const live = {}; D.live.forEach(r => live[r.fuel] = r);
-let state = {fuel:"U91", range:"1Y"};
+const ST = D.stats, CTX = D.ctx;
+// Per-viewer conveniences only (fuel, tank, area, filters); the page works the same without storage
+const store = {
+  get(k, d){ try { const v = localStorage.getItem("bowser." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v){ try { localStorage.setItem("bowser." + k, JSON.stringify(v)); } catch {} },
+};
+const TANKS = [30,40,50,60,70,80], RADII = [2,5,10,20], STALE_DAYS = 7, PAGE = 10;
+const savedArea = store.get("area", null);
+let state = {
+  fuel: live[store.get("fuel")] ? store.get("fuel") : "U91",
+  tank: TANKS.includes(store.get("tank")) ? store.get("tank") : 50,
+  area: savedArea && Number.isFinite(savedArea.la) && Number.isFinite(savedArea.lo) ? savedArea : null,
+  radius: RADII.includes(store.get("radius")) ? store.get("radius") : 5,
+  sort: "price", members: store.get("members", true) !== false, old: false, range: "1Y", shown: PAGE,
+};
+
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt = (v,d=1) => (v>0?"+":"")+v.toFixed(d);
 const day = (s,k) => new Date(Date.parse(s+"T00:00:00Z")+k*864e5).toISOString().slice(0,10);
 const nice = s => new Date(s+"T00:00:00Z").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});
 const daysBetween = (a,b) => Math.round((Date.parse(b)-Date.parse(a))/864e5);
 const fuelName = k => FUELS.find(f=>f[0]===k)[1];
-const ST = D.stats, CTX = D.ctx;
+const n0 = (v, d=0) => v == null || !Number.isFinite(v) ? "–" : v.toFixed(d);
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dayLabel = iso => { const [y,m,d] = iso.split("-").map(Number); return `${WD[new Date(Date.UTC(y,m-1,d)).getUTCDay()]} ${d} ${MO[m-1]}`; };
+const sydToday = () => { try { return new Intl.DateTimeFormat("en-CA",{timeZone:"Australia/Sydney"}).format(new Date()); } catch { return CTX.asof; } };
+const ACRONYMS = new Set(["BP","EG","APW","NRMA","NSW","LPG","RD","ST","MT","CVRO","IGA","U-GO"]);
+function stationName(n){   // as stationName() in app/src/lib/format.ts
+  const name = n.replace(/\s*\(members only\)/i,"").replace(/\s+/g," ").trim();
+  if (/[a-z]/.test(name) || !/[A-Z]{4}/.test(name)) return name;
+  return name.split(" ").map(w => ACRONYMS.has(w) ? w : w.toLowerCase().replace(/(^|[-'’(])([a-z])/g,(_,p,ch)=>p+ch.toUpperCase())).join(" ");
+}
+function brandSuburb(name, brand, suburb){
+  const e = brand.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");
+  return e && new RegExp(`(^|\\W)${e}(\\W|$)`,"i").test(name) ? suburb : `${brand} · ${suburb}`;
+}
+const updatedText = a => a == null ? "" : a === 0 ? "Updated today" : a === 1 ? "Updated 1 day ago" : `Updated ${a} days ago`;
+const mapsUrl = (la, lo) => `https://www.google.com/maps/search/?api=1&query=${+la},${+lo}`;
 
-document.getElementById("asofLine").textContent = `Live Sydney prices ${nice(CTX.asof)} · Wholesale to ${nice(CTX.tgp_last)} · Brent and AUD to ${nice(CTX.fred_last)}`;
-
+// ---- the decision (verdict rule mirrored in export_api.py; outlook as app/src/lib/outlook.ts)
 function verdict(r){
   if (r.d3 >= 1.5 || r.p_jump7 >= 0.5) return {cls:"up", head:"Fill up today"};
   if (r.d7 >= 2 || r.p_jump7 >= 0.35) return {cls:"up", head:"Fill up this week"};
   if (r.d3 <= -1.5 || r.d7 <= -3) return {cls:"down", head:"Wait if you can"};
   return {cls:"flat", head:"No rush either way"};
 }
-const seg = document.getElementById("fuelSeg");
-FUELS.forEach(([k,l]) => { const b = document.createElement("button"); b.type="button"; b.dataset.k=k; b.textContent=l; b.addEventListener("click",()=>{state.fuel=k;render();}); seg.appendChild(b); });
+const TONE = {up:"act", down:"wait", flat:"calm"};
+const ADVICE_TONE = {now:"act", by:"act", wait:"wait", hi:"wait", any:"calm", ok:"calm", chk:"calm"};
+function path(r, key="d"){
+  const xs = [0,1,3,7,14], ys = [0, r[key+"1"], r[key+"3"], r[key+"7"], r[key+"14"]];
+  return Array.from({length:15}, (_,h) => { let k = 1; while (xs[k] < h) k++; const t = (h-xs[k-1])/(xs[k]-xs[k-1]); return ys[k-1] + t*(ys[k]-ys[k-1]); });
+}
+function riseDay(r){   // market() in build.py
+  const d = path(r); let J = null;
+  for (let h=1; h<=14; h++) if (d[h] >= 5) { J = h; break; }
+  const p7 = Math.min(Math.max(r.p_jump7, 1e-3), 0.99), lam = 1 - (1-p7)**(1/7);
+  const k = Math.floor(Math.log(0.75)/Math.log(1-lam)) + 1;
+  if (k <= 14) J = Math.min(J ?? 99, k);
+  return J;
+}
+const dollars = (cents, L) => { const v = Math.abs(cents)*L/100; return v >= 10 ? `$${v.toFixed(0)}` : `$${v.toFixed(2)}`; };
+function outlook(r){
+  const v = verdict(r), tone = TONE[v.cls], J = riseDay(r), L = state.tank;
+  const riseDate = J == null ? null : day(CTX.asof, J), end = dayLabel(day(CTX.asof, 14));
+  const risk = riseDate ? ` Some chance of a jump from ${dayLabel(riseDate)}.` : "";
+  let detail;
+  if (tone === "act") detail = r.d14 >= 3
+    ? `About ${r.d14.toFixed(0)}c higher by ${end}. Filling ${J == null ? "soon" : "before then"} saves about ${dollars(r.d14, L)} on a ${L} L tank.`
+    : `Fill up before then. Over two weeks the average move is about ${r.d14 >= 0 ? "+" : ""}${r.d14.toFixed(0)}c.`;
+  else if (r.d7 <= -2) detail = `About ${Math.abs(r.d7).toFixed(0)}c lower by ${dayLabel(day(CTX.asof, 7))}. Waiting saves about ${dollars(r.d7, L)} on a ${L} L tank.${risk}`;
+  else if (tone === "wait") detail = `Prices should ease over the next few days.${risk}`;
+  else if (r.d14 >= 3) detail = `About ${r.d14.toFixed(0)}c higher by ${end}. Filling soon saves about ${dollars(r.d14, L)} on a ${L} L tank.${risk}`;
+  else detail = `Steady for the next two weeks. Fill up whenever suits.${risk}`;
+  const deadline = tone !== "act" || J == null ? null : J <= 1 ? "Prices likely to rise from tomorrow" : `Prices likely to rise from ${dayLabel(riseDate)}`;
+  return {tone, head:v.head, J, riseDate, deadline, detail};
+}
 
-function renderSignal(){
-  const r = live[state.fuel], v = verdict(r);
-  const tg = state.fuel==="DL" ? D.tgp.dl : D.tgp.ulp;
+// ---- header
+$("asofLine").textContent = `Sydney prices ${nice(CTX.asof)} · Wholesale to ${nice(CTX.tgp_last)} · Brent and AUD to ${nice(CTX.fred_last)}`;
+const fuelEl = $("fuel"), tankEl = $("tank");
+fuelEl.innerHTML = FUELS.map(([k,l]) => `<option value="${k}">${l}</option>`).join("");
+tankEl.innerHTML = TANKS.map(t => `<option value="${t}">${t} L tank</option>`).join("");
+fuelEl.value = state.fuel; tankEl.value = state.tank;
+fuelEl.addEventListener("change", () => { state.fuel = fuelEl.value; store.set("fuel", state.fuel); state.shown = PAGE; render(); });
+tankEl.addEventListener("change", () => { state.tank = +tankEl.value; store.set("tank", state.tank); renderHero(); renderInsights(); });
+if (CTX.asof < sydToday()) { $("stale").hidden = false; $("stale").textContent = `Showing prices from ${nice(CTX.asof)}. Today’s update hasn’t arrived yet.`; }
+
+// ---- stations
+const SUBS = {}; D.stations.forEach(s => { const k = s.s+"|"+s.pc; (SUBS[k] = SUBS[k] || {s:s.s, pc:s.pc, la:[], lo:[]}); SUBS[k].la.push(s.la); SUBS[k].lo.push(s.lo); });
+const SUBLIST = Object.values(SUBS).map(x => ({s:x.s, pc:x.pc, la:x.la.reduce((a,b)=>a+b,0)/x.la.length, lo:x.lo.reduce((a,b)=>a+b,0)/x.lo.length})).sort((a,b)=>a.s.localeCompare(b.s));
+$("subList").innerHTML = SUBLIST.map(x=>`<option value="${esc(x.s)} ${esc(x.pc)}"></option>`).join("");
+const km = (a,b,c,d) => { const r=Math.PI/180, x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2; return 12742*Math.asin(Math.sqrt(x)); };
+function findSuburb(q){
+  q = q.trim().toLowerCase(); if (!q) return null;
+  const m = q.match(/(\d{4})/); const name = q.replace(/\d{4}/,"").trim();
+  let hits = SUBLIST.filter(x => (!m || String(x.pc)===m[1]) && (!name || x.s.toLowerCase()===name));
+  if (!hits.length) hits = SUBLIST.filter(x => (!m || String(x.pc)===m[1]) && (!name || x.s.toLowerCase().startsWith(name)));
+  if (!hits.length && name) hits = SUBLIST.filter(x => x.s.toLowerCase().includes(name));
+  if (!hits.length) return null;
+  const la = hits.reduce((a,h)=>a+h.la,0)/hits.length, lo = hits.reduce((a,h)=>a+h.lo,0)/hits.length;
+  return {label: hits.length===1 ? `${hits[0].s} ${hits[0].pc}` : hits.map(h=>h.s).filter((v,i,a)=>a.indexOf(v)===i).slice(0,3).join(", "), la, lo};
+}
+let brandSel = null;   // null = all brands
+const areaSet = () => state.area && !state.area.missing ? state.area : null;
+/** Rows for the fuel, area and filters, sorted; `old` counts prices older than STALE_DAYS, hidden unless asked for */
+function stationRows({brands = true, keepOld = state.old} = {}){
+  const f = state.fuel, a = areaSet();
+  let rows = [];
+  D.stations.forEach((s, i) => {
+    const p = s.p[f];
+    if (!p || p[0] == null || (!state.members && s.m) || (brands && brandSel && !brandSel.has(s.b))) return;
+    rows.push({...s, i, price:p[0], age:p[1], adv:p.slice(2), d: a ? km(a.la, a.lo, s.la, s.lo) : null});
+  });
+  if (a) rows = rows.filter(s => s.d <= state.radius);
+  const old = rows.filter(s => s.age != null && s.age > STALE_DAYS).length;
+  if (!keepOld) rows = rows.filter(s => s.age == null || s.age <= STALE_DAYS);
+  rows.sort(state.sort === "near" && a ? (x,y) => x.d - y.d || x.price - y.price : (x,y) => x.price - y.price || (x.d??0) - (y.d??0));
+  return {rows, old};
+}
+function stationItem(s, med){
+  const name = stationName(s.n), gap = s.price - med, stale = s.age != null && s.age > STALE_DAYS;
+  const gapTxt = Math.abs(gap) < 0.05 ? "at median" : `${gap < 0 ? "−" : "+"}${Math.abs(gap).toFixed(1)}c`;
+  return `<details class="st" id="st-${s.i}"><summary aria-label="${esc(name)}, ${s.price.toFixed(1)} cents, ${esc(s.adv[1])}">
+    <div class="st-main"><div class="st-name">${esc(name)}</div>
+      <div class="small st-sub">${esc(brandSuburb(name, s.b, s.s))}${s.d != null ? ` · ${s.d.toFixed(1)} km` : ""}${s.m ? " · Members" : ""}</div>
+      <div class="st-chips"><span class="badge t-${ADVICE_TONE[s.adv[0]] || "calm"}">${esc(s.adv[1])}</span>${stale ? `<span class="small up">${updatedText(s.age)}</span>` : ""}</div></div>
+    <div class="st-price"><div class="bignum">${s.price.toFixed(1)}</div><div class="small ${gap < -0.05 ? "cheap" : gap > 0.05 ? "dear" : ""}">${gapTxt}</div></div>
+  </summary><div class="st-more"><p>${esc(s.adv[2])}</p><div class="small">${[updatedText(s.age) + (stale ? " · check before driving" : ""), `${esc(s.s)} ${esc(s.pc)}`].filter(Boolean).join(" · ")}</div>
+    <a class="link" href="${mapsUrl(s.la, s.lo)}" target="_blank" rel="noopener noreferrer">Show on map →</a></div></details>`;
+}
+function brandOptions(){
+  const counts = {}; D.stations.forEach(s => { if (s.p[state.fuel]) counts[s.b] = (counts[s.b]||0)+1; });
+  const list = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  $("brandList").innerHTML = list.map(([b,n]) => `<label><input type="checkbox" value="${esc(b)}" ${!brandSel||brandSel.has(b)?"checked":""}> ${esc(b)}<span>${n}</span></label>`).join("");
+  document.querySelectorAll("#brandList input").forEach(cb => cb.addEventListener("change", () => {
+    const on = [...document.querySelectorAll("#brandList input")].filter(x=>x.checked).map(x=>x.value);
+    brandSel = on.length === list.length ? null : new Set(on); state.shown = PAGE; brandSummary(); renderStations(); }));
+  brandSummary();
+}
+function brandSummary(){
+  const el = $("brandSummary");
+  el.textContent = !brandSel ? "All brands" : brandSel.size === 0 ? "No brands" : brandSel.size <= 2 ? [...brandSel].join(", ") : `${brandSel.size} brands`;
+  el.setAttribute("aria-pressed", String(!!brandSel));
+}
+$("brandAll").addEventListener("click", () => { brandSel = null; state.shown = PAGE; brandOptions(); renderStations(); });
+$("brandNone").addEventListener("click", () => { brandSel = new Set(); state.shown = PAGE; brandOptions(); renderStations(); });
+document.addEventListener("click", e => { const box = $("brandBox"); if (box.open && !box.contains(e.target)) box.open = false; });
+
+function segment(el, opts, get, set){
+  el.innerHTML = opts.map(([k,l]) => `<button type="button" data-k="${k}">${l}</button>`).join("");
+  const sync = () => el.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.k === String(get()))));
+  el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { set(b.dataset.k); sync(); }));
+  sync(); return sync;
+}
+segment($("radius"), RADII.map(r => [r, `${r} km`]), () => state.radius, k => { state.radius = +k; store.set("radius", state.radius); state.shown = PAGE; renderToday(); });
+const syncSort = segment($("sort"), [["price","Cheapest"],["near","Nearest"]], () => state.sort, k => { state.sort = k; state.shown = PAGE; renderStations(); });
+$("members").addEventListener("click", () => { state.members = !state.members; store.set("members", state.members); state.shown = PAGE; renderToday(); });
+$("old").addEventListener("click", () => { state.old = !state.old; state.shown = PAGE; renderStations(); });
+const qEl = $("q");
+if (state.area && !state.area.gps) qEl.value = state.area.label;
+qEl.addEventListener("input", () => {
+  const hit = findSuburb(qEl.value);
+  state.area = !qEl.value.trim() ? null : hit || {missing:true};
+  store.set("area", areaSet());
+  state.shown = PAGE; renderToday();
+});
+const gpsEl = $("gps");
+if (!navigator.geolocation) gpsEl.hidden = true;
+gpsEl.addEventListener("click", () => {
+  gpsEl.textContent = "Locating…"; gpsEl.disabled = true;
+  navigator.geolocation.getCurrentPosition(p => {
+    state.area = {label:"you", gps:true, la:p.coords.latitude, lo:p.coords.longitude}; store.set("area", state.area);
+    qEl.value = ""; gpsEl.textContent = "Use my location"; gpsEl.disabled = false; state.shown = PAGE; renderToday();
+  }, () => { gpsEl.textContent = "Location unavailable"; gpsEl.disabled = false; setTimeout(() => gpsEl.textContent = "Use my location", 2500); }, {timeout:10000, maximumAge:6e5});
+});
+$("more").addEventListener("click", () => { state.shown += 20; renderStations(); });
+
+const WHEN = "Each “when to fill” date is the Sydney forecast adjusted for the station: how fast it usually follows a price jump, and whether it follows them at all. Prices are as last reported to FuelCheck.";
+function renderStations(){
+  const f = state.fuel, med = live[f].now, missing = state.area && state.area.missing, area = areaSet();
+  $("stTitle").textContent = area ? `Cheapest near ${area.gps ? "you" : area.label}` : "Cheapest in Sydney";
+  $("sort").querySelector('[data-k="near"]').disabled = !area;
+  if (!area && state.sort === "near") { state.sort = "price"; syncSort(); }
+  $("members").setAttribute("aria-pressed", String(state.members));
+  const {rows, old} = missing ? {rows:[], old:0} : stationRows();
+  const oldEl = $("old");
+  oldEl.hidden = !old && !state.old;
+  oldEl.textContent = state.old ? "Hide prices older than 7 days" : `Show ${old} older price${old===1?"":"s"}`;
+  oldEl.setAttribute("aria-pressed", String(state.old));
+  $("stList").innerHTML = rows.slice(0, state.shown).map(s => stationItem(s, med)).join("")
+    || `<div class="empty">${missing ? `No Sydney suburb matches “${esc(qEl.value)}”. Try a postcode.` : area ? `No recent prices within ${state.radius} km. Try a wider radius.` : "No stations match these filters."}</div>`;
+  $("more").hidden = rows.length <= state.shown;
+  $("more").textContent = `Show more (${rows.length - state.shown} left)`;
+  const o = outlook(live[f]);
+  $("stCount").textContent = `${rows.length} station${rows.length===1?"":"s"}${o.riseDate ? ` · Sydney ${f === "DL" ? "diesel" : f} likely to rise from ${dayLabel(o.riseDate)}` : ""}`;
+  $("stNote").textContent = (area && !area.gps ? "Distance is straight-line from the suburb’s centre. " : "") + WHEN;
+}
+
+// ---- hero: the decision, the best station for you, the saving, the next 14 days
+function sparkline(){
+  const el = $("spark"); if (!el) return;
+  const r = live[state.fuel], o = outlook(r);
+  const w = el.clientWidth, H = 132, P = {l:6, r:6, t:22, b:22};
+  if (!w) return;
+  const mid = path(r).map(d => r.now + d), lo = path(r,"lo").map(d => r.now + d), hi = path(r,"hi").map(d => r.now + d);
+  const min = Math.min(...lo, ...mid) - 1, max = Math.max(...hi, ...mid) + 1;
+  const x = h => P.l + (h/14)*(w - P.l - P.r), y = v => P.t + (1 - (v-min)/(max-min || 1))*(H - P.t - P.b);
+  const pts = a => a.map((v,h) => `${h ? "L" : "M"}${x(h).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const band = pts(hi) + lo.map((v,h) => [h,v]).reverse().map(([h,v]) => `L${x(h).toFixed(1)},${y(v).toFixed(1)}`).join("") + "Z";
+  const J = o.J, anchor = J == null ? "" : J <= 2 ? "start" : J >= 12 ? "end" : "middle";
+  const txt = (X, Y, s, a, extra="") => `<text x="${X}" y="${Y}" text-anchor="${a}" font-size="11" style="font-family:var(--font);${extra}">${s}</text>`;
+  el.innerHTML = `<svg width="${w}" height="${H}" aria-hidden="true">
+    <path d="${band}" style="fill:var(--t-strong)" opacity=".16"/>
+    ${J != null ? `<line x1="${x(J)}" x2="${x(J)}" y1="${P.t-6}" y2="${H-P.b}" style="stroke:var(--t-strong)" stroke-width="1.5" stroke-dasharray="3,3"/>${txt(x(J), P.t-10, `Rise ${dayLabel(o.riseDate)}`, anchor, "fill:var(--t-fg);font-weight:700")}` : ""}
+    <path d="${pts(mid)}" style="stroke:var(--t-strong)" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(0)}" cy="${y(mid[0])}" r="4.5" style="fill:var(--t-strong);stroke:var(--surface)" stroke-width="2"/>
+    <circle cx="${x(14)}" cy="${y(mid[14])}" r="3" style="fill:var(--t-strong)"/>
+    ${txt(x(0), H-6, "Today", "start", "fill:var(--muted)")}${txt(x(7), H-6, dayLabel(day(CTX.asof,7)), "middle", "fill:var(--muted)")}${txt(x(14), H-6, dayLabel(day(CTX.asof,14)), "end", "fill:var(--muted)")}
+  </svg>`;
+}
+function renderHero(){
+  const f = state.fuel, r = live[f], o = outlook(r), a = areaSet();
+  const hero = $("hero"); hero.className = `hero t-${o.tone}`;
+  // Best for you: the cheapest recent price in your area, any brand (Today's best pick in the app)
+  const pick = a ? stationRows({brands:false, keepOld:false}).rows.slice().sort((x,y) => x.price - y.price)[0] : null;
+  const save = pick ? r.now - pick.price : 0;
+  const pickHtml = pick
+    ? `<button type="button" class="pick" id="pick" data-i="${pick.i}" aria-label="Best for you: ${esc(stationName(pick.n))}, ${pick.price.toFixed(1)} cents, ${esc(pick.adv[1])}">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><div class="eyebrow">Best for you</div><div class="nm">${esc(stationName(pick.n))}</div><div><span class="badge t-${ADVICE_TONE[pick.adv[0]] || "calm"}">${esc(pick.adv[1])}</span></div></div>
+        <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end"><div class="bignum">${pick.price.toFixed(1)}</div>${save >= 0.5 ? `<div class="small cheap" style="font-weight:600">saves ${dollars(save, state.tank)} vs avg</div>` : ""}</div>
+      </button>`
+    : `<div class="pick-empty"><span style="color:var(--fg2)">${a ? `No recent prices within ${state.radius} km.` : "Where do you fill up?"}</span><button type="button" class="link" id="setArea">${a ? "Change area →" : "Set your area →"}</button></div>`;
+  const hz = [[1,"Tomorrow"],[3,"3 days"],[7,"7 days"],[14,"14 days"]].map(([h,l]) => `<div><span class="eyebrow">${l}</span><span class="v">${(r.now + r["d"+h]).toFixed(1)}</span><span class="d">${fmt(r["d"+h])}c</span></div>`).join("");
+  hero.innerHTML = `<div class="median">Sydney ${fuelName(f)} median ${r.now.toFixed(1)}c/L</div>
+    <h1 id="verdict">${o.head}</h1>
+    ${o.deadline ? `<p class="deadline">${o.deadline}</p>` : ""}
+    ${pickHtml}
+    <p class="detail">${o.detail}</p>
+    <div class="spark" id="spark" role="img" aria-label="Expected Sydney median over 14 days: ${r.now.toFixed(1)}c today to about ${(r.now + r.d14).toFixed(1)}c${o.riseDate ? `, likely rising from ${dayLabel(o.riseDate)}` : ""}"></div>
+    <div class="hz">${hz}</div>`;
+  sparkline();
+  const pk = $("pick");
+  if (pk) pk.addEventListener("click", () => {
+    const row = $("st-" + pk.dataset.i) || $("stations");
+    if (row.tagName === "DETAILS") row.open = true;
+    row.scrollIntoView({behavior:"smooth", block:"center"});
+  });
+  const sa = $("setArea");
+  if (sa) sa.addEventListener("click", () => { $("stations").scrollIntoView({behavior:"smooth", block:"start"}); qEl.focus({preventScroll:true}); });
+}
+function renderWhy(){
+  const f = state.fuel, r = live[f];
+  const tg = f==="DL" ? D.tgp.dl : D.tgp.ulp;
   const ai = daysBetween(D.start, CTX.asof); const back = k => { for (let i=ai-k;i>=0;i--) if (tg[i]!=null) return tg[i]; return null; }; const t28 = back(0) - back(28);
   const typ = ST.margin_typ;
   let why;
-  if (state.fuel==="DL") why = `Pump diesel is ${r.margin.toFixed(0)}c above wholesale, and wholesale diesel moved ${fmt(t28,0)}c over the last four weeks.`;
-  else if (state.fuel==="P98") why = `Premium 98 carries a ${r.margin.toFixed(0)}c margin over the unleaded wholesale price, so it reacts less to the cycle than U91.`;
+  if (f==="DL") why = `Pump diesel is ${r.margin.toFixed(0)}c above wholesale, and wholesale diesel moved ${fmt(t28,0)}c over the last four weeks.`;
+  else if (f==="P98") why = `Premium 98 carries a ${r.margin.toFixed(0)}c margin over the unleaded wholesale price, so it reacts less to the cycle than U91.`;
   else why = `Retailers are selling ${r.margin.toFixed(1)}c above the wholesale price, against a typical ${typ.toFixed(0)}c, after wholesale moved ${fmt(t28,0)}c in four weeks. ${r.margin < typ-6 ? "Thin margins usually end in a price jump." : r.margin > typ+8 ? "Fat margins usually get discounted away." : ""}`;
-  const path = r.d7 > 0.9 ? `up about ${r.d7.toFixed(1)}c over 7 days` : r.d7 < -0.9 ? `down about ${Math.abs(r.d7).toFixed(1)}c over 7 days` : "roughly flat over the next week";
-  document.getElementById("signal").innerHTML = `
-    <div class="eyebrow">Sydney · ${fuelName(state.fuel)} · ${nice(CTX.asof)}</div>
-    <div class="now"><span class="price num">${r.now.toFixed(1)}</span><span class="unit">c/L median</span></div>
-    <div class="verdict">${v.head}</div>
-    <p class="why">Expected ${path}. ${why}</p>
-    <div class="meta"><span>Cheapest 10%: <b>${r.p10.toFixed(1)}c</b></span><span>Wholesale: <b>${r.tgp.toFixed(1)}c</b></span><span>Chance of 5c+ jump in 7 days: <b>${Math.round(r.p_jump7*100)}%</b></span></div>`;
-}
-function renderHorizons(){
-  const r = live[state.fuel];
-  const cells = [[1,"Tomorrow"],[3,"In 3 days"],[7,"In 7 days"],[14,"In 14 days"]].map(([h,l]) => {
-    const d = r["d"+h], cls = d>0.4?"up":d<-0.4?"down":"flat";
-    return `<div class="hz"><div class="eyebrow">${l}</div><div class="v num">${(r.now+d).toFixed(1)}</div>
-      <span class="pill ${cls}">${cls==="up"?"▲":cls==="down"?"▼":"■"} ${fmt(d)}c</span>
-      <div class="r num">80% range ${(r.now+r["lo"+h]).toFixed(0)} to ${(r.now+r["hi"+h]).toFixed(0)}</div></div>`; }).join("");
-  const p = Math.round(r.p_jump7*100);
-  document.getElementById("horizons").innerHTML = cells + `<div class="hz"><div class="eyebrow">Jump risk, 7 days</div><div class="v num">${p}%</div>
-    <span class="pill ${p>=50?"up":p<=15?"down":"flat"}">${p>=50?"High":p<=15?"Low":"Moderate"}</span><div class="r">Chance the median rises 5c or more</div></div>`;
-  document.getElementById("hzNote").textContent = `80% ranges come from the past year of out-of-sample errors. Live model: ${CTX.live_model}.`;
+  const p = r.d7 > 0.9 ? `up about ${r.d7.toFixed(1)}c over 7 days` : r.d7 < -0.9 ? `down about ${Math.abs(r.d7).toFixed(1)}c over 7 days` : "roughly flat over the next week";
+  const pct = Math.round(r.p_jump7*100), lvl = pct >= 50 ? "high" : pct <= 15 ? "low" : "moderate";
+  const range = h => `${(r.now + r["lo"+h]).toFixed(0)} to ${(r.now + r["hi"+h]).toFixed(0)}c`;
+  $("whyBody").innerHTML = `<p>Expected ${p}. ${why}</p>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div class="fact"><span>Chance of a 5c+ jump this week</span><b>${pct}% (${lvl})</b></div>
+      <div class="fact"><span>Cheapest 10% of Sydney stations</span><b>${r.p10.toFixed(1)}c</b></div>
+      <div class="fact"><span>Wholesale price</span><b>${r.tgp.toFixed(1)}c</b></div>
+      <div class="fact"><span>Likely range in 7 days</span><b>${range(7)}</b></div>
+      <div class="fact"><span>Likely range in 14 days</span><b>${range(14)}</b></div>
+    </div>
+    <p class="small">The shaded band is the likely (80%) range, from the past year of out-of-sample errors.</p>`;
 }
 
+// ---- trends
 const RANGES = [["3M",92],["1Y",365],["3Y",1095],["All",99999]];
-const rg = document.getElementById("range");
-RANGES.forEach(([k]) => { const b=document.createElement("button"); b.type="button"; b.textContent=k; b.dataset.k=k; b.addEventListener("click",()=>{state.range=k; renderMain(); rg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.k===k)));}); rg.appendChild(b); });
-rg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.k===state.range)));
-
+segment($("range"), RANGES.map(([k]) => [k,k]), () => state.range, k => { state.range = k; renderMain(); });
 let charts = {};
-const axis = () => ({grid:{color:css("--line"),drawTicks:false}, border:{display:false}, ticks:{color:css("--muted"),font:{family:"IBM Plex Mono",size:11},padding:6}});
-const tip = () => ({backgroundColor:css("--fg"),titleColor:css("--bg"),bodyColor:css("--bg"),titleFont:{family:"Barlow",weight:"600"},bodyFont:{family:"IBM Plex Mono",size:12},padding:10,cornerRadius:8,boxPadding:4});
+const FONT = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+const axis = () => ({grid:{color:css("--line"),drawTicks:false}, border:{display:false}, ticks:{color:css("--muted"),font:{family:FONT,size:11},padding:6}});
+const tip = () => ({backgroundColor:css("--fg"),titleColor:css("--bg"),bodyColor:css("--bg"),titleFont:{family:FONT,weight:"600"},bodyFont:{family:FONT,size:12},padding:10,cornerRadius:8,boxPadding:4});
 
 function renderMain(){
   const h = D.hist[state.fuel], r = live[state.fuel];
+  const gapDays = daysBetween(CTX.history_last, CTX.asof) - CTX.snapshot_days;
+  $("gapNote").textContent = gapDays > 3
+    ? `Why the gap: the live NSW feed only gives today's prices, so daily history comes from NSW's monthly files, published about a month late (latest: ${nice(CTX.history_last)}). The daily refresh adds a point each morning, and fills the gap automatically when NSW publishes each new month.`
+    : `History to ${nice(CTX.history_last)} from NSW monthly files, then daily live snapshots.`;
+  $("legend").innerHTML = `<span><i style="background:var(--retail)"></i>Median</span>
+    <span><i class="band" style="background:var(--band)"></i>Cheapest–dearest 10%</span>
+    <span><i style="background:var(--tgp)"></i>Wholesale</span>
+    <span><i style="background:repeating-linear-gradient(90deg,var(--retail) 0 4px,transparent 4px 7px)"></i>Forecast</span>`;
+  if (!window.Chart) return;
   const all = []; for (let i=0;i<h.med.length;i++) all.push(day(D.start,i));
   const span = RANGES.find(x=>x[0]===state.range)[1];
   const i0 = Math.max(0, all.length - span);
@@ -322,16 +598,11 @@ function renderMain(){
   const pts = [[0,0,0,0],[1,r.d1,r.lo1,r.hi1],[3,r.d3,r.lo3,r.hi3],[7,r.d7,r.lo7,r.hi7],[14,r.d14,r.lo14,r.hi14]];
   for (let k=0;k<pts.length-1;k++){ const [h0,d0,l0,u0]=pts[k],[h1,d1,l1,u1]=pts[k+1];
     for (let s=h0;s<=h1;s++){ const t=(s-h0)/(h1-h0); fc[a+s]=+(r.now+d0+(d1-d0)*t).toFixed(1); lo[a+s]=+(r.now+l0+(l1-l0)*t).toFixed(1); hi[a+s]=+(r.now+u0+(u1-u0)*t).toFixed(1);} }
-  document.getElementById("legend").innerHTML = `<span><i style="background:var(--retail)"></i>Sydney ${fuelName(state.fuel)} median</span>
-    <span><i class="band" style="background:var(--band)"></i>Cheapest to dearest 10% of stations</span>
-    <span><i style="background:var(--tgp)"></i>Wholesale ${state.fuel==="DL"?"diesel":"petrol"} TGP</span>
-    <span><i style="background:repeating-linear-gradient(90deg,var(--retail) 0 4px,transparent 4px 7px)"></i>Forecast</span>
-    <span><i class="band" style="background:var(--fan)"></i>80% range</span>`;
   const short = span <= 400;
   const cfg = {type:"line", data:{labels, datasets:[
       {label:"Dearest 10%", data:p90, borderWidth:0, pointRadius:0, fill:false, spanGaps:false},
       {label:"Cheapest 10%", data:p10, borderWidth:0, pointRadius:0, backgroundColor:css("--band"), fill:"-1", spanGaps:false},
-      {label:"Median pump price", data:med, borderColor:css("--retail"), borderWidth:short?2:1.5, pointRadius:c=>c.dataIndex===a?5:0, pointBackgroundColor:css("--retail"), pointBorderColor:css("--bg"), pointBorderWidth:2, tension:.1, spanGaps:false},
+      {label:"Median pump price", data:med, borderColor:css("--retail"), borderWidth:short?2:1.5, pointRadius:c=>c.dataIndex===a?5:0, pointBackgroundColor:css("--retail"), pointBorderColor:css("--surface"), pointBorderWidth:2, tension:.1, spanGaps:false},
       {label:"Wholesale TGP", data:tg, borderColor:css("--tgp"), borderWidth:short?2:1.5, pointRadius:0, tension:.1, spanGaps:true},
       {label:"Forecast high", data:hi, borderWidth:0, pointRadius:0, fill:false},
       {label:"Forecast low", data:lo, borderWidth:0, pointRadius:0, backgroundColor:css("--fan"), fill:"-1"},
@@ -342,53 +613,63 @@ function renderMain(){
       scales:{x:{...axis(), grid:{display:false}, ticks:{...axis().ticks, maxRotation:0, autoSkip:false, callback:(v,i)=>{const l=labels[i]; if(span<=100) return l.endsWith("-01")||l.endsWith("-15")?nice(l).replace(/ \d{4}$/,""):null; if(span<=400) return l.endsWith("-01")?new Date(l+"T00:00:00Z").toLocaleDateString("en-AU",{month:"short",timeZone:"UTC"}):null; return l.endsWith("-01-01")?l.slice(0,4):null;}}},
               y:{...axis(), ticks:{...axis().ticks, callback:v=>v+"c"}}}}};
   if (charts.main) charts.main.destroy();
-  charts.main = new Chart(document.getElementById("main"), cfg);
-  const gapDays = daysBetween(CTX.history_last, CTX.asof) - CTX.snapshot_days;
-  document.getElementById("gapNote").textContent = gapDays > 3
-    ? `Why the gap: the live NSW feed only gives today's prices, so daily history comes from NSW's monthly files, published about a month late (latest: ${nice(CTX.history_last)}). The daily refresh adds a point each morning from today, and fills the gap automatically when NSW publishes each new month.`
-    : `History to ${nice(CTX.history_last)} from NSW monthly files, then daily live snapshots.`;
+  charts.main = new Chart($("main"), cfg);
 }
 
+function cycleSummary(){   // as cycleSummary() in app/src/lib/copy.ts
+  const since = ST.last_restore ? daysBetween(ST.last_restore, CTX.asof) : null, gap = ST.cycle_gap_calm;
+  const thin = ST.margin_now != null && ST.margin_typ != null && ST.margin_now < ST.margin_typ - 6;
+  if (since == null || gap == null) return thin ? "Margins are thin, so a price jump is likely soon." : "";
+  if (since <= 3) return "Prices have just jumped and should slide back over the coming weeks.";
+  if (thin || since >= gap) return `Late in the cycle: ${since} days since the last jump, so the next one is due.`;
+  if (since < gap/2) return `Early in the cycle: prices are sliding back after the jump ${since} days ago.`;
+  return `Mid-cycle: prices are still sliding, ${since} days since the last jump.`;
+}
 function renderInsights(){
   const sinceJump = ST.last_restore ? daysBetween(ST.last_restore, CTX.asof) : null;
-  const dow = ST.dow, names=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-  const lo = dow.indexOf(Math.min(...dow)), hi = dow.indexOf(Math.max(...dow));
-  const y = ST.cycles_by_year, ly = y.at(-1);
-  const I = [
-    ["The Sydney cycle", `${Math.round(ST.cycle_gap_calm/7)} weeks`, `In normal times Sydney unleaded jumps about ${ST.cycle_amp_calm.toFixed(0)}c every ${ST.cycle_gap_calm.toFixed(0)} days, then slides back a cent or so a day. ${ly.year} so far: ${ly.n} jumps, typically ${ly.amp.toFixed(0)}c.`],
-    ["Where we are now", sinceJump!=null?`${sinceJump} days`:"n/a", `since the last price jump on ${ST.last_restore?nice(ST.last_restore):"record"}. ${sinceJump!=null && sinceJump > ST.cycle_gap_calm ? "That is longer than a normal cycle, though a data gap means a jump in September may be missing." : "Prices usually keep sliding until the next jump."}`],
-    ["Margin today", `${ST.margin_now.toFixed(1)}c`, `U91 is selling ${ST.margin_now.toFixed(1)}c above wholesale. The 2019 to 2025 typical margin was ${ST.margin_typ.toFixed(0)}c. When margins get this thin, the next jump is usually close.`],
-    ["Day of week", "under 1c", `${names[lo]} averaged ${Math.abs(dow[lo]).toFixed(1)}c below its weekly average and ${names[hi]} was dearest, in normal periods since 2019. The cycle matters far more than the weekday.`],
-    ["Shop around", `${ST.shop_around.toFixed(0)}c`, `The cheapest 10% of Sydney stations sit about ${ST.shop_around.toFixed(0)}c below the median on an average day since 2023. That is about $${(ST.shop_around*0.5).toFixed(0)} on a 50L tank.`],
-    ["Diesel premium", `${ST.dl_gap_now.toFixed(0)}c`, `Diesel costs ${ST.dl_gap_now.toFixed(0)}c more than U91 today, against ${ST.dl_gap_2019_25.toFixed(0)}c on average from 2019 to 2025.`],
-    ["E10 and Premium", `${ST.e10_disc.toFixed(0)}c / ${ST.p98_prem.toFixed(0)}c`, `Since 2023, E10 has averaged ${ST.e10_disc.toFixed(1)}c a litre below U91 in Sydney and Premium 98 ${ST.p98_prem.toFixed(0)}c above.`],
-    ["Since 2019", `${ST.low_2019.toFixed(0)}c → ${ST.high_all.toFixed(0)}c`, `Sydney's U91 median has ranged from ${ST.low_2019.toFixed(1)}c (2020 COVID low) to ${ST.high_all.toFixed(1)}c on ${nice(ST.high_date)}.`],
-    ["Oil today", `US$${CTX.brent_usd.toFixed(0)}`, `Brent crude is US$${CTX.brent_usd.toFixed(1)} a barrel, about A$${CTX.brent_aud.toFixed(0)} at ${CTX.audusd.toFixed(3)} US cents per Australian dollar (as at ${nice(CTX.fred_last)}).`],
+  const dow = ST.dow.map(v => v ?? 0), names = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const lo = dow.indexOf(Math.min(...dow)), hi = dow.indexOf(Math.max(...dow)), gap = ST.cycle_gap_calm;
+  // insights() in app/src/lib/copy.ts; the three that change what you do come first, the rest sit under More facts
+  const key = [
+    ["Where we are now", sinceJump != null ? `${sinceJump} days` : "n/a", `since the last jump${ST.last_restore ? ` on ${nice(ST.last_restore)}` : ""}.${sinceJump != null && gap != null && sinceJump > gap ? " Longer than a normal cycle." : ""}`],
+    ["The Sydney cycle", gap != null ? `${Math.round(gap/7)} weeks` : "–", `Normally prices jump about ${n0(ST.cycle_amp_calm)}c every ${n0(gap)} days, then slide back slowly.`],
+    ["Shop around", `${n0(ST.shop_around)}c`, `How much less the cheapest 10% of stations charge than the median on a typical day${ST.shop_around != null ? `: about ${dollars(ST.shop_around, state.tank)} on a ${state.tank} L tank` : ""}.`],
   ];
-  document.getElementById("insights").innerHTML = I.map(([t,b,p])=>`<div class="ins"><div class="tag">${t}</div><div class="big num">${b}</div><p>${p}</p></div>`).join("");
+  const more = [
+    ["Margin today", `${n0(ST.margin_now,1)}c`, `U91 over wholesale, against a typical ${n0(ST.margin_typ)}c. Thin margins usually end in a jump.`],
+    ["Day of week", "under 1c", `${names[lo]} is cheapest and ${names[hi]} dearest, but the gap is under 1c. The cycle matters far more.`],
+    ["Diesel premium", `${n0(ST.dl_gap_now)}c`, `Over U91 today, against ${n0(ST.dl_gap_2019_25)}c on average from 2019 to 2025.`],
+    ["E10 and Premium", `${n0(ST.e10_disc)}c / ${n0(ST.p98_prem)}c`, "E10 below U91, Premium 98 above, on average since 2023."],
+    ["Since 2019", `${n0(ST.low_2019)}c → ${n0(ST.high_all)}c`, `Sydney U91 median, from the 2020 low to the high on ${ST.high_date ? nice(ST.high_date) : "–"}.`],
+    ["Oil today", `US$${n0(CTX.brent_usd)}`, `Brent crude a barrel, about A$${n0(CTX.brent_aud)} (${CTX.fred_last ? nice(CTX.fred_last) : "–"}).`],
+  ];
+  $("insights").innerHTML = key.map(([t,b,p]) => `<div class="card ins"><div class="eyebrow">${t}</div><div class="bignum">${b}</div><p class="small">${p}</p></div>`).join("");
+  $("facts").innerHTML = more.map(([t,b,p]) => `<div><div class="fh"><span class="eyebrow">${t}</span><b>${b}</b></div><p class="small" style="color:var(--fg2)">${p}</p></div>`).join("");
+  const cs = cycleSummary(); $("cycle").textContent = cs; $("cycle").hidden = !cs;
 }
 
+let allBrands = false;
 function brandStats(){
   const f = state.fuel, med = live[f].now, by = {};
   D.stations.forEach(s => { const p = s.p[f]; if (!p || p[0]==null) return; (by[s.b] = by[s.b] || []).push(p[0]); });
   return Object.entries(by).filter(([b,a]) => a.length >= 3).map(([b,a]) => ({brand:b, n:a.length, prem:+(a.reduce((x,y)=>x+y,0)/a.length - med).toFixed(1)})).sort((x,y)=>x.prem-y.prem);
 }
 function renderBrands(){
-  const b = brandStats();
-  document.getElementById("brandEyebrow").textContent = `Sydney ${fuelName(state.fuel)}, ${nice(D.snap_asof)}`;
-  document.getElementById("brandBoxChart").style.height = Math.max(220, 26*b.length + 60) + "px";
-  const costco = D.stations.filter(s=>s.b==="Costco");
-  const cNote = costco.length ? ` Costco's ${costco.length} Sydney sites are members-only and only report E10 and Premium 98, so they appear for those fuels and not for U91 or diesel.` : "";
-  document.getElementById("brandNote").textContent = `Average price at each brand's Sydney stations today minus the Sydney median (${live[state.fuel].now.toFixed(1)}c). Brands with 3+ stations selling this fuel. Negative is cheaper.` + cNote;
-  const cfg = {type:"bar", data:{labels:b.map(x=>x.brand), datasets:[{data:b.map(x=>x.prem), backgroundColor:b.map(x=>x.prem<0?css("--cheap"):css("--dear")), borderRadius:4, borderSkipped:false, barThickness:12}]},
-    options:{indexAxis:"y", responsive:true, maintainAspectRatio:false, animation:false,
-      plugins:{legend:{display:false}, tooltip:{...tip(), displayColors:false, callbacks:{label:i=>` ${fmt(i.raw)}c vs median · ${b[i.dataIndex].n} stations`}}},
-      scales:{x:{...axis(), ticks:{...axis().ticks, callback:v=>fmt(v,0)+"c"}}, y:{...axis(), grid:{display:false}, ticks:{...axis().ticks, autoSkip:false, font:{family:"Barlow",size:13}, color:css("--fg2")}}}}};
-  if (charts.brands) charts.brands.destroy();
-  charts.brands = new Chart(document.getElementById("brands"), cfg);
+  const b = brandStats(), SHOWN = 6, maxAbs = Math.max(1, ...b.map(x => Math.abs(x.prem)));
+  $("brands").innerHTML = (allBrands ? b : b.slice(0, SHOWN)).map(x => `<div class="brow" title="${esc(x.brand)}: ${fmt(x.prem)}c vs median, ${x.n} stations">
+      <span class="bn">${esc(x.brand)}</span>
+      <span class="track"><span class="mid"></span><span class="bar" style="background:var(${x.prem < 0 ? "--cheap" : "--dear"});width:${(Math.abs(x.prem)/maxAbs*50).toFixed(1)}%;${x.prem < 0 ? "right:50%" : "left:50%"}"></span></span>
+      <span class="bv">${x.prem < 0 ? "−" : "+"}${Math.abs(x.prem).toFixed(1)}c</span></div>`).join("") || `<p class="small">No brand has 3+ stations selling ${fuelName(state.fuel)} today.</p>`;
+  const btn = $("allBrands"); btn.hidden = b.length <= SHOWN; btn.textContent = allBrands ? "Show fewer" : `Show all ${b.length} brands`;
+  const costco = D.stations.some(s => s.b === "Costco");
+  $("brandNote").textContent = `Average price at each brand's Sydney stations vs the Sydney median (${live[state.fuel].now.toFixed(1)}c), ${nice(D.snap_asof)}. Brands with 3+ stations selling this fuel.` + (costco ? " Costco is members-only and only reports E10 and Premium 98." : "");
 }
+$("allBrands").addEventListener("click", () => { allBrands = !allBrands; renderBrands(); });
+$("toTrends").addEventListener("click", () => $("trends").scrollIntoView({behavior:"smooth", block:"start"}));
 
+// ---- how good is the forecast
 function renderBT(){
+  if (!window.Chart || !$("btBox").open) return;   // drawn when opened: a closed <details> has no size
   const b = D.bt.bt7;
   const cfg = {type:"line", data:{labels:b.dates, datasets:[
       {label:"Actual", data:b.actual, borderColor:css("--fg"), borderWidth:1.25, pointRadius:0, tension:.1},
@@ -398,75 +679,36 @@ function renderBT(){
       scales:{x:{...axis(), grid:{display:false}, ticks:{...axis().ticks, maxRotation:0, autoSkip:false, callback:(v,i)=>{const l=b.dates[i]; return /-(01|04|07|10)-01$/.test(l)?new Date(l+"T00:00:00Z").toLocaleDateString("en-AU",{month:"short",year:"2-digit",timeZone:"UTC"}):null;}}},
               y:{...axis(), ticks:{...axis().ticks, callback:v=>fmt(v,0)+"c"}}}}};
   if (charts.bt) charts.bt.destroy();
-  charts.bt = new Chart(document.getElementById("bt"), cfg);
+  charts.bt = new Chart($("bt"), cfg);
 }
+$("btBox").addEventListener("toggle", renderBT);
 function renderBTTable(){
   const S = D.bt.summary, f = state.fuel, prod = D.bt.prod;
-  document.getElementById("btTable").innerHTML = [1,3,7,14].map(h => { const r = S[f+"|"+h];
+  $("btTable").innerHTML = [1,3,7,14].map(h => { const r = S[f+"|"+h];
     return `<tr><td>${h} day${h>1?"s":""}</td><td class="n">${r.naive.toFixed(1)}c</td><td class="n">${r[prod].toFixed(1)}c</td><td class="n"><b>${Math.round((1-r[prod]/r.naive)*100)}%</b></td><td class="n">${r.model_shock.toFixed(1)} vs ${r.naive_shock.toFixed(1)}</td><td class="n">${Math.round(r.dir*100)}%</td></tr>`; }).join("");
-  const auc = D.bt.auc[f];
-  document.getElementById("btNote").textContent = `${fuelName(f)}, mean absolute error in c/L, tested ${D.bt.test_from} to ${D.bt.test_to.slice(0,7)}. "Shock months" are the 2022 and 2026 oil shocks (model vs no change). Direction counts moves of 1c or more. Price-jump classifier AUC ${auc.toFixed(2)} (0.5 is a coin toss).`;
+  const r7 = S[f+"|7"];
+  $("accLine").textContent = `A week ahead, the ${fuelName(f)} forecast is off by about ${r7[prod].toFixed(1)}c on average, ${Math.round((1-r7[prod]/r7.naive)*100)}% closer than assuming prices stay where they are.`;
+  $("btNote").textContent = `Mean absolute error in c/L, tested ${D.bt.test_from} to ${D.bt.test_to.slice(0,7)}. "Shock months" are the 2022 and 2026 oil shocks (model vs no change). Direction counts moves of 1c or more. Price-jump classifier AUC ${D.bt.auc[f].toFixed(2)} (0.5 is a coin toss).`;
+  $("liveModel").textContent = `Live model: ${CTX.live_model}.`;
 }
 function renderFresh(){
   const age = s => daysBetween(s, CTX.asof);
   const items = [
     ["Live Sydney prices", CTX.asof, 1], ["Wholesale TGP (AIP)", CTX.tgp_last, 5], ["Brent and AUD (FRED)", CTX.fred_last, 10],
     ["Full NSW price history", CTX.history_last, 60]];
-  document.getElementById("fresh").innerHTML = items.map(([l,d,ok])=>`<div><span><span class="dot ${age(d)<=ok?"ok":"warn"}"></span>${l}</span><b>${nice(d)}</b></div>`).join("")
+  $("fresh").innerHTML = items.map(([l,d,ok])=>`<div><span><span class="dot ${age(d)<=ok?"ok":"warn"}"></span>${l}</span><b>${nice(d)}</b></div>`).join("")
     + `<div><span>Daily snapshots stored</span><b>${CTX.snapshot_days}</b></div>`;
 }
-// ---- station finder
-const qEl = document.getElementById("q"), radEl = document.getElementById("radius"), memEl = document.getElementById("members");
-const SUBS = {}; D.stations.forEach(s => { const k = s.s+"|"+s.pc; (SUBS[k] = SUBS[k] || {s:s.s, pc:s.pc, la:[], lo:[]}); SUBS[k].la.push(s.la); SUBS[k].lo.push(s.lo); });
-const SUBLIST = Object.values(SUBS).map(x => ({s:x.s, pc:x.pc, la:x.la.reduce((a,b)=>a+b,0)/x.la.length, lo:x.lo.reduce((a,b)=>a+b,0)/x.lo.length})).sort((a,b)=>a.s.localeCompare(b.s));
-document.getElementById("subList").innerHTML = SUBLIST.map(x=>`<option value="${esc(x.s)} ${esc(x.pc)}"></option>`).join("");
-const km = (a,b,c,d) => { const r=Math.PI/180, x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2; return 12742*Math.asin(Math.sqrt(x)); };
-let brandSel = null;   // null = all brands
-function brandOptions(){
-  const counts = {}; D.stations.forEach(s => { if (s.p[state.fuel]) counts[s.b] = (counts[s.b]||0)+1; });
-  const list = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  document.getElementById("brandList").innerHTML = list.map(([b,n]) => `<label><input type="checkbox" value="${esc(b)}" ${!brandSel||brandSel.has(b)?"checked":""}> ${esc(b)}<span>${n}</span></label>`).join("");
-  document.querySelectorAll("#brandList input").forEach(cb => cb.addEventListener("change", () => {
-    const on = [...document.querySelectorAll("#brandList input")].filter(x=>x.checked).map(x=>x.value);
-    brandSel = on.length === list.length ? null : new Set(on); renderStations(); }));
-  document.getElementById("brandSummary").textContent = !brandSel ? "All brands" : brandSel.size === 0 ? "No brands" : brandSel.size <= 2 ? [...brandSel].join(", ") : `${brandSel.size} brands`;
+
+function renderToday(){ renderStations(); renderHero(); }
+function render(){
+  $("trEyebrow").textContent = `Sydney ${fuelName(state.fuel)}`;
+  brandOptions(); renderToday(); renderWhy(); renderInsights(); renderMain(); renderBrands(); renderBTTable();
 }
-document.getElementById("brandAll").addEventListener("click", () => { brandSel = null; brandOptions(); renderStations(); });
-document.getElementById("brandNone").addEventListener("click", () => { brandSel = new Set(); brandOptions(); renderStations(); });
-function findSuburb(q){
-  q = q.trim().toLowerCase(); if (!q) return null;
-  const m = q.match(/(\d{4})/); const name = q.replace(/\d{4}/,"").trim();
-  let hits = SUBLIST.filter(x => (!m || String(x.pc)===m[1]) && (!name || x.s.toLowerCase()===name));
-  if (!hits.length) hits = SUBLIST.filter(x => (!m || String(x.pc)===m[1]) && (!name || x.s.toLowerCase().startsWith(name)));
-  if (!hits.length && name) hits = SUBLIST.filter(x => x.s.toLowerCase().includes(name));
-  if (!hits.length) return null;
-  const la = hits.reduce((a,h)=>a+h.la,0)/hits.length, lo = hits.reduce((a,h)=>a+h.lo,0)/hits.length;
-  return {label: hits.length===1 ? `${hits[0].s} ${hits[0].pc}` : hits.map(h=>h.s).filter((v,i,a)=>a.indexOf(v)===i).slice(0,3).join(", "), la, lo};
-}
-const ADV = {now:"up", by:"up", hi:"down", wait:"down", any:"flat", ok:"flat", chk:"flat"};
-const WHEN = "When to fill combines the model's Sydney forecast for this fuel (the day the chance of a 5c+ jump passes 25%, or the expected path is 5c higher) with how each station has behaved since 2024: its usual price vs the median, how quickly it follows price-jump waves, and whether it cycles at all.";
-function renderStations(){
-  const f = state.fuel, med = live[f].now, home = findSuburb(qEl.value), R = +radEl.value;
-  document.getElementById("stEyebrow").textContent = `${fuelName(f)} · ${nice(D.snap_asof)}`;
-  let rows = D.stations.filter(s => s.p[f] && s.p[f][0]!=null && (memEl.checked || !s.m) && (!brandSel || brandSel.has(s.b)))
-    .map(s => ({...s, price:s.p[f][0], age:s.p[f][1], adv:s.p[f].slice(2), d: home ? km(home.la, home.lo, s.la, s.lo) : null}));
-  if (home) rows = rows.filter(s => s.d <= R);
-  rows.sort((a,b) => a.price - b.price || (a.d??0) - (b.d??0));
-  const shown = rows.slice(0, 60);
-  document.getElementById("stRows").innerHTML = shown.map((s,i) => `<tr><td class="n">${i+1}</td><td>${esc(s.n.replace(/\s*\(members only\)/i,""))}${s.m?'<span class="tag-m">Members only</span>':""}<div class="why">${s.age==null?"":s.age===0?"Updated today":s.age===1?"Updated 1 day ago":"Updated "+s.age+" days ago"}${s.age>7?" · check before driving":""}</div></td><td>${esc(s.b)}</td><td>${esc(s.s)} <span class="stale">${esc(s.pc)}</span></td><td class="n">${s.d!=null?s.d.toFixed(1)+" km":"–"}</td><td class="n"><b>${s.price.toFixed(1)}</b></td><td class="n ${s.price<med?"cheap":""}">${fmt(s.price-med)}</td><td class="when"><span class="pill ${ADV[s.adv[0]]||"flat"}">${esc(s.adv[1])}</span><div class="why">${esc(s.adv[2])}</div></td></tr>`).join("")
-    || `<tr><td colspan="8">${qEl.value && !home ? `No Sydney suburb matches “${esc(qEl.value)}”. Try a postcode.` : "No stations match these filters."}</td></tr>`;
-  const near = home ? [...new Set(rows.map(s=>s.s))] : [];
-  document.getElementById("nearby").innerHTML = home ? `<span class="chip home">${esc(home.label)}</span>` + near.filter(n=>!home.label.startsWith(n)).slice(0,24).map(n=>`<span class="chip">${esc(n)}</span>`).join("") + (near.length>25?`<span class="chip">+${near.length-25} more</span>`:"") : "";
-  document.getElementById("stNote").textContent = home
-    ? `${rows.length} station${rows.length===1?"":"s"} within ${R} km of ${home.label}, across ${near.length} suburb${near.length===1?"":"s"}, cheapest first${rows.length>60?" (top 60 shown)":""}. Distance is straight-line from the suburb's centre. ${WHEN}`
-    : `Cheapest ${shown.length} of ${rows.length} Sydney stations selling ${fuelName(f)} today. Prices are as last reported to FuelCheck; check stations not updated for over a week before driving there. ${WHEN}`;
-}
-[qEl, radEl, memEl].forEach(el => el.addEventListener(el===qEl?"input":"change", renderStations));
-document.addEventListener("click", e => { const box = document.getElementById("brandBox"); if (box.open && !box.contains(e.target)) box.open = false; });
-function render(){ seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===state.fuel))); renderSignal(); renderHorizons(); renderMain(); renderBTTable(); brandOptions(); renderStations(); renderBrands(); }
-render(); renderInsights(); renderBT(); renderFresh();
-const rerender = () => { renderMain(); renderBrands(); renderBT(); };
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerender);
+render(); renderFresh();
+const rerender = () => { renderMain(); renderBT(); };
+let heroW = 0;
+if (window.ResizeObserver) new ResizeObserver(() => { const w = $("hero").clientWidth; if (w !== heroW) { heroW = w; sparkline(); } }).observe($("hero"));
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
 new MutationObserver(rerender).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
 </script>
