@@ -10,6 +10,7 @@ Runs build.py unchanged (so the dashboard HTML is rebuilt too) and reuses the `d
                              (see track_api.py; records today's calls in BASE/store/calls.csv)
   OUT/api/v1/station/{id}.json  per station (id = NSW station code): 400 days of daily prices, profile, own forecast
                                  (see station_api.py)
+  OUT/api/v1/app.json        the latest app version per platform and where to get it (app_release.json, checked)
   OUT/index.html             the dashboard (its source credits rewritten for this pipeline, see DASHBOARD_CREDITS)
   OUT/s/index.html           the share page for the app's Share link (share.html, with a hash CSP)
 Every file carries `generated_at` (UTC, when this export ran: the app's "Refreshed" time); the top-level files also carry
@@ -204,6 +205,29 @@ if st_txt:
         if re.fullmatch(r"\d+", str(i)): open(f"{api}/station/{i}.json", "w").write(txt)
         else: print(f"export_api: WARNING skipped station file for a non-numeric code {str(i)[:20]!r}")
     files["station/"] = sum(sizes); files["station/count"] = len(os.listdir(f"{api}/station"))
+# The latest app release (app_release.json, edited by hand after each native build): apps older than it show
+# "Bowser X is available" (app/src/components/update-notice.tsx, which applies the same URL rule). Each platform is
+# checked on its own and fails soft: a bad entry is published as null (no notice there) with a warning.
+REL_URL = re.compile(r"https://expo\.dev/accounts/nathann97/projects/fuel-forecast/builds/[0-9a-f-]{36}", re.ASCII)
+def release(os_name, r):
+    if r is None: return None
+    ok = (isinstance(r, dict) and isinstance(r.get("version"), str) and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", r["version"])
+          and isinstance(r.get("url"), str) and REL_URL.fullmatch(r["url"])
+          and (r.get("notes") is None or (isinstance(r["notes"], str) and len(r["notes"]) <= 300)))
+    if not ok:
+        warnings.append(f"app.json: {os_name} release ignored (needs an x.y.z version, a fuel-forecast EAS build url, notes up to 300 characters)")
+        print(f"::warning::{warnings[-1]}")
+        return None
+    return {"version": r["version"], "url": r["url"], **({"notes": r["notes"]} if r.get("notes") else {})}
+try:
+    rel = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_release.json"), encoding="utf-8"))
+    rel_txt = json.dumps({"schema": SCHEMA, "generated_at": GENERATED_AT,
+                          **{k: release(k, rel.get(k) if isinstance(rel, dict) else None) for k in ("android", "ios")}}, indent=1)
+    open(f"{api}/app.json", "w").write(rel_txt); files["app.json"] = len(rel_txt)
+except Exception as e:
+    if os.path.exists(f"{api}/app.json"): os.remove(f"{api}/app.json")
+    warnings.append(re.sub(r"(?<![\w.:/-])(?:/[\w.-]+)+/", "", f"app.json not published: {type(e).__name__}: {e}")[:500])
+    print(f"::warning::{warnings[-1]} (no update notice in the app)")
 meta = {"schema": SCHEMA, "generated_at": GENERATED_AT, "license": LICENSE,
         "asof": ctx["asof"], "stations_asof": data["snap_asof"], "tgp_last": ctx.get("tgp_last"), "fred_last": ctx.get("fred_last"),
         "history_last": ctx.get("history_last"), "live_model": ctx.get("live_model"), "snapshot_days": ctx.get("snapshot_days"),

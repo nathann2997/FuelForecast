@@ -2,6 +2,36 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — "A new version of Bowser is available" on every older version (pipeline + JS, all runtimes)
+
+Owner rule: until Bowser is listed on an app store, every app older than the latest APK shows this notice.
+- **App:** `src/components/update-notice.tsx` runs on every cold launch, 1.5 s after start.
+  - It reads `api/v1/app.json`. If this platform's version is newer than the installed one, it shows a dialog: "Bowser X is available", the release notes, and Update (opens the EAS build page) / Later.
+  - Offline, or with no file, nothing shows.
+  - Only `https://expo.dev/` links open.
+  - The component is self-contained (its own colours, no app imports) so the same file runs on older versions.
+  - Analytics event `update.notice` (shown/update/later).
+- **Pipeline:** `sydney/pipeline/app_release.json` is edited by hand after each native build: version, build URL and notes. `export_api.py` checks it and publishes it as `api/v1/app.json`. A bad file fails soft: no file, a `meta.warnings` entry and a GitHub warning.
+- **Older versions:** each runtime's last shipped code plus the notice, as an OTA update to `preview`. Built in worktrees on branches `ota/<runtime>-update-notice`:
+
+  | Runtime | Base commit |
+  |---|---|
+  | 0.6.1 | d1b7b92 |
+  | 0.6.0 | a7669a5 |
+  | 0.5.0 | c87518d |
+  | 0.4.0 | fad2598 |
+  | 0.3.0 | cd87c96 |
+  | 0.1.0 | 15f9dd8 |
+
+  0.7.0 phones get it with this release's OTA. Phones pick it up on their next launch and show the notice on the launch after that.
+- **QA audit:** no high-severity issues. Fixed from it:
+  - Links are pinned to Bowser's own EAS build pages, by the same rule in the app and the pipeline (ASCII only).
+  - Each platform is validated separately, only known fields are published, and runner paths are stripped from warnings.
+  - The notice asks once per app process, so a remount doesn't ask again.
+  - An 8 s fetch timeout, and a 3.5 s start delay so it appears after the splash.
+  - Body text scrolls at large font sizes; header role and modal accessibility; translucent nav bar.
+- **Release step from now on:** after a native build finishes, set `app_release.json` to its version and build URL, then push. It goes live with the next pipeline run, or run `gh workflow run daily.yml`.
+
 ## 2026-10-22 — Data health: alerts and automatic fixes for the app's data (pipeline + workflow, no app change)
 
 Runbook: `docs/DATA_HEALTH.md`.

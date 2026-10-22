@@ -8,7 +8,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import Storage from '@/lib/storage';
 import { initAlerts } from '@/lib/alerts';
 import { configureAnalytics, reportError, track } from '@/lib/analytics';
-import { HttpError, isNotFound } from '@/lib/api';
+import { API_BASE, HttpError, isNotFound } from '@/lib/api';
+import { UpdateNotice } from '@/components/update-notice';
 import { useWidgetSync } from '@/widget/sync';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -78,6 +79,7 @@ function RootLayout() {
           <Stack.Screen name="track" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
         </Stack>
+        <UpdateNotice releaseUrl={`${API_BASE}/app.json`} onAction={(action, latest) => track('update.notice', { action, latest })} />
       </ThemeProvider>
     </PersistQueryClientProvider>
     </GestureHandlerRootView>
