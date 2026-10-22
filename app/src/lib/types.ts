@@ -151,3 +151,30 @@ export type StationDetail = Stamp & {
   profile: StationProfile | null;
   fc: Partial<Record<Fuel, StationForecast>>;
 };
+
+// ---- track.json: Bowser's daily calls and how they turned out (sydney/pipeline/track_api.py). Added in 0.7; an older
+// API has no track.json (404), and the app then hides the track record.
+export type CallStatus = 'right' | 'close' | 'wrong' | 'pending';
+
+export type Call = {
+  date: string;                   // Sydney day of the call (the first call of that day)
+  fuel: Fuel;
+  cls: VerdictCls;                // up = fill, down = wait, flat = no rush
+  head: string;                   // the headline shown that day
+  now: number;                    // Sydney median when the call was made, c/L
+  move: number | null;            // average median over the days after so far, less `now` (null before any day is known)
+  days: number;                   // days of the window known so far
+  status: CallStatus;             // pending until the whole window has passed
+};
+
+export type Tally = { n: number; right: number; close: number; wrong: number; from: string | null; to: string | null };
+
+export type Track = Stamp & {
+  schema: number;
+  asof: string;
+  window: number;                 // days after a call that it's scored on (7)
+  min_days: number;
+  calls: Call[];                  // live calls, last 60 days, newest first
+  live: Record<Fuel, Tally & { since: string | null }>;
+  replay: Record<Fuel, Tally> | null;   // the same rule replayed on the walk-forward backtest
+};

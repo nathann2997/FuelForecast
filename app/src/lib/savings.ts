@@ -26,8 +26,9 @@ export function weekAfter(h: History, fuel: Fill['fuel'], date: string): number 
     if (v != null) vals.push(v);
   }
   const last = addDays(h.start, (h.hist[fuel]?.med.length ?? 0) - 1);
-  // The whole window must have passed (a gap day in a past week is fine; a day not yet published isn't)
-  if (last < addDays(date, WINDOW) || vals.length < MIN_DAYS) return null;
+  // The window's last day must be over: history's last day is today, a partial day (same rule as track_api.window).
+  // A gap day in a past week is fine; a day not yet published isn't.
+  if (last <= addDays(date, WINDOW) || vals.length < MIN_DAYS) return null;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 

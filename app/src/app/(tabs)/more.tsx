@@ -121,6 +121,15 @@ export default function More() {
               <Stat big={`${week.dir}%`} label="right direction" />
               <Stat big={`${week.naive.toFixed(1)}c`} label="error guessing no change" />
             </Card>
+            <Pressable onPress={() => router.push('/track')} accessibilityRole="link" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+              <Card style={styles.between}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <T color={c.fg} style={{ fontWeight: '700' }}>Track record</T>
+                  <T kind="small">Each daily call and how it turned out</T>
+                </View>
+                <T color={c.muted} style={{ fontSize: 22 }}>›</T>
+              </Card>
+            </Pressable>
             <Disclosure title="Accuracy by horizon">
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 <Row cells={['Horizon', 'No change', 'Model', 'Gain', 'Direction']} head />

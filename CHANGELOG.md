@@ -2,6 +2,31 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Bowser 0.7 build C: track record, "Was Bowser right?" (pipeline + JS, runtime 0.6.1, not shipped)
+
+Plan: `docs/BOWSER_0.7_PLAN.md` §C.
+- **Pipeline (app path only).** New `sydney/pipeline/track_api.py`, called from `export_api.py`. `build.py`, the Claude task and `main`'s store are unchanged, and `sydney/store/calls.csv` is gitignored on `main`.
+  - **Live calls:** the first call of each Sydney day per fuel goes to `store/calls.csv` on the `data` branch. It's appended only after every output is written, and never on `--allow-stale`.
+  - **Replay:** the same `verdict()` rule is applied to the walk-forward backtest, using the model running live.
+  - **Scoring:** both are scored on the average Sydney median over the 7 days after. A call is complete once the window's last day is over and at least 5 of its days are known. Fill is right at +1c or more and wrong at −1c or less; Wait is the mirror; No rush is right under 3c and wrong at 5c or more.
+  - **Output:** new `api/v1/track.json` (about 1 KB), documented in `sydney/README.md`. Damaged rows in `calls.csv` are skipped. The file fails soft like the station files.
+  - **Replay today:** U91 83%, E10 82%, P98 81% and diesel 88% right.
+- **App:**
+  - **`/track`:** "Was Bowser right?" with the % right (replayed "tested on 2021–2026 prices" until 10 live calls have played out, then live), a right/close/wrong bar, and recent calls. Each call shows the date, the call, the median it was made at, what happened ("Prices averaged 2.3c lower the week after" / "So far 1.2c lower (4 of 7 days)"), what following it was worth on your tank, and its status. "How calls are scored" explains the rule.
+  - **Today:** the proof strip gains a "Calls right 84%" tile. Savings is now "You saved".
+  - **More:** a "Track record" link under "How good is the forecast?".
+  - `useTrack` doesn't retry a 404 (an API from before 0.7), and the screen says the record arrives with the next update.
+  - The app's savings window now uses the same "last day is over" rule.
+- **Checks:** QA audit done, with no high or medium issues. Fixed from it:
+  - A call could be recorded on a day whose API never published.
+  - The replay used a different model from the live one.
+  - One bad CSV row hid the whole record.
+  - Pending calls could be scored on a partial day.
+  - A local run wrote into `main`'s store.
+  - Two a11y labels.
+  - The repeated `sys.path` insert.
+  - tsc, lint and jest pass (378). The pipeline was run on a scratch copy (twice, plus junk rows, `--allow-stale` and no parquet files). Web preview at 360 and 390 px, light and dark, against the scratch API.
+
 ## 2026-10-22 — Bowser 0.7 build B: fill log and savings (JS only, runtime 0.6.1, not shipped)
 
 Plan: `docs/BOWSER_0.7_PLAN.md` §B. Builds on A: a fill records your price after discounts.

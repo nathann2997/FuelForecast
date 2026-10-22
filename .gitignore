@@ -18,3 +18,5 @@ sydney/pipeline/pull_nsw.js
 !*.example.*
 # raw downloads from the pipeline's fetch step
 sydney/inbox/
+# the app pipeline's track record (export_api.py) lives on the data branch; a local run must not add it to main
+sydney/store/calls.csv

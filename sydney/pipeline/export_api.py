@@ -6,6 +6,8 @@ Runs build.py unchanged (so the dashboard HTML is rebuilt too) and reuses the `d
   OUT/api/v1/forecast.json   per-fuel forecast + verdict, model context, consumer stats, brands, backtest
   OUT/api/v1/stations.json   today's Sydney stations with per-fuel price and "when to fill" advice, suburb centroids
   OUT/api/v1/history.json    daily Sydney median / p10 / p90 per fuel and wholesale TGP since 2019
+  OUT/api/v1/track.json      the track record: recent live calls and how they turned out, plus the replayed backtest
+                             (see track_api.py; records today's calls in BASE/store/calls.csv)
   OUT/api/v1/station/{id}.json  per station (id = NSW station code): 400 days of daily prices, profile, own forecast
                                  (see station_api.py)
   OUT/index.html             the dashboard (its source credits rewritten for this pipeline, see DASHBOARD_CREDITS)
@@ -145,11 +147,31 @@ except Exception as e:
     st_txt = {}; warnings.append(re.sub(r"(?<![\w.:/-])(?:/[\w.-]+)+/", "", f"station files unavailable: {type(e).__name__}: {e}")[:500])
     print("!" * 70 + f"\nexport_api: WARNING {warnings[-1]}\n  publishing without station/\n" + "!" * 70)
 
+# track record (track_api.py) fails soft too: today's calls (not on --allow-stale runs, whose data isn't today's) are
+# scored with the saved ones and the replayed backtest, and only saved to store/calls.csv at the very end, once every
+# file has been written; on any error, publish without track.json and warn
+track_txt, new_calls = None, []
+try:
+    if os.path.dirname(os.path.abspath(__file__)) not in sys.path: sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import track_api
+    if not ALLOW_STALE: new_calls = track_api.todays_calls(BASE, ctx["asof"], data["live"], verdict)
+    track = track_api.build(BASE, verdict, SCHEMA, STAMP, extra=new_calls, live_model=ctx.get("live_model"))
+    t_errs = track_api.check(track)
+    if t_errs: raise RuntimeError(f"{len(t_errs)} check(s) failed, e.g. {'; '.join(t_errs[:3])}")
+    track_txt = json.dumps(track, separators=(",", ":"), allow_nan=False)
+except Exception as e:
+    new_calls = []
+    warnings.append(re.sub(r"(?<![\w.:/-])(?:/[\w.-]+)+/", "", f"track record unavailable: {type(e).__name__}: {e}")[:500])
+    print("!" * 70 + f"\nexport_api: WARNING {warnings[-1]}\n  publishing without track.json\n" + "!" * 70)
+
 api = f"{OUT}/api/v1"; os.makedirs(api, exist_ok=True)
 files = {}
 for name, obj in [("forecast", forecast), ("stations", stations), ("history", history)]:
     txt = json.dumps(obj, separators=(",", ":"), allow_nan=False)
     open(f"{api}/{name}.json", "w").write(txt); files[f"{name}.json"] = len(txt)
+if track_txt is not None:
+    open(f"{api}/track.json", "w").write(track_txt); files["track.json"] = len(track_txt)
+elif os.path.exists(f"{api}/track.json"): os.remove(f"{api}/track.json")
 shutil.rmtree(f"{api}/station", ignore_errors=True)
 sizes = sorted(len(t) for t in st_txt.values())
 if st_txt:
@@ -183,6 +205,10 @@ csp = (f"default-src 'none'; script-src 'sha256-{sha}' https://cdnjs.cloudflare.
 if html.count("<title>") != 1: raise RuntimeError("dashboard: no <title> to put the CSP after")
 html = html.replace("<title>", f'<meta http-equiv="Content-Security-Policy" content="{csp}">\n<title>', 1)
 open(f"{OUT}/index.html", "w", encoding="utf-8").write(html)   # UTF-8 bytes: what the CSP hash was taken over
+try:
+    if new_calls: track_api.append(BASE, new_calls)   # everything is written: today's calls are now on record
+except Exception as e:
+    print(f"export_api: WARNING couldn't save today's calls: {type(e).__name__}: {e}")
 print(f"export_api: {ctx['asof']}, {len(data['stations'])} stations, " + ", ".join(f"{k} {v // 1024}KB" for k, v in files.items() if k != "station/count")
       + (f"; station files {len(sizes)}, p50 {sizes[len(sizes) // 2] // 1024}KB, max {sizes[-1] // 1024}KB" if sizes else "; NO station files")
       + (f"; WARNINGS: {warnings}" if warnings else ""))

@@ -59,6 +59,7 @@ export default function RootLayout() {
           <Stack.Screen name="station/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="trends" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="savings" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="track" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
         </Stack>
       </ThemeProvider>

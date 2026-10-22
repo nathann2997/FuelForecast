@@ -60,10 +60,12 @@ Every build follows the same steps: design, then build, then checks (`tsc`, `exp
     - `flat` (no rush): right if |move| < 3c, wrong if ≥ 5c, else close.
   - **New file `api/v1/track.json`** (schema 1, additive): `{ calls: [{date, fuel, cls, head, now, move, status}] (live, newest first, last 60 days), replay: {fuel: {n, right, close, wrong, from, to}}, live: {fuel: {n, right, close, wrong, since}} }`.
   - It fails soft like the station files: on an error, no `track.json` and a warning.
-  - Replay check (U91, 2021-01 to 2026-08): about 84% right, 10% close, 7% wrong.
+  - The replay uses the model column that's running live (`ctx.live_model`: "+cycle memory" when full, else "+oil & AUD").
+  - Replay check (U91, 2021-01 to 2026-08, "+oil & AUD"): 83% right, 10% close, 7% wrong.
+  - A window is complete once its last day is over (before the latest day in `daily.csv`, which is a partial day). The app's savings use the same rule.
 - **App:**
   - **Screen `/track`:** the headline "Right N% of the time" (live once there are ≥ 10 scored live calls, else the replay, clearly labelled "tested on 2021–2026 prices"), then the live calls list (date, verdict, what happened: "Prices averaged 3.4c higher the week after", ✓ / ≈ / ✗ / pending), and a short "How we score" disclosure.
-  - **Today:** one line under the hero, "✓ Right 84% of the time · Track record ›".
+  - **Today:** a "Calls right 84%" tile in the proof strip under the hero, next to B's savings tile, so the two kinds of evidence sit together.
   - **More:** a link from "How good is the forecast?".
 
 ## D — Share a deal (quick win)

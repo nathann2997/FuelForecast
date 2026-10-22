@@ -70,12 +70,13 @@ describe('fill log', () => {
   });
 });
 
-// History from 2026-10-01: median 236 on day 0, then 240 for seven days (the week after averages 4c higher)
+// History from 2026-10-01: median 236 on day 0, then 240 for seven days (the week after averages 4c higher), and day 8
+// (today, so day 7 is over)
 const H = (med: (number | null)[]): History => ({
   schema: 1, start: '2026-10-01', tgp: { ulp: [], dl: [] },
   hist: { U91: { med, p10: [], p90: [] }, E10: { med: [], p10: [], p90: [] }, P98: { med: [], p10: [], p90: [] }, DL: { med: [], p10: [], p90: [] } },
 });
-const full = H([236, 240, 240, 240, 240, 240, 240, 240]);
+const full = H([236, 240, 240, 240, 240, 240, 240, 240, 241]);
 const f1: Fill = { id: 'x', ...fill() };   // paid 226, median 236, 50 L
 
 describe('savings', () => {
@@ -86,9 +87,9 @@ describe('savings', () => {
   });
   it('averages the week after once it has passed, allowing two gap days', () => {
     expect(weekAfter(full, 'U91', '2026-10-01')).toBe(240);
-    expect(weekAfter(H([236, 240, null, 240, null, 240, 240, 240]), 'U91', '2026-10-01')).toBe(240);
-    expect(weekAfter(H([236, 240, null, null, null, 240, 240, 240]), 'U91', '2026-10-01')).toBeNull();
-    expect(weekAfter(H([236, 240, 240, 240, 240, 240, 240]), 'U91', '2026-10-01')).toBeNull();   // day 7 not out yet
+    expect(weekAfter(H([236, 240, null, 240, null, 240, 240, 240, 241]), 'U91', '2026-10-01')).toBe(240);
+    expect(weekAfter(H([236, 240, null, null, null, 240, 240, 240, 241]), 'U91', '2026-10-01')).toBeNull();
+    expect(weekAfter(H([236, 240, 240, 240, 240, 240, 240, 240]), 'U91', '2026-10-01')).toBeNull();   // day 7 is today: not over yet
   });
   it('splits a saving into where and when', () => {
     // where: (236 − 226) × 50 L = $5; when: (240 − 236) × 50 L = $2
@@ -98,7 +99,7 @@ describe('savings', () => {
     // No median when logged (yesterday's forecast was on screen): where comes from history once it has that day
     expect(fillSaving({ ...f1, median: null }, H([236]))).toEqual({ where: 5, when: null, total: 5, pending: true });
     // Filling dear before a fall costs money, and says so
-    expect(fillSaving({ ...f1, paid: 240 }, H([236, 230, 230, 230, 230, 230, 230, 230]))).toEqual({ where: -2, when: -3, total: -5, pending: false });
+    expect(fillSaving({ ...f1, paid: 240 }, H([236, 230, 230, 230, 230, 230, 230, 230, 230]))).toEqual({ where: -2, when: -3, total: -5, pending: false });
   });
   it('uses one base for where and when, so the total is the week-after average less what you paid', () => {
     // Logged at 238 (intraday), the day closed at 236: base 236 → where 5, when 2, total = (240 − 226) × 0.5

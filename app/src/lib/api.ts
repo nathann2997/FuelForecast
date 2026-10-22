@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import type { Forecast, History, Meta, StationDetail, Stations } from './types';
+import type { Forecast, History, Meta, StationDetail, Stations, Track } from './types';
 
 // EXPO_PUBLIC_API_BASE points a local build at another copy of the API (e.g. a scratch export served locally)
 export const API_BASE = process.env.EXPO_PUBLIC_API_BASE || 'https://nathann2997.github.io/FuelForecast/api/v1';
@@ -34,6 +34,9 @@ export const useMeta = () => useQuery({ queryKey: ['meta'], queryFn: () => getJs
 export const useForecast = () => useQuery({ queryKey: ['forecast'], queryFn: () => getJson<Forecast>('forecast'), ...opts });
 export const useStations = () => useQuery({ queryKey: ['stations'], queryFn: () => getJson<Stations>('stations'), ...opts });
 export const useHistory = () => useQuery({ queryKey: ['history'], queryFn: () => getJson<History>('history'), ...opts });
+/** The track record; a 404 (an API from before 0.7, or a day track.json failed soft) isn't retried */
+export const useTrack = () =>
+  useQuery({ queryKey: ['track'], queryFn: () => getJson<Track>('track'), retry: (n, e) => !isNotFound(e) && n < 2, ...opts });
 /** NSW station codes are digits; anything else (a mistyped deep link) is never fetched */
 export const isStationId = (id: string | undefined): id is string => !!id && /^\d+$/.test(id);
 
