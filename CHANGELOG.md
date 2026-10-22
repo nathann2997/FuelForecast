@@ -2,6 +2,40 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Data health: alerts and automatic fixes for the app's data (pipeline + workflow, no app change)
+
+Runbook: `docs/DATA_HEALTH.md`.
+- **Prevention:** `export_api.py` now hides implausible station prices from the app's data.
+  - A price is hidden if it's more than 45c under or 80c over its fuel's Sydney median, or outside 80–600c. Before this, a slip like 23.9 for 239.9 would have ranked cheapest in Sydney, topped "Best for you" and shown on the widget.
+  - The widest real gaps in the stored snapshots are −22c and +37c.
+  - The hidden fuel is also dropped from that station's own file. It's listed in `meta.warnings`. `build.py`'s data and the dashboard are untouched.
+- **Detection:** `sydney/pipeline/health.py` checks the live API the way the app reads it (cache-busted). It uses the standard library only.
+  - Freshness: yesterday's data after 07:30, or no refresh for 5.5 h between 07:30 and 23:30.
+  - Core files, forecast sanity, the station count, and the share of NSW prices that changed in a day.
+  - Outliers, and implausible median moves (over 50c, or a spike and reversal; real hikes reach 39c).
+  - Station files, the track record, the share page, and the pipeline's own warnings.
+- **Fixes and alerts:** `sydney/pipeline/remediate.py`.
+  - Re-runs the pipeline for problems a re-run clears: never while one is running, not within 12 min of a success, at most 4 a Sydney day and 40 min apart, and none after 12 runs of any kind that day.
+  - Re-enables a schedule GitHub paused.
+  - Alerts through one `data-health` GitHub issue that @mentions the owner. Fixable problems alert only when a re-run didn't clear them or the budget is spent (then labelled `needs-human`); others alert at once. The issue gets a comment only when a new problem appears, and closes on recovery.
+  - The decisions are a pure `plan()`, unit-tested.
+- **Workflow:** `.github/workflows/data-health.yml` runs after every daily-forecast run and every 30 minutes. GitHub skipped most of today's scheduled slots, so the monitor also stands in for missed runs. It self-tests before each check (`test_health.py`, 24 tests). It runs no third-party code, and has only `actions: write` and `issues: write`.
+- **Dependabot (investigated, nothing to change yet):** 3 open alerts:
+  - `node-forge` 1.4.0 (high), via the Expo CLI and `@expo/code-signing-certificates`.
+  - `braces` 3.0.3 (high), via `patch-package` → `micromatch`.
+  - `sprintf-js` 1.0.3 (moderate, dev), via Jest coverage.
+  - None has a patched release yet, and none is in the shipped app bundle (checked in an Android export). They run only on a developer machine or EAS builder with trusted input. Dependabot will open update PRs when fixes land.
+- **Checks:** QA audit done, with no high issues. Fixed from it:
+  - Real hike days would have alerted.
+  - Loop safety rested on one bot login string; the bot is now recognised by actor type, with a hard stop on all runs.
+  - Comment spam while a fix runs.
+  - Alerts while a successful run settles.
+  - An early-morning overdue that contradicted the 07:30 grace.
+  - Anyone could edit the issue's state through a comment.
+  - Unescaped station names in the issue.
+  - A silent re-enable failure.
+  - The quarantine was tested by planting 23.9 and 2399.0 in a scratch export. Live check and dry run are clean.
+
 ## 2026-10-22 — Bowser 0.7.0: app analytics with EAS Insights and EAS Observe (native, runtime 0.7.0, not shipped)
 
 - **Packages:** `expo-insights` 58.0.11 (app usage and cold starts by version and platform: EAS dashboard → Insights → App usage) and `expo-observe` 58.0.16 (performance, errors and custom events: EAS dashboard → Observe, or `npx eas-cli observe:*`). Neither needs a config plugin.

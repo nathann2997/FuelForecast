@@ -17,7 +17,7 @@ Every file carries `generated_at` (UTC, when this export ran: the app's "Refresh
 Exits 1 if the output fails sanity checks (nothing should be published then). The per-station files fail soft: if they
 can't be built or fail their checks, the rest is published without station/ and meta.warnings says why.
 """
-import base64, datetime as dt, hashlib, json, os, re, runpy, shutil, sys
+import base64, datetime as dt, hashlib, json, os, re, runpy, shutil, statistics, sys
 from zoneinfo import ZoneInfo
 
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -96,6 +96,22 @@ if len(ids) != len(data["stations"]) or len(set(ids)) != len(ids):
     errs.append(f"station ids: {len(ids)} ({len(set(ids))} unique) != {len(data['stations'])} stations")
     ids = [None] * len(data["stations"])
 app_stations = [dict(id=i, **s) for i, s in zip(ids, data["stations"])]
+# ---- price quarantine. A price far from its fuel's Sydney median is almost always a slip at the station (23.9 for 239.9);
+# shown, it would rank as the cheapest in Sydney, top "Best for you" and the widget. So it's left out of the app's data
+# (new dicts: build.py's `data` and the dashboard are untouched) and reported in meta.warnings. The bounds are well
+# outside anything real: across the stored snapshots the widest gaps are -22c and +37c. health.py checks the same bounds.
+QUAR_LO, QUAR_HI, QUAR_ABS = -45, 80, (80, 600)
+quarantined = []
+for f in FUELS:
+    ps = [st["p"][f][0] for st in app_stations if isinstance((st["p"].get(f) or [None])[0], (int, float))]
+    if len(ps) < 50: continue   # too few to know what normal is
+    med = statistics.median(ps)
+    quarantined += [(st["id"], f, st["p"][f][0], round(med, 1), st["n"]) for st in app_stations
+                    if isinstance((st["p"].get(f) or [None])[0], (int, float))
+                    and not (QUAR_ABS[0] <= st["p"][f][0] <= QUAR_ABS[1] and QUAR_LO <= st["p"][f][0] - med <= QUAR_HI)]
+if quarantined:
+    qset = {(i, f) for i, f, *_ in quarantined}
+    app_stations = [dict(st, p={f: pr for f, pr in st["p"].items() if (st["id"], f) not in qset}) for st in app_stations]
 stations = {"schema": SCHEMA, "asof": data["snap_asof"], **STAMP,
             "fields": {"id": "NSW station code (station/{id}.json)", "n": "name", "b": "brand", "s": "suburb", "pc": "postcode", "la": "lat", "lo": "lon", "m": "members only (0/1)",
                        "p": "fuel -> [price c/L, days since update, advice code, advice label, advice reason, "
@@ -122,6 +138,10 @@ forecast = {"schema": SCHEMA, "asof": ctx["asof"], **STAMP, "live": [dict(r, ver
 # soft warnings: inputs that the model forward-fills when a best-effort pull keeps failing
 age = lambda d: (dt.date.fromisoformat(today) - dt.date.fromisoformat(d)).days if d else 999
 warnings = [f"{k} is {age(ctx.get(k))} days old" for k, lim in [("tgp_last", 10), ("fred_last", 21)] if age(ctx.get(k)) > lim]
+if quarantined:
+    warnings.append(("implausible prices hidden: " + "; ".join(f"{n} {f} {p} (median {m})" for _, f, p, m, n in quarantined[:5])
+                     + (f" and {len(quarantined) - 5} more" if len(quarantined) > 5 else ""))[:500])
+    print(f"export_api: quarantined {len(quarantined)} implausible price(s): {quarantined[:5]}")
 
 # per-station files fail soft: on an exception or a failed check, publish everything else without station/ (and
 # stations.json without the 7-day price at p[fuel][5]) and warn
@@ -131,6 +151,8 @@ try:
     import station_api
     if station_api.station_ids(G)[0] != ids: raise RuntimeError("station_api ids differ from stations.json ids")
     details = station_api.build(BASE, G, SCHEMA)
+    for i, f, *_ in quarantined:   # the station page leaves the hidden fuel out too, so it agrees with the list
+        details.get(i, {}).get("fc", {}).pop(f, None); details.get(i, {}).get("hist", {}).pop(f, None)
     st_errs = station_api.check(details, app_stations)
     if st_errs: raise RuntimeError(f"{len(st_errs)} check(s) failed, e.g. {'; '.join(st_errs[:3])}")
     st_txt = {i: json.dumps(dict(d, generated_at=GENERATED_AT), separators=(",", ":"), allow_nan=False) for i, d in details.items()}

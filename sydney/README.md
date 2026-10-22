@@ -49,3 +49,6 @@ API keys live in `pipeline/credentials.py` and `pipeline/pull_nsw.js`, which are
 
 Sydney = postcodes 2000-2234, 2555-2574, 2740-2786. Prices in cents per litre incl. GST.
 Sources: NSW Government FuelCheck (API.NSW, data.nsw.gov.au; CC BY-SA 3.0 AU), Australian Institute of Petroleum (© AIP), Brent crude from the U.S. Energy Information Administration (Refinitiv), AUD/USD from the Reserve Bank of Australia (WM/Reuters); the Claude task's Chrome pull still uses FRED. Licence and attribution for the data and the API: [`DATA-LICENSE.md`](../DATA-LICENSE.md). Every API file carries `generated_at` (the app's "Refreshed" time), plus `attribution` and `license_note`.
+
+## Data health
+`.github/workflows/data-health.yml` checks the published API after every run and every 30 minutes (`pipeline/health.py`), reruns the pipeline for problems a rerun fixes and re-enables a paused schedule (`pipeline/remediate.py`, within a daily budget), and alerts through a `data-health` GitHub issue. `export_api.py` also hides implausible prices before publishing. Alert codes and fixes: [`docs/DATA_HEALTH.md`](../docs/DATA_HEALTH.md).
