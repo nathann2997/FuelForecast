@@ -216,6 +216,9 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      {/* Edge-to-edge (SDK 58): the window doesn't resize for the keyboard, so lift the sheet above it (the fill and
+          discount sheets have inputs and a Save button at the bottom) */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <Pressable style={styles.scrim} onPress={onClose} accessible={false} importantForAccessibility="no">
         <Pressable
           style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: (footer ? Spacing.four : Spacing.six + Spacing.four) + insets.bottom }]}
@@ -236,6 +239,7 @@ export function Sheet({
           {footer}
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

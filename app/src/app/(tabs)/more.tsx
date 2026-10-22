@@ -14,6 +14,7 @@ import { useForecast, useMeta, useStations } from '@/lib/api';
 import { backtestNote, backtestRows, plainWarnings, widgetLocationCopy } from '@/lib/copy';
 import { daysBetween, nice, refreshedText } from '@/lib/format';
 import { bgRequestOpensSettings, openLocationSettings, useBackgroundLocation } from '@/lib/location';
+import { useFills } from '@/lib/fills';
 import { setSettings, useSettings } from '@/lib/settings';
 
 const MODEL = [
@@ -35,6 +36,7 @@ export default function More() {
   const fq = useForecast();
   const mq = useMeta();
   const sq = useStations();
+  const fills = useFills();
   const [editArea, setEditArea] = useState(false);
   const f = fq.data, m = mq.data;
   const week = f ? backtestRows(f, s.fuel).find((x) => x.horizon === '7 days') : undefined;
@@ -86,6 +88,16 @@ export default function More() {
         </Card>
         <T kind="small">Stored on this phone only.</T>
       </Section>
+
+      <Pressable onPress={() => router.push('/savings')} accessibilityRole="link" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+        <Card style={styles.between}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T color={c.fg} style={{ fontWeight: '700' }}>Your fills and savings</T>
+            <T kind="small">{fills.length ? `${fills.length} fill${fills.length === 1 ? '' : 's'} logged` : 'Tap Filled up on a station to start'}</T>
+          </View>
+          <T color={c.muted} style={{ fontSize: 22 }}>›</T>
+        </Card>
+      </Pressable>
 
       <Pressable onPress={() => router.push('/trends')} accessibilityRole="link" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
         <Card style={styles.between}>

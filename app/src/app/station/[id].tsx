@@ -7,7 +7,8 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
-import { MapPinIcon } from '@/components/icons';
+import { FillSheet } from '@/components/fill-sheet';
+import { MapPinIcon, PumpIcon } from '@/components/icons';
 import { ADVICE_TONE } from '@/components/station-row';
 import { TickerChart } from '@/components/ticker-chart';
 import { Badge, Card, Section, StaleBanner, T } from '@/components/ui';
@@ -15,7 +16,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { isNotFound, isStationId, useForecast, useHistory, useStationDetail, useStations } from '@/lib/api';
 import { offFor, offText, yourPrice } from '@/lib/discounts';
-import { brandSuburb, fmt, fuelName, nice, stationName, updatedText } from '@/lib/format';
+import { brandSuburb, fmt, fuelName, nice, stationName, sydneyToday, updatedText } from '@/lib/format';
 import { km } from '@/lib/geo';
 import { dayLabel, toneOf } from '@/lib/outlook';
 import { MAX_PINS, togglePin, usePins } from '@/lib/pins';
@@ -47,9 +48,10 @@ export default function StationPage() {
   const [range, setRange] = useState<RangeKey>('3M');
   const [scrubbing, setScrubbing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [filling, setFilling] = useState(false);
   useEffect(() => {
     if (!note) return;
-    const t = setTimeout(() => setNote(null), 2500);
+    const t = setTimeout(() => setNote(null), note.length > 40 ? 5000 : 2500);   // a fill's "Logged…" line needs longer
     return () => clearTimeout(t);
   }, [note]);
 
@@ -125,7 +127,22 @@ export default function StationPage() {
                 label={pinned ? 'Pinned' : 'Pin'} onPress={onPin} selected={pinned}
                 icon={<PinIcon on={pinned} color={pinned ? c.actStrong : c.fg} size={18} />}
               />
+              {fuel && tk?.price != null ? (
+                <ActionButton label="Filled up" onPress={() => setFilling(true)} icon={<PumpIcon color={c.fg} size={18} />} />
+              ) : null}
             </View>
+          ) : null}
+          {filling && head && fuel && tk?.price != null ? (
+            <FillSheet
+              station={{ id: id ?? '', n: head.n, b: head.b, s: head.s }}
+              fuel={fuel}
+              price={yourPrice(tk.price, off)}
+              pump={tk.price}
+              median={live && fq.data?.asof === sydneyToday() ? live.now : null}   // yesterday's median isn't today's
+              tankL={s.tankL}
+              onClose={() => setFilling(false)}
+              onSaved={setNote}
+            />
           ) : null}
           {note ? (
             <View style={[styles.note, { backgroundColor: c.fg }]} accessibilityLiveRegion="polite">
@@ -500,7 +517,8 @@ function LoadingSkeleton() {
 const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  action: { minHeight: 46, borderWidth: 1, borderRadius: Radius.input, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  // 14 dp sides: Map, Pinned and Filled up fit one row at 360 dp
+  action: { minHeight: 46, borderWidth: 1, borderRadius: Radius.input, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   note: { borderRadius: Radius.input, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, alignSelf: 'flex-start' },
   banner: { borderRadius: Radius.input, paddingVertical: Spacing.three, paddingHorizontal: Spacing.four },
   retry: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },

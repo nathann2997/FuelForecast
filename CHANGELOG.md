@@ -2,6 +2,33 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Bowser 0.7 build B: fill log and savings (JS only, runtime 0.6.1, not shipped)
+
+Plan: `docs/BOWSER_0.7_PLAN.md` §B. Builds on A: a fill records your price after discounts.
+- **Filled up:** a new action on the station page, next to Map and Pin. It opens a sheet with the price you paid (prefilled with your price today) and the litres (your tank size), both editable and rounded to 0.1. Saving shows "Logged. 7.8c under the Sydney average, about $3.90 saved."
+- **Fill log:** `lib/fills.ts` keeps fills on the phone (`fills.v1`), newest first, up to 500, and checks every stored entry on load.
+- **Savings** (`lib/savings.ts`) are worked out per fill against the Sydney median for your fuel:
+  - Where: the median that day, less what you paid.
+  - When: the average median over the 7 days after, less the median that day. It counts once at least 5 of those days are in `history.json`.
+  - Both use the same base, the end-of-day median once history has it, so where + when is exactly what you saved against the average price that week. Either part can be negative.
+- **Screens:**
+  - `/savings` shows the total, fills, litres and the date since; the where and when split; each fill (tap to open its station, ✕ then Remove, which disarms after 4 s); and "How savings are counted".
+  - Today has a new proof strip under the verdict with a "Saved with Bowser" tile, shown once you've logged a fill.
+  - More has a "Your fills and savings" link.
+- **Shared Sheet** now lifts above the keyboard (edge-to-edge Android doesn't resize the window). This helps the fill and discount sheets.
+- **Known data gap:** `history.json` has no medians for 1–12 Oct 2026 until NSW publishes October's monthly history. Fills from late September to mid-October show their timing as pending until then, and the screen says why.
+- **Checks:** QA audit done. Fixed from it:
+  - The keyboard could cover the sheet.
+  - The three action buttons overflowed at 360 dp; they now have 14 dp side padding.
+  - The median is only recorded when the forecast is today's.
+  - Where and when used different bases.
+  - A double tap could log twice.
+  - Remove stayed armed and was 36 dp tall.
+  - Sign wording near $0.
+  - Asymmetric cent rounding.
+  - The button label had no "c" unit.
+  - tsc, lint and jest pass (369). Web preview checked at 360 and 412 px, light and dark.
+
 ## 2026-10-22 — Bowser 0.7 build A: your price after discounts (JS only, runtime 0.6.1, not shipped)
 
 Plan: `docs/BOWSER_0.7_PLAN.md` §A.
