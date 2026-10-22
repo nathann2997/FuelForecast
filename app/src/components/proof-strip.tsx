@@ -1,5 +1,5 @@
-// Under Today's verdict: the evidence that Bowser is worth it, as tappable tiles. How often its calls were right opens
-// /track; your savings (once you've logged a fill) open /savings.
+// The evidence that Bowser is worth it, as tappable tiles on Today: your savings under the verdict (once you've logged a
+// fill; opens /savings), and how often its calls were right at the foot of the page (opens /track).
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -13,28 +13,15 @@ import { useSettings } from '@/lib/settings';
 import { headline } from '@/lib/track';
 import { money, roundCents, summarise } from '@/lib/savings';
 
-export function ProofStrip() {
+/** Your savings, under Today's verdict, once you've logged a fill */
+export function SavingsStrip() {
   const fills = useFills();
   const hq = useHistory();
-  const tq = useTrack();
-  const { fuel } = useSettings();
   const sum = useMemo(() => (fills.length ? summarise(fills, hq.data) : null), [fills, hq.data]);
-  const h = tq.data ? headline(tq.data, fuel) : null;
-  if (!sum && !h) return null;
-  const saved = sum ? roundCents(sum.total) : 0;
+  if (!sum) return null;
+  const saved = roundCents(sum.total);
   return (
     <View style={styles.strip}>
-      {h ? (
-        <Tile
-          eyebrow="Calls right"
-          big={`${h.pct}%`}
-          tone="flat"
-          sub={h.short}
-          a11y={`Bowser's calls: right ${h.pct}% of the time, ${h.sub}. Opens the track record`}
-          onPress={() => router.push('/track')}
-        />
-      ) : null}
-      {sum ? (
       <Tile
         eyebrow={saved > 0 ? 'You saved' : 'Your fills'}
         big={money(sum.total)}
@@ -43,7 +30,26 @@ export function ProofStrip() {
         a11y={`${saved > 0 ? 'You saved' : 'Your fills, against the Sydney average'}: ${money(sum.total)} over ${sum.n} fill${sum.n === 1 ? '' : 's'}. Opens your savings`}
         onPress={() => router.push('/savings')}
       />
-      ) : null}
+    </View>
+  );
+}
+
+/** How often Bowser's calls were right, at the foot of Today (your stations come first) */
+export function TrackStrip() {
+  const tq = useTrack();
+  const { fuel } = useSettings();
+  const h = tq.data ? headline(tq.data, fuel) : null;
+  if (!h) return null;
+  return (
+    <View style={styles.strip}>
+      <Tile
+        eyebrow="Calls right"
+        big={`${h.pct}%`}
+        tone="flat"
+        sub={h.sub}
+        a11y={`Bowser's calls: right ${h.pct}% of the time, ${h.sub}. Opens the track record`}
+        onPress={() => router.push('/track')}
+      />
     </View>
   );
 }

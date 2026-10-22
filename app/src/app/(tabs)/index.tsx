@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AreaPicker } from '@/components/area-picker';
 import { OutlookChart } from '@/components/outlook-chart';
-import { ProofStrip } from '@/components/proof-strip';
+import { SavingsStrip, TrackStrip } from '@/components/proof-strip';
 import { BowserWordmark } from '@/components/brand';
 import { ADVICE_TONE, MissingPinItem, OffTag, openStation, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
 import { Badge, Card, Disclosure, Loading, Screen, Section, StaleBanner, T, toneColors } from '@/components/ui';
@@ -105,7 +105,7 @@ export default function Today() {
             </View>
           </View>
 
-          <ProofStrip />
+          <SavingsStrip />
 
           {pins.length ? (
           <Section title="Your stations">
@@ -159,6 +159,8 @@ export default function Today() {
           <Pressable onPress={() => router.push('/trends')} accessibilityRole="link" hitSlop={8}>
             <T color={c.tgp} style={{ fontWeight: '700' }}>Price trends and the cycle →</T>
           </Pressable>
+
+          <TrackStrip />
 
           <T kind="small">{refreshedText(f.generated_at) || `Prices from ${nice(f.asof)}`}. New prices up to 5 times a day. Estimates, not financial advice.</T>
         </>

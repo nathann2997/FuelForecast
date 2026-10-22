@@ -14,11 +14,11 @@ const call = (over: Partial<Call>): Call => ({ date: '2026-10-13', fuel: 'U91', 
 describe('headline', () => {
   it('uses the replayed backtest until enough live calls are scored', () => {
     expect(headline(track({ ...tally(3, 3, '2026-10-22', '2026-10-24'), since: '2026-10-22' }), 'U91'))
-      .toEqual({ pct: 84, n: 2062, live: false, text: 'Right 84% of the time', sub: 'tested on 2021–2026 prices', short: 'tested 2021–26' });
+      .toEqual({ pct: 84, n: 2062, live: false, text: 'Right 84% of the time', sub: 'tested on 2021–2026 prices' });
   });
   it('switches to live calls at LIVE_MIN', () => {
     const h = headline(track({ ...tally(LIVE_MIN, 8, '2026-10-22', '2026-11-01'), since: '2026-10-22' }), 'U91');
-    expect(h).toMatchObject({ pct: 80, live: true, sub: '10 calls since 22 Oct', short: '10 calls' });
+    expect(h).toMatchObject({ pct: 80, live: true, sub: '10 calls since 22 Oct' });
   });
   it('is null with nothing to show (no replay for the fuel, or none at all)', () => {
     expect(headline(track({ ...tally(0, 0), since: null }), 'DL')).toBeNull();

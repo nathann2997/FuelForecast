@@ -2,6 +2,12 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Today: "Calls right" moves to the bottom (JS only)
+
+- At the owner's request, the track record tile ("Calls right 83%", opens `/track`) moves from under the verdict to the foot of Today, above the footer. Your pinned stations now come straight after the verdict, or after "You saved" if you've logged a fill.
+- `ProofStrip` is split into `SavingsStrip` (under the verdict, shown once you've logged a fill) and `TrackStrip` (the bottom). At full width the tile shows the full sub line ("tested on 2021–2026 prices"), so the unused `Headline.short` is removed.
+- **Checks:** QA audit done, with no issues. tsc, lint and jest pass (388). Web preview at 390 px.
+
 ## 2026-10-22 — "A new version of Bowser is available" on every older version (pipeline + JS, all runtimes)
 
 Owner rule: until Bowser is listed on an app store, every app older than the latest APK shows this notice.
