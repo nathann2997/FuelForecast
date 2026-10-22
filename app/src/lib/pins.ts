@@ -1,6 +1,7 @@
 // Pinned stations (by NSW station code), kept on the phone. Shared by Today, Stations, the station page and the widget.
 import { useSyncExternalStore } from 'react';
 
+import { setContext, track } from './analytics';
 import Storage from './storage';
 
 const KEY = 'pins.v1';
@@ -19,6 +20,7 @@ function load(): string[] {
 }
 
 let pins = load();
+setContext({ pins: pins.length });
 const listeners = new Set<() => void>();
 const changeHooks = new Set<(pins: string[]) => void>();
 
@@ -31,6 +33,7 @@ function save(next: string[]) {
   }
   listeners.forEach((l) => l());
   changeHooks.forEach((h) => h(pins));
+  setContext({ pins: pins.length });
 }
 
 export const getPins = () => pins;
@@ -44,10 +47,15 @@ export function togglePin(id: string): boolean {
   if (!isCode(id)) return true;   // not a station code (e.g. a crafted fuelforecast:// link): nothing to pin, no error
   if (pins.includes(id)) {
     save(pins.filter((p) => p !== id));
+    track('station.unpinned', { pins: pins.length });
     return true;
   }
-  if (pins.length >= MAX_PINS) return false;
+  if (pins.length >= MAX_PINS) {
+    track('station.pin_full', { pins: pins.length });
+    return false;
+  }
   save([id, ...pins]);
+  track('station.pinned', { pins: pins.length });
   return true;
 }
 

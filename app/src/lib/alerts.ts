@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import { AndroidImportance } from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { reportError, track } from './analytics';
 import { addDays, fuelName } from './format';
 import { dayLabel, riseDay, toneOf } from './outlook';
 import { loadSettings, setSettings } from './settings';
@@ -125,6 +126,7 @@ export async function syncAlerts(live: LiveRow[] | undefined, asof: string | und
     await Storage.setItem(STATE_KEY, JSON.stringify({ at: at.getTime() }));
   } catch (e) {
     console.warn('Bowser rise alert not scheduled', e);
+    reportError(e);
   }
 }
 
@@ -134,6 +136,7 @@ export async function setAlerts(on: boolean): Promise<boolean> {
     setSettings({ alerts: false });
     await cancel();
     await Storage.removeItem(STATE_KEY).catch(() => {});
+    track('alerts.toggled', { on: false, granted: false });
     return false;
   }
   try {
@@ -143,9 +146,11 @@ export async function setAlerts(on: boolean): Promise<boolean> {
     const cur = await Notifications.getPermissionsAsync();
     const ok = cur.granted || (cur.canAskAgain && (await Notifications.requestPermissionsAsync()).granted);
     setSettings({ alerts: ok });
+    track('alerts.toggled', { on: true, granted: ok });
     return ok;
-  } catch {
+  } catch (e) {
     setSettings({ alerts: false });
+    reportError(e);
     return false;
   }
 }

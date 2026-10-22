@@ -9,11 +9,13 @@ import { BowserWordmark } from '@/components/brand';
 import { Button, Card, FuelPicker, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track, useReady } from '@/lib/analytics';
 import { useStations } from '@/lib/api';
 import { setSettings, useSettings } from '@/lib/settings';
 
-const done = () => {
+const done = (via: 'start' | 'skip') => {
   setSettings({ onboarded: true });
+  track('onboarding.finished', { via });
   router.replace('/');
 };
 
@@ -21,6 +23,7 @@ export default function Welcome() {
   const c = useTheme();
   const s = useSettings();
   const sq = useStations();
+  useReady(!sq.isPending);
   return (
     <Screen brand={<BowserWordmark height={28} />} title="When to fill up, and where" fuel={false} stack>
       <T>Sydney fuel prices rise and fall in a cycle. Bowser tells you which way they’re heading.</T>
@@ -53,8 +56,8 @@ export default function Welcome() {
         </Step>
       ) : null}
 
-      <Button label="Start" onPress={done} />
-      <Button label="Skip for now" kind="secondary" onPress={done} />
+      <Button label="Start" onPress={() => done('start')} />
+      <Button label="Skip for now" kind="secondary" onPress={() => done('skip')} />
     </Screen>
   );
 }

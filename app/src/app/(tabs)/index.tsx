@@ -11,6 +11,7 @@ import { Badge, Card, Disclosure, Loading, Screen, Section, StaleBanner, T, tone
 import { Spacing } from '@/constants/theme';
 import { useArea } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
+import { useReady } from '@/lib/analytics';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { horizons, jumpRisk, signalWhy } from '@/lib/copy';
 import { fmt, fuelName, nice, refreshedText, stationName } from '@/lib/format';
@@ -29,6 +30,7 @@ export default function Today() {
   const fq = useForecast();
   const sq = useStations();
   const hq = useHistory();   // only for the 4-week wholesale move in the "why" text
+  useReady(!fq.isPending);
   const f = fq.data;
   const r = f?.live.find((x) => x.fuel === s.fuel);
   const o = r && f ? outlook(r, f.asof, s.tankL) : null;

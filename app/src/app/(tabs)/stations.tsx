@@ -9,6 +9,7 @@ import { Button, Card, Disclosure, Loading, Screen, StaleBanner, T } from '@/com
 import { Radius, Spacing } from '@/constants/theme';
 import { useArea, useAreaLive } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
+import { useReady } from '@/lib/analytics';
 import { useForecast, useStations } from '@/lib/api';
 import { WHEN_NOTE } from '@/lib/copy';
 import { applyFilters, brandCounts, filterCount, pinnedRows } from '@/lib/filters';
@@ -27,6 +28,7 @@ export default function Stations() {
   const pins = usePins();
   const sq = useStations();
   const fq = useForecast();
+  useReady(!sq.isPending);
   const [editing, setEditing] = useState(false);
   const [sheet, setSheet] = useState(false);
   // Paging resets whenever the list itself changes (fuel, area, sort or any filter)

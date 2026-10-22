@@ -1,6 +1,8 @@
 // Android: draw both widgets from the best data available. See ./render.ts for the no-op on other platforms.
 import { requestWidgetUpdate } from 'react-native-android-widget';
 
+import { reportError } from '@/lib/analytics';
+
 import { loadSnapshot } from './data';
 import { prepareLocation } from './location';
 import { modelFor } from './model';
@@ -28,7 +30,7 @@ export function requestWidgetRefresh(): void {
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     timer = null;
-    const run = (running ?? Promise.resolve()).then(() => refreshNow()).catch((e) => console.error('Bowser widget refresh failed', e));
+    const run = (running ?? Promise.resolve()).then(() => refreshNow()).catch((e) => { console.error('Bowser widget refresh failed', e); reportError(e); });
     running = run;
   }, DEBOUNCE_MS);
 }

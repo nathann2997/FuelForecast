@@ -1,5 +1,7 @@
 // iOS: push the Bowser widget's timeline (./ios-model.ts) to WidgetKit. See ./render.ts for the no-op on web and
 // ./render.android.ts for Android; keep the exports in step.
+import { reportError } from '@/lib/analytics';
+
 import { iosTimeline } from './ios-model';
 import BowserWidget from './ios-widget';
 import { loadSnapshot, readPins, readPrefs } from './data';
@@ -25,7 +27,7 @@ export function requestWidgetRefresh(): void {
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     timer = null;
-    const run = (running ?? Promise.resolve()).then(() => pushWidgetTimeline()).then(() => {}).catch((e) => console.error('Bowser widget refresh failed', e));
+    const run = (running ?? Promise.resolve()).then(() => pushWidgetTimeline()).then(() => {}).catch((e) => { console.error('Bowser widget refresh failed', e); reportError(e); });
     running = run;
   }, DEBOUNCE_MS);
 }

@@ -1,6 +1,7 @@
 // Your fill log, kept on the phone: each "Filled up" from a station page. Savings are worked out from it in savings.ts.
 import { useSyncExternalStore } from 'react';
 
+import { setContext, track } from './analytics';
 import Storage from './storage';
 import type { Fuel } from './types';
 
@@ -51,6 +52,7 @@ function load(): Fill[] {
 }
 
 let fills = load();
+setContext({ fills: fills.length });
 const listeners = new Set<() => void>();
 
 function save(next: Fill[]) {
@@ -60,6 +62,7 @@ function save(next: Fill[]) {
   } catch {
     // the log still applies for this session
   }
+  setContext({ fills: fills.length });
   listeners.forEach((l) => l());
 }
 
@@ -71,10 +74,14 @@ export function addFill(f: Omit<Fill, 'id'>): Fill | null {
   if (!c) return null;
   // Stable: a fill logged for an earlier day goes below that day's later ones
   save([c, ...fills].sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1)).slice(0, MAX_FILLS));
+  track('fill.logged', { fuel: c.fuel, fills: fills.length });   // nothing about the price: fills stay on the phone
   return c;
 }
 
-export const removeFill = (id: string) => save(fills.filter((f) => f.id !== id));
+export function removeFill(id: string) {
+  save(fills.filter((f) => f.id !== id));
+  track('fill.removed', { fills: fills.length });
+}
 export const getFills = () => fills;
 
 export function useFills(): Fill[] {

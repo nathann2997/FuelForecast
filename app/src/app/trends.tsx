@@ -6,6 +6,7 @@ import { PriceChart } from '@/components/price-chart';
 import { Button, Card, Disclosure, Loading, Screen, Section, Segmented, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useReady } from '@/lib/analytics';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { chartData, RANGES, type RangeKey } from '@/lib/chart';
 import { cycleSummary, historyNote, insights } from '@/lib/copy';
@@ -39,6 +40,7 @@ export default function TrendsScreen() {
   const hq = useHistory();
   const fq = useForecast();
   const sq = useStations();
+  useReady(!hq.isPending && !fq.isPending);
   const f = fq.data, h = hq.data;
   const r = f?.live.find((x) => x.fuel === fuel);
   const d = useMemo(() => (h && r && f ? chartData(h, r, f.ctx, fuel, range) : null), [h, r, f, fuel, range]);

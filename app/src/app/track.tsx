@@ -7,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { Card, Disclosure, Loading, Screen, Section, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useReady } from '@/lib/analytics';
 import { isNotFound, useTrack } from '@/lib/api';
 import { fuelName, nice } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
@@ -17,6 +18,7 @@ export default function TrackRecord() {
   const c = useTheme();
   const s = useSettings();
   const q = useTrack();
+  useReady(!q.isPending);
   const t = q.data;
   const h = t ? headline(t, s.fuel) : null;
   const tal: Tally | undefined = t ? (h?.live ? t.live[s.fuel] : t.replay?.[s.fuel]) : undefined;

@@ -2,6 +2,8 @@
 // the web), not turn-by-turn navigation. The maps app offers directions from the pin if the user wants them.
 import { Linking, Platform } from 'react-native';
 
+import { track } from './analytics';
+
 const google = (la: number, lo: number) => `https://www.google.com/maps/search/?api=1&query=${la},${lo}`;
 
 /** URLs to try, in order, for a platform; the last is a web URL that always opens. None if the coordinates aren't numbers. */
@@ -28,10 +30,12 @@ export async function openInMaps(la: number, lo: number, label?: string) {
   for (const url of mapUrls(Platform.OS, la, lo, label)) {
     try {
       await Linking.openURL(url);
+      track('directions.opened', { ok: true });
       return true;
     } catch {
       // no app for this scheme: try the next URL
     }
   }
+  track('directions.opened', { ok: false }, 'warn');
   return false;
 }

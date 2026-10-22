@@ -19,7 +19,7 @@ function refresh(): Promise<void> {
   pending = quietLocate()
     .then((p) => {
       const cur = getSettings().home;
-      if (p && cur?.gps && km(cur.la, cur.lo, p.la, p.lo) > 0.2) setSettings({ home: p });
+      if (p && cur?.gps && km(cur.la, cur.lo, p.la, p.lo) > 0.2) setSettings({ home: p }, { silent: true });   // not tracked: it would trace the phone's movements
     })
     .finally(() => {
       pending = null;

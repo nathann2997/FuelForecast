@@ -4,6 +4,7 @@
 import { registerWidgetTaskHandler, type WidgetTaskHandler } from 'react-native-android-widget';
 
 import { syncAlerts } from '@/lib/alerts';
+import { reportError } from '@/lib/analytics';
 import type { Fuel } from '@/lib/types';
 
 import { clearWidget, loadSnapshot, readCache, saveFuel, saveMode } from './data';
@@ -60,6 +61,7 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
     renderWidget(renderWidgetFor(widgetInfo.widgetName, widgetInfo, modelFor(widgetInfo.widgetName, id, snap, tapped, loc)));
   } catch (e) {
     console.error(`Bowser widget ${widgetInfo.widgetName} (${widgetAction}) failed to render`, e);   // adb logcat
+    reportError(e);
     throw e;
   } finally {
     await saving;   // never rejects (saveKey swallows errors)

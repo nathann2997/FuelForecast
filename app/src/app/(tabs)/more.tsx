@@ -10,6 +10,7 @@ import { DiscountsEditor } from '@/components/discounts-editor';
 import { Button, Card, Disclosure, FuelPicker, Loading, Screen, Section, Segmented, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useReady } from '@/lib/analytics';
 import { useForecast, useMeta, useStations } from '@/lib/api';
 import { backtestNote, backtestRows, plainWarnings, widgetLocationCopy } from '@/lib/copy';
 import { daysBetween, nice, refreshedText } from '@/lib/format';
@@ -36,6 +37,7 @@ export default function More() {
   const fq = useForecast();
   const mq = useMeta();
   const sq = useStations();
+  useReady(!fq.isPending);
   const fills = useFills();
   const [editArea, setEditArea] = useState(false);
   const f = fq.data, m = mq.data;
@@ -191,6 +193,7 @@ export default function More() {
           </View>
         </View>
         <T kind="small">Forecasts are estimates for planning, not financial advice.</T>
+        <T kind="small">Bowser sends anonymous usage and crash reports (which screens and features are used, how fast they load) to improve the app. Never your location, area or what you paid.</T>
       </Section>
     </Screen>
   );

@@ -6,6 +6,7 @@ import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
 import { syncAlerts } from '@/lib/alerts';
+import { reportError } from '@/lib/analytics';
 
 import { pushWidgetTimeline } from './render.ios';
 
@@ -19,6 +20,7 @@ TaskManager.defineTask(REFRESH_TASK, async () => {
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch (e) {
     console.warn('Bowser background refresh failed', e);
+    reportError(e);
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });

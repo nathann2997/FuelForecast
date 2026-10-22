@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Button, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 import { findSuburb, type Place } from '@/lib/geo';
 import { locate } from '@/lib/location';
 import { setSettings } from '@/lib/settings';
@@ -24,6 +25,7 @@ export function AreaPicker({ suburbs, onDone }: { suburbs: Suburb[]; onDone?: ()
 
   const pick = (p: Place) => {
     setSettings({ home: p });
+    track('area.set', { source: p.gps ? 'gps' : 'suburb' });
     setQuery('');
     setMsg(null);
     onDone?.();
@@ -40,6 +42,8 @@ export function AreaPicker({ suburbs, onDone }: { suburbs: Suburb[]; onDone?: ()
       pick(await locate());
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
+      const m = e instanceof Error ? e.message : '';
+      track('area.locate_failed', { reason: /permission/i.test(m) ? 'denied' : /timed out/i.test(m) ? 'timeout' : 'other' }, 'warn');
     } finally {
       setBusy(false);
     }

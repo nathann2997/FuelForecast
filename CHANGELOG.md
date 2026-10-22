@@ -2,6 +2,40 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Bowser 0.7.0: app analytics with EAS Insights and EAS Observe (native, runtime 0.7.0, not shipped)
+
+- **Packages:** `expo-insights` 58.0.11 (app usage and cold starts by version and platform: EAS dashboard → Insights → App usage) and `expo-observe` 58.0.16 (performance, errors and custom events: EAS dashboard → Observe, or `npx eas-cli observe:*`). Neither needs a config plugin.
+- **Runtime:** both are native modules, so `version` goes from 0.6.1 to **0.7.0**. A 0.6.1 APK (build 8962e8d6) was already building without them. An OTA update with this code would crash 0.6.1 phones at launch. Needs a new preview APK. The 0.7 builds A–D (JS only) can still go to 0.6.1 as an OTA from d1b7b92.
+- **Performance:** `ObserveRoot.wrap` on the root layout records cold/warm launch, bundle load and first render. The Expo Router integration records per-route render time and time to interactive. Every screen calls `useReady()` once its main data is shown or has failed. Network traces cover the API host only.
+- **Errors:**
+  - Unhandled JS errors and native crashes are recorded automatically.
+  - Render errors are reported from the root `ErrorBoundary`, which still shows expo-router's retry screen.
+  - Rise-alert scheduling failures and widget render, refresh and background-task failures are also reported.
+  - Queries that give up after their retries log `data.fetch_failed` with the file, HTTP status and online state.
+  - `uploadSourceMaps` on the preview and production profiles gives readable stack traces.
+- **Feature events** (`src/lib/analytics.ts`):
+  - `onboarding.finished` (start/skip), `area.set` (gps/suburb), `area.locate_failed`.
+  - `settings.changed` (which keys changed, plus fuel, sort, radius, toggles, brands and advice filters), `filters.reset`.
+  - `station.pinned` / `station.unpinned` / `station.pin_full`, `fill.logged` / `fill.removed`.
+  - `share.opened` (deal/savings, sent or dismissed), `directions.opened`, `alerts.toggled`.
+  - Every event and metric carries the fuel, alerts on, has area (GPS or suburb), discount-brand count, pin count and fill count, so usage can be split by them.
+- **Privacy:** no coordinates, suburb, home area, prices paid or typed text are sent; an area is reduced to "set or not". The new `analytics.test.ts` checks this. More → About now says Bowser sends anonymous usage and crash reports, never your location, area or what you paid.
+- **Environment:** set to the EAS Update channel (`preview` / `production`), so tester and store data stay apart.
+- **QA audit:** no high-severity issues. Fixed from it:
+  - The quiet GPS area refresh (`use-area.ts`) is no longer tracked; it would have traced the phone's movements.
+  - `settings.changed` is coalesced over 1.5 s, so typing a max price is one event.
+  - A filter reset logs only `filters.reset`.
+  - `fill.logged` no longer says whether the fill was discounted or below the median.
+  - `useReady` catches the async `markInteractive` rejection.
+  - `data.fetch_failed` skips expected 404s and failures while saved data is showing.
+  - `area.locate_failed` sends a reason code (denied/timeout/other) instead of the error text.
+- **Open (owner):**
+  - Update the Play Data Safety and App Store privacy answers: diagnostics and product interaction, not linked to identity. Insights and Observe also send an install ID, the device/OS and the request IP.
+  - Decide whether to add an in-app opt-out. It would be `Observe.configure` with `dispatchingEnabled: false`, resending the full config.
+  - Network traces and the router integration record which station pages are opened (public station codes) against the install ID.
+  - Ship OTA updates with `eas update --upload-source-maps` so stack traces from updates are readable.
+- **Checks:** tsc, lint, expo-doctor (20/20) and jest (383) pass. Android and web bundles export.
+
 ## 2026-10-22 — Bowser 0.7 build D: share a deal, share your savings (pipeline + JS, runtime 0.6.1, not shipped)
 
 Plan: `docs/BOWSER_0.7_PLAN.md` §D.

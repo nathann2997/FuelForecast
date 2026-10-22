@@ -3,6 +3,7 @@
 // Shared prices are pump prices: your discounts are yours, not your friends'.
 import { Platform, Share } from 'react-native';
 
+import { track } from './analytics';
 import { API_BASE } from './api';
 import { fuelName, nice, stationName } from './format';
 import { money, type SavingsSummary } from './savings';
@@ -33,9 +34,10 @@ export function savingsMessage(s: SavingsSummary): string | null {
 export const canShare = () => Platform.OS !== 'web' || (typeof navigator !== 'undefined' && typeof navigator.share === 'function');
 
 /** Opens the system share sheet; a dismissed sheet or a platform without one is not an error */
-export async function shareText(message: string) {
+export async function shareText(message: string, kind: 'deal' | 'savings') {
   try {
-    await Share.share({ message });
+    const r = await Share.share({ message });
+    track('share.opened', { kind, shared: r.action === Share.sharedAction });
   } catch {
     // nothing to do: the user can try again
   }

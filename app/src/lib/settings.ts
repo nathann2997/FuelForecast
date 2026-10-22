@@ -2,6 +2,8 @@
 import Storage from './storage';
 import { useSyncExternalStore } from 'react';
 
+import { setContext, settingsAttributes, settingsContext, track } from './analytics';
+
 import { cleanDiscounts, type Discounts } from './discounts';
 import { ADVICE_GROUPS, FILTER_DEFAULTS, RADII, type FilterSettings } from './filters';
 import type { Place } from './geo';
@@ -62,8 +64,23 @@ export function loadSettings(): Settings {
 
 let state = loadSettings();
 const listeners = new Set<() => void>();
+setContext(settingsContext(state));
 
-export function setSettings(patch: Partial<Settings>) {
+// Changes within a moment of each other (typing a max price, tapping several chips) are logged as one event
+let unlogged: Partial<Settings> = {};
+let logTimer: ReturnType<typeof setTimeout> | null = null;
+function logChange(patch: Partial<Settings>) {
+  unlogged = { ...unlogged, ...patch };
+  if (logTimer) clearTimeout(logTimer);
+  logTimer = setTimeout(() => {
+    track('settings.changed', settingsAttributes(unlogged));
+    unlogged = {};
+    logTimer = null;
+  }, 1500);
+}
+
+/** `silent`: not a user's choice (the quiet GPS refresh) or logged as its own event (filters.reset) */
+export function setSettings(patch: Partial<Settings>, { silent = false } = {}) {
   state = { ...state, ...patch };
   try {
     Storage.setItemSync(KEY, JSON.stringify(state));
@@ -71,10 +88,15 @@ export function setSettings(patch: Partial<Settings>) {
     // settings still apply for this session
   }
   listeners.forEach((l) => l());
+  if (!silent) logChange(patch);
+  setContext(settingsContext(state));
 }
 
 /** Back to the default filters (fuel, tank and area are kept) */
-export const resetFilters = () => setSettings({ ...FILTER_DEFAULTS });
+export function resetFilters() {
+  setSettings({ ...FILTER_DEFAULTS }, { silent: true });
+  track('filters.reset');
+}
 
 export const getSettings = () => state;
 

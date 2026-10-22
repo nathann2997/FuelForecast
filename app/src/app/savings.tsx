@@ -8,6 +8,7 @@ import { openStation } from '@/components/station-row';
 import { Button, Card, Disclosure, Screen, Section, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useReady } from '@/lib/analytics';
 import { useHistory } from '@/lib/api';
 import { removeFill, useFills, type Fill } from '@/lib/fills';
 import { nice } from '@/lib/format';
@@ -21,6 +22,7 @@ export default function Savings() {
   const c = useTheme();
   const fills = useFills();
   const hq = useHistory();
+  useReady(!hq.isPending);
   const sum = useMemo(() => summarise(fills, hq.data), [fills, hq.data]);
   const brag = savingsMessage(sum);
   const tone = (v: number) => (roundCents(v) > 0 ? c.cheap : roundCents(v) < 0 ? c.dear : c.fg2);
@@ -60,7 +62,7 @@ export default function Savings() {
             ) : null}
           </View>
 
-          {brag && canShare() ? <Button label="Share my savings" kind="secondary" onPress={() => shareText(brag)} /> : null}
+          {brag && canShare() ? <Button label="Share my savings" kind="secondary" onPress={() => shareText(brag, 'savings')} /> : null}
 
           <Section title="Your fills">
             <Card style={{ padding: 0, overflow: 'hidden' }}>

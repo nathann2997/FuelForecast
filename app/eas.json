@@ -9,12 +9,14 @@
         "buildType": "apk"
       },
       "channel": "preview",
+      "uploadSourceMaps": true,
       "ios": {
         "simulator": false
       }
     },
     "production": {
       "channel": "production",
+      "uploadSourceMaps": true,
       "autoIncrement": true
     },
     "simulator": {

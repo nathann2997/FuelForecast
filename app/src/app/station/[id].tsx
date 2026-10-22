@@ -14,6 +14,7 @@ import { TickerChart } from '@/components/ticker-chart';
 import { Badge, Card, Section, StaleBanner, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useReady } from '@/lib/analytics';
 import { isNotFound, isStationId, useForecast, useHistory, useStationDetail, useStations } from '@/lib/api';
 import { offFor, offText, yourPrice } from '@/lib/discounts';
 import { brandSuburb, fmt, fuelName, nice, stationName, sydneyToday, updatedText } from '@/lib/format';
@@ -40,6 +41,7 @@ export default function StationPage() {
   const fq = useForecast();
   const hq = useHistory();
   const sq = useStations();
+  useReady(!isStationId(id) || !q.isPending);   // a bad id is never fetched
   const d = q.data;
   const row: Station | undefined = useMemo(() => sq.data?.stations.find((x) => x.id === id), [sq.data, id]);
 
@@ -95,7 +97,7 @@ export default function StationPage() {
             label="Share this price"
             onPress={() => shareText(dealMessage({
               id, n: head.n, s: head.s, fuel, pump: tk.price!, median: live?.now ?? null, advice: fc?.adv[1] ?? row?.p[fuel]?.[3] ?? null,
-            }))}>
+            }), 'deal')}>
             <ShareIcon color={c.fg} size={22} />
           </IconButton>
         ) : null}
