@@ -1,3 +1,5 @@
+import { UpdateNotice } from '@/components/update-notice';
+import { API_BASE } from '@/lib/api';
 import { focusManager, onlineManager, QueryClient } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -54,6 +56,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="station/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
         </Stack>
+        <UpdateNotice releaseUrl={`${API_BASE}/app.json`} />
       </ThemeProvider>
     </PersistQueryClientProvider>
   );
