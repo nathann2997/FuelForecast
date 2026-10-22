@@ -8,13 +8,13 @@ How the iOS build is put together and how to get it onto iPhones. Status lives i
 |---|---|---|
 | Home-screen widget | `react-native-android-widget`, headless JS task redraws it (`register.android.ts`, `render.android.ts`) | `expo-widgets` (WidgetKit + `@expo/ui` SwiftUI): one widget, `BowserWidget`, in small, medium and large sizes plus lock-screen rectangular and inline (`ios-widget.tsx`) |
 | Widget data | The widget task fetches the API itself | The app pushes a timeline (`render.ios.ts`) when data, pins, fuel or area change. A background task (`register.ios.ts`, `expo-background-task`, at most every 4 h, when iOS chooses) fetches and pushes while Bowser is closed |
-| Midnight rollover | Periodic redraw | Timeline entries at the next two Sydney midnights (`ios-model.ts`), so "rise from tomorrow" and "as of" stay right |
+| Midnight rollover | Periodic redraw | Timeline entries at the next 7 Sydney midnights (`ios-model.ts`), so "rise from tomorrow" and "as of" stay right |
 | Widget taps | Pinned/Nearest/Cheapest, fuel chip, ⟳ | Rows open the station, the rest opens Today. No buttons and no per-widget fuel yet |
 | Widget location | Optional "Allow all the time" | Not used: the widget lists stations near the saved area (or the last GPS fix the app saved) |
-| Directions | Google Maps navigation | Apple Maps (`lib/directions.ts`) |
+| Map button | `geo:` pin in the maps app | Apple Maps pin (`maps://?ll=…&q=name`, `lib/directions.ts`); shows the station, doesn't start a trip |
 | Short messages | Toast | Alert |
 
-The pure model (`widget/logic.ts` `buildModel`) is shared by both platforms. The iOS-only native modules (`expo-widgets`, `@expo/ui`, `expo-background-task`, `expo-task-manager`) are excluded from Android autolinking in `app/package.json`, so the APK is unchanged. Only `.ios.ts` files and `ios-widget.tsx` import them.
+The pure model (`widget/logic.ts` `buildModel`) is shared by both platforms. The iOS-only native modules (`expo-widgets`, `@expo/ui`, `expo-background-task`, `expo-task-manager`, `unimodules-app-loader`) are excluded from Android autolinking in `app/package.json`, so the APK is unchanged. Only `.ios.ts` files and `ios-widget.tsx` import them.
 
 ## Builds
 
@@ -34,6 +34,6 @@ OTA: iOS and Android share runtime `0.6.0` (`runtimeVersion.policy: appVersion`)
 - Today, Stations, More, station page, Trends: layout under the notch and Dynamic Island, and the bottom padding above the tab bar (`ui.tsx` adds `insets.bottom + 50` on iOS).
 - Keyboard on Today's suburb search (KeyboardAvoidingView `padding`).
 - Swipe rows, chart scrubbing, pull to refresh.
-- Directions open Apple Maps. A rise alert notification arrives and shows while the app is open.
+- Map opens Apple Maps on the station's pin, without starting navigation. A rise alert notification arrives and shows while the app is open.
 - Widget: add the small, medium, large and lock-screen versions. Check that rows open the station and the rest opens Today, the light and dark colours, the "Open Bowser" placeholder before first launch, and that it updates after changing fuel or pins.
 - Background refresh: leave Bowser closed overnight with Background App Refresh on, and check that the widget shows today's data in the morning.
