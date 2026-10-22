@@ -12,7 +12,7 @@ import { useArea } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { horizons, jumpRisk, signalWhy } from '@/lib/copy';
-import { fmt, fuelName, stationName } from '@/lib/format';
+import { fmt, fuelName, nice, refreshedText, stationName } from '@/lib/format';
 import { bestPick, pinnedRows } from '@/lib/filters';
 import { rankStations } from '@/lib/geo';
 import { dayLabel, dollars, outlook, riseDay } from '@/lib/outlook';
@@ -48,7 +48,7 @@ export default function Today() {
     <Screen
       brand={<BowserWordmark height={25} />}
       title="Today"
-      subtitle={f ? `Sydney ${fuelName(s.fuel)} · ${dayLabel(f.asof)}` : undefined}
+      subtitle={f ? `Sydney ${fuelName(s.fuel)} · ${refreshedText(f.generated_at) || dayLabel(f.asof)}` : undefined}
       onRefresh={() => { fq.refetch(); sq.refetch(); hq.refetch(); }}
       refreshing={fq.isRefetching}>
       {!f || !r || !o ? (
@@ -148,7 +148,7 @@ export default function Today() {
             <T color={c.tgp} style={{ fontWeight: '700' }}>Price trends and the cycle →</T>
           </Pressable>
 
-          <T kind="small">Updated each morning. Estimates, not financial advice.</T>
+          <T kind="small">{refreshedText(f.generated_at) || `Prices from ${nice(f.asof)}`}. New prices up to 5 times a day. Estimates, not financial advice.</T>
         </>
       )}
     </Screen>

@@ -36,6 +36,32 @@ export function sydneyToday(now = new Date()) {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+const SYD_TIME = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit', hour12: true });
+const SYD_DAY = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', weekday: 'short' });
+
+/** "9:13 am" in Sydney time (formatToParts: the joined string's spacing and case vary by device ICU data) */
+export function sydneyTime(d: Date) {
+  const parts = SYD_TIME.formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type.toLowerCase() === t)?.value ?? '';
+  const [h, m, ap] = [get('hour'), get('minute'), get('dayperiod')];
+  if (!h || !m || !ap) return SYD_TIME.format(d);   // an engine without these parts: its own string
+  return `${Number(h)}:${m} ${ap.toLowerCase().replace(/\./g, '')}`;
+}
+
+/**
+ * When the published data was last refreshed (the API's `generated_at`), in Sydney time: "Refreshed 10:13 am",
+ * "Refreshed yesterday, 9:13 pm", "Refreshed Tue 20 Oct, 9:13 pm". '' when unknown (an API file from before 0.6.0).
+ */
+export function refreshedText(iso: string | null | undefined, now = new Date()): string {
+  const t = iso ? new Date(iso) : null;
+  if (!t || Number.isNaN(t.getTime())) return '';
+  const day = sydneyToday(t), today = sydneyToday(now);
+  const time = sydneyTime(t);
+  if (day >= today) return `Refreshed ${time}`;   // today (or a clock a little behind the server's)
+  if (day === addDays(today, -1)) return `Refreshed yesterday, ${time}`;
+  return `Refreshed ${SYD_DAY.format(t)} ${nice(day, false)}, ${time}`;
+}
+
 export function updatedText(age: number | null) {
   if (age == null) return '';
   if (age === 0) return 'Updated today';

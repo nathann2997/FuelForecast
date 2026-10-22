@@ -9,7 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { chartData, RANGES, type RangeKey } from '@/lib/chart';
 import { cycleSummary, historyNote, insights } from '@/lib/copy';
-import { fuelName } from '@/lib/format';
+import { fuelName, refreshedText } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
 import type { Fuel, Stations } from '@/lib/types';
 
@@ -50,7 +50,7 @@ export default function TrendsScreen() {
   return (
     <Screen
       title="Trends"
-      subtitle={`Sydney ${fuelName(fuel)}`}
+      subtitle={`Sydney ${fuelName(fuel)}${f?.generated_at ? ` · ${refreshedText(f.generated_at)}` : ''}`}
       onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       onRefresh={() => { hq.refetch(); fq.refetch(); sq.refetch(); }}
       refreshing={hq.isRefetching}>

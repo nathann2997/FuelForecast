@@ -5,16 +5,20 @@ export type Fuel = 'U91' | 'E10' | 'P98' | 'DL';
 export type Meta = {
   schema: number;
   generated_at: string;
+  license?: { name: string; url: string; attribution: string; excluded: string; sources: { name: string; publisher: string; terms: string; url: string }[] };
   asof: string;
   stations_asof: string;
   tgp_last: string | null;
-  fred_last: string | null;
+  fred_last: string | null;     // Brent and AUD/USD (EIA and RBA since 0.6.0; the key keeps its FRED-era name)
   history_last: string | null;
   live_model: string | null;
   snapshot_days: number | null;
   warnings: string[];
   files: Record<string, number>;
 };
+
+/** Added to every API file by export_api.py from 0.6.0 (absent in older files): when it was built, UTC ISO time */
+export type Stamp = { generated_at?: string; attribution?: string; license_note?: string };
 
 export type VerdictCls = 'up' | 'down' | 'flat';
 
@@ -74,7 +78,7 @@ export type Backtest = {
   bt7: { dates: string[]; actual: number[]; pred: number[] };
 };
 
-export type Forecast = {
+export type Forecast = Stamp & {
   schema: number;
   asof: string;
   live: LiveRow[];
@@ -102,7 +106,7 @@ export type Station = {
 
 export type Suburb = { s: string; pc: number; la: number; lo: number; n: number };
 
-export type Stations = {
+export type Stations = Stamp & {
   schema: number;
   asof: string;
   stations: Station[];
@@ -111,7 +115,7 @@ export type Stations = {
 
 export type Series = (number | null)[];
 
-export type History = {
+export type History = Stamp & {
   schema: number;
   start: string;
   hist: Record<Fuel, { med: Series; p10: Series; p90: Series }>;
@@ -136,7 +140,7 @@ export type StationProfile = {
   n: number;                      // waves observed
 };
 
-export type StationDetail = {
+export type StationDetail = Stamp & {
   schema: number;
   asof: string;
   id: string;

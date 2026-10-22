@@ -2,6 +2,47 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-22 — Data sources, licence notices and "Refreshed" times (pipeline + OTA at runtime 0.6.0)
+
+### Brent and AUD/USD no longer come from FRED (GitHub pipeline)
+- **Why:** FRED's terms (2024) prohibit using FRED content "in connection with the development or training of any software program… machine learning", and the forecast model (LightGBM) trains on these two series.
+- **New sources** (`fetch.py` `pull_macro`):
+  - Brent spot (RBRTE) from the U.S. EIA, which is the series FRED republishes.
+  - AUD/USD (F11.1 FXRUSD) from the RBA.
+- **Same shape as before:** they're written with FRED's column ids. `update.py` replaces the `data` branch's `store/fred.csv` with them in full, so no FRED values are kept and `model.py` is unchanged.
+- **Fresher data:** Brent now runs to 20 Oct and AUD/USD to 21 Oct. FRED stopped at 14 Oct.
+- **Effect on the forecast:**
+  - Like for like (both cut at 14 Oct), Brent is identical and AUD/USD differs by 0.36% on average (RBA 4 pm Sydney vs Fed noon NY). The forecast barely moves: U91's 7-day jump chance goes from 43% to 41%, and its 14-day change differs by about 1.7c.
+  - The fresher oil data does move it. Brent fell from US$126.5 to US$115.2 between 14 and 20 Oct, so the first run will lower U91's jump chance from about 43% to about 11%. FRED would have delivered that drop within days anyway.
+- **The Claude scheduled task is unchanged.** `pull_fred.js` still pulls FRED, so `main`'s `store/fred.csv` stays FRED-sourced. A newer Chrome FRED file still wins in `update.py`.
+- `requirements.txt`: added `xlrd` for the `.xls` files.
+
+### Licence and attribution (NSW FuelCheck is CC BY-SA 3.0 AU)
+- **New `DATA-LICENSE.md`:**
+  - The NSW data and Bowser's adaptations are CC BY-SA 3.0 AU, with credit to the State of NSW (NSW Fair Trading), a note of the changes made, and no endorsement implied.
+  - Not licensed here: AIP wholesale prices (© AIP), and Brent and AUD/USD. EIA cites Refinitiv as its source, and the RBA cites WM/Reuters.
+- **Every API file** carries `generated_at`. `forecast.json`, `stations.json` and `history.json` also carry `attribution` and `license_note`. `meta.json` carries the full `license` object: sources, terms and exclusions.
+- **The published dashboard copy** credits the right sources and the licence (`DASHBOARD_CREDITS` in `export_api.py`). `template.html`, which the Claude task shares, is unchanged.
+- **More → Data sources** shows the full credit line, plus links to the CC BY-SA licence and to the FuelCheck dataset. The source line is now "Brent (EIA) and AUD (RBA)".
+
+### "Refreshed" times in the app
+- **New `refreshedText`** in `lib/format.ts` gives the Sydney-time publish time from the API's `generated_at`: "Refreshed 10:13 am", "Refreshed yesterday, 9:13 pm" or "Refreshed Tue 20 Oct, 9:13 pm".
+- **Where it shows:**
+  - The subtitles on Today, Stations and Trends.
+  - Today's footer, which now reads "New prices up to 5 times a day" (it was "Updated each morning").
+  - More → Data sources.
+- **Older cached files** without `generated_at` fall back to the date, as before.
+- **Not on the station page:** above the price, "Refreshed" would read as the station's own price age.
+- **Not in the widgets yet.**
+
+### QA audit, fixes applied
+- **Source claims corrected.** Removed "public domain" for Brent and "Source: RBA" licensing for AUD/USD. Both are now credited with their vendors and kept out of the CC BY-SA scope.
+- **AIP exclusion list completed** with `stats.margin_now` and `stats.margin_typ`.
+- **The time formatter falls back** to the engine's own string if Hermes doesn't return hour, minute and am/pm parts.
+- **The string field is now `license_note`**, so it doesn't clash with meta.json's `license` object.
+- **A stale EIA/RBA file** in a local inbox can't override a newer FRED pull.
+- **README:** the schedule is up to 5 runs a day.
+
 ## 2026-10-22 — Bowser 0.6.0 (in progress): owner's feedback round
 
 ### iOS build (new; see `docs/IOS.md`)

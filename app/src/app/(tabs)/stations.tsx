@@ -12,7 +12,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useStations } from '@/lib/api';
 import { WHEN_NOTE } from '@/lib/copy';
 import { applyFilters, brandCounts, filterCount, pinnedRows } from '@/lib/filters';
-import { fuelName, nice } from '@/lib/format';
+import { fuelName, nice, refreshedText } from '@/lib/format';
 import { areaName, rankStations } from '@/lib/geo';
 import { usePins } from '@/lib/pins';
 import { resetFilters, useSettings } from '@/lib/settings';
@@ -59,7 +59,7 @@ export default function Stations() {
   return (
     <Screen
       title="Stations"
-      subtitle={data ? `${fuelName(s.fuel)} · prices from ${nice(data.asof)}` : 'Stations'}
+      subtitle={data ? `${fuelName(s.fuel)} · ${refreshedText(data.generated_at) || `prices from ${nice(data.asof)}`}` : 'Stations'}
       onRefresh={() => { sq.refetch(); fq.refetch(); }}
       refreshing={sq.isRefetching}>
       {!data ? (

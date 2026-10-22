@@ -11,7 +11,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useForecast, useMeta, useStations } from '@/lib/api';
 import { backtestNote, backtestRows, plainWarnings, widgetLocationCopy } from '@/lib/copy';
-import { daysBetween, nice } from '@/lib/format';
+import { daysBetween, nice, refreshedText } from '@/lib/format';
 import { bgRequestOpensSettings, openLocationSettings, useBackgroundLocation } from '@/lib/location';
 import { setSettings, useSettings } from '@/lib/settings';
 
@@ -22,6 +22,9 @@ const MODEL = [
   ['Validation', 'Walk-forward: retrained every month on all data before it, tested on each month from Jan 2021, including the 2022 and 2026 oil shocks. Ranges are 80% intervals from the past year of test errors.'],
   ['Limits', 'It reacts to oil and wholesale moves as they happen but cannot see wars, OPEC decisions or excise changes coming.'],
 ] as const;
+
+const CC_BY_SA = 'https://creativecommons.org/licenses/by-sa/3.0/au/';
+const FUELCHECK_DATA = 'https://data.nsw.gov.au/data/dataset/fuel-check';
 
 const TANKS = [['40', '40 L'], ['50', '50 L'], ['60', '60 L'], ['70', '70 L'], ['80', '80 L']] as const;
 
@@ -132,20 +135,26 @@ export default function More() {
           <View style={{ gap: Spacing.two }}>
             <Fresh label="Live Sydney prices" date={m.asof} ok={1} today={m.asof} />
             <Fresh label="Wholesale TGP (AIP)" date={m.tgp_last} ok={5} today={m.asof} />
-            <Fresh label="Brent and AUD (FRED)" date={m.fred_last} ok={10} today={m.asof} />
+            <Fresh label="Brent (EIA) and AUD (RBA)" date={m.fred_last} ok={10} today={m.asof} />
             <Fresh label="Full NSW price history" date={m.history_last} ok={60} today={m.asof} />
             <View style={styles.between}>
               <T kind="small">Daily snapshots stored</T>
               <T kind="num" style={{ fontSize: 13 }}>{m.snapshot_days ?? '–'}</T>
             </View>
-            <T kind="small">Updated {new Date(m.generated_at).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' })}</T>
+            <T kind="small">{refreshedText(m.generated_at)}. New prices up to 5 times a day.</T>
           </View>
         ) : (
           <Loading error={mq.error} onRetry={() => mq.refetch()} />
         )}
         <T kind="small">
-          NSW FuelCheck and data.nsw.gov.au price history; AIP wholesale prices; Brent crude and AUD/USD from FRED. Cents per litre including GST. Sydney is postcodes 2000–2234, 2555–2574 and 2740–2786.
+          Contains NSW Government FuelCheck data © State of New South Wales (NSW Fair Trading), licensed under CC BY-SA 3.0 AU; prices adapted and forecasts added by Bowser. Wholesale prices © Australian Institute of Petroleum. Brent crude: U.S. Energy Information Administration (Refinitiv). AUD/USD: Reserve Bank of Australia (WM/Reuters). Not endorsed by any of them. Cents per litre including GST. Sydney is postcodes 2000–2234, 2555–2574 and 2740–2786.
         </T>
+        <Pressable onPress={() => Linking.openURL(CC_BY_SA).catch(() => {})} accessibilityRole="link" hitSlop={8}>
+          <T kind="small" color={c.tgp} style={{ fontWeight: '700' }}>Licence: CC BY-SA 3.0 AU</T>
+        </Pressable>
+        <Pressable onPress={() => Linking.openURL(FUELCHECK_DATA).catch(() => {})} accessibilityRole="link" hitSlop={8}>
+          <T kind="small" color={c.tgp} style={{ fontWeight: '700' }}>FuelCheck data on data.nsw.gov.au</T>
+        </Pressable>
       </Disclosure>
 
       <Section title="About">

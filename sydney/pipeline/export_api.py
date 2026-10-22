@@ -8,7 +8,9 @@ Runs build.py unchanged (so the dashboard HTML is rebuilt too) and reuses the `d
   OUT/api/v1/history.json    daily Sydney median / p10 / p90 per fuel and wholesale TGP since 2019
   OUT/api/v1/station/{id}.json  per station (id = NSW station code): 400 days of daily prices, profile, own forecast
                                  (see station_api.py)
-  OUT/index.html             the dashboard
+  OUT/index.html             the dashboard (its source credits rewritten for this pipeline, see DASHBOARD_CREDITS)
+Every file carries `generated_at` (UTC, when this export ran: the app's "Refreshed" time); the top-level files also carry
+`attribution` and `license_note`, and meta.json has the full licence and source list (LICENSE below). See DATA-LICENSE.md.
 Exits 1 if the output fails sanity checks (nothing should be published then). The per-station files fail soft: if they
 can't be built or fail their checks, the rest is published without station/ and meta.warnings says why.
 """
@@ -25,6 +27,46 @@ FUELS = ["U91", "E10", "P98", "DL"]
 sys.argv = ["build.py", BASE]
 G = runpy.run_path(f"{BASE}/pipeline/build.py")
 data = G["data"]
+
+
+GENERATED_AT = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")   # one time for every file of this run
+
+# ---- licence and attribution (DATA-LICENSE.md). NSW FuelCheck data is CC BY-SA 3.0 AU, so these files (adaptations of
+# it) are released under the same licence. AIP's wholesale prices and the Brent and AUD/USD figures are not covered.
+# The FuelCheck licence version: data.nsw.gov.au's monthly history files say "CC BY-SA 3.0 Australia".
+CC = "https://creativecommons.org/licenses/by-sa/3.0/au/"
+ATTRIBUTION = ("Contains NSW Government FuelCheck data © State of New South Wales (NSW Fair Trading), licensed under CC BY-SA 3.0 AU; "
+               "prices adapted and forecasts added by Bowser. Wholesale terminal gate prices: © Australian Institute of Petroleum. "
+               "Brent crude: U.S. Energy Information Administration (from Refinitiv, an LSEG business). AUD/USD: Reserve Bank of "
+               "Australia (from WM/Reuters).")
+LICENSE = {
+    "name": "CC BY-SA 3.0 AU", "url": CC, "attribution": ATTRIBUTION,
+    "excluded": "Not licensed under CC BY-SA: wholesale terminal gate prices and figures derived from them (history.json tgp; "
+                "forecast.json live[].tgp, live[].margin, stats.margin_now, stats.margin_typ), © Australian Institute of Petroleum, "
+                "all rights reserved; and the Brent crude and AUD/USD figures (forecast.json ctx.brent_usd, ctx.brent_aud, ctx.audusd), "
+                "which remain subject to their publishers' and data vendors' terms.",
+    "sources": [
+        {"name": "NSW FuelCheck live prices and monthly price history", "publisher": "NSW Fair Trading (Department of Customer Service)",
+         "terms": "CC BY-SA 3.0 AU", "url": "https://data.nsw.gov.au/data/dataset/fuel-check"},
+        {"name": "Brent crude spot price (RBRTE)", "publisher": "U.S. Energy Information Administration (source: Refinitiv, an LSEG business)",
+         "terms": "EIA copyright and reuse policy; not relicensed here", "url": "https://www.eia.gov/dnav/pet/hist/RBRTED.htm"},
+        {"name": "AUD/USD exchange rate (F11.1, FXRUSD)", "publisher": "Reserve Bank of Australia (source: WM/Reuters)",
+         "terms": "RBA copyright notice; third-party data; not relicensed here", "url": "https://www.rba.gov.au/statistics/tables/"},
+        {"name": "Terminal gate prices", "publisher": "Australian Institute of Petroleum",
+         "terms": "© AIP, all rights reserved; not licensed here", "url": "https://www.aip.com.au/historical-ulp-and-diesel-tgp-data"},
+    ],
+}
+STAMP = {"generated_at": GENERATED_AT, "license_note": f"CC BY-SA 3.0 AU {CC}, with exclusions: see meta.json license", "attribution": ATTRIBUTION}
+
+# The dashboard template is shared with the Claude scheduled task, which still credits FRED; only this pipeline's
+# published copy gets the sources it actually used and the NSW licence.
+DASHBOARD_CREDITS = [
+    ("monthly price history on data.nsw.gov.au;",
+     "monthly price history on data.nsw.gov.au (© State of NSW, NSW Fair Trading, CC BY-SA 3.0 AU; adapted, with forecasts added);"),
+    ("Brent crude (DCOILBRENTEU) and AUD/USD (DEXUSAL) from FRED, Federal Reserve Bank of St. Louis.",
+     "Brent crude from the U.S. Energy Information Administration (Refinitiv) and AUD/USD from the Reserve Bank of Australia (WM/Reuters)."),
+    ('"Brent and AUD (FRED)"', '"Brent (EIA) and AUD (RBA)"'),
+]
 
 
 def verdict(r):   # same rule as verdict() in template.html
@@ -51,12 +93,12 @@ if len(ids) != len(data["stations"]) or len(set(ids)) != len(ids):
     errs.append(f"station ids: {len(ids)} ({len(set(ids))} unique) != {len(data['stations'])} stations")
     ids = [None] * len(data["stations"])
 app_stations = [dict(id=i, **s) for i, s in zip(ids, data["stations"])]
-stations = {"schema": SCHEMA, "asof": data["snap_asof"],
+stations = {"schema": SCHEMA, "asof": data["snap_asof"], **STAMP,
             "fields": {"id": "NSW station code (station/{id}.json)", "n": "name", "b": "brand", "s": "suburb", "pc": "postcode", "la": "lat", "lo": "lon", "m": "members only (0/1)",
                        "p": "fuel -> [price c/L, days since update, advice code, advice label, advice reason, "
                             "7-day forecast price c/L (= station/{id}.json fc.now + fc.d7; absent if station files failed)]"},
             "stations": app_stations, "suburbs": suburbs, "suburb_stats": data["suburbs"]}
-history = {"schema": SCHEMA, "start": data["start"], "hist": data["hist"], "tgp": data["tgp"]}
+history = {"schema": SCHEMA, **STAMP, "start": data["start"], "hist": data["hist"], "tgp": data["tgp"]}
 
 # ---- sanity checks: fail rather than publish something broken or stale
 today = dt.datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()
@@ -71,7 +113,7 @@ for r in data["live"]:
 if len(data["stations"]) < 500: errs.append(f"only {len(data['stations'])} stations")
 if errs:
     print("export_api: FAILED checks:\n  " + "\n  ".join(errs)); sys.exit(1)
-forecast = {"schema": SCHEMA, "asof": ctx["asof"], "live": [dict(r, verdict=verdict(r)) for r in data["live"]],
+forecast = {"schema": SCHEMA, "asof": ctx["asof"], **STAMP, "live": [dict(r, verdict=verdict(r)) for r in data["live"]],
             "ctx": ctx, "stats": data["stats"], "brands": data["brands"], "bt": data["bt"]}
 
 # soft warnings: inputs that the model forward-fills when a best-effort pull keeps failing
@@ -88,7 +130,7 @@ try:
     details = station_api.build(BASE, G, SCHEMA)
     st_errs = station_api.check(details, app_stations)
     if st_errs: raise RuntimeError(f"{len(st_errs)} check(s) failed, e.g. {'; '.join(st_errs[:3])}")
-    st_txt = {i: json.dumps(d, separators=(",", ":"), allow_nan=False) for i, d in details.items()}
+    st_txt = {i: json.dumps(dict(d, generated_at=GENERATED_AT), separators=(",", ":"), allow_nan=False) for i, d in details.items()}
     # p[fuel][5]: the 7-day forecast price from the same fc, for the widget (new dicts/lists: build.py's data untouched)
     f7 = lambda fc: round(fc["now"] + fc["d7"], 1) + 0.0
     # index 5 (7-day station forecast) belongs to this script; build.py fills 0-4 only
@@ -113,12 +155,16 @@ if st_txt:
     os.makedirs(f"{api}/station")
     for i, txt in st_txt.items(): open(f"{api}/station/{i}.json", "w").write(txt)
     files["station/"] = sum(sizes); files["station/count"] = len(sizes)
-meta = {"schema": SCHEMA, "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+meta = {"schema": SCHEMA, "generated_at": GENERATED_AT, "license": LICENSE,
         "asof": ctx["asof"], "stations_asof": data["snap_asof"], "tgp_last": ctx.get("tgp_last"), "fred_last": ctx.get("fred_last"),
         "history_last": ctx.get("history_last"), "live_model": ctx.get("live_model"), "snapshot_days": ctx.get("snapshot_days"),
         "warnings": warnings, "files": files}
 json.dump(meta, open(f"{api}/meta.json", "w"), indent=1, allow_nan=False)
-shutil.copy(f"{BASE}/out/sydney-pump-outlook.html", f"{OUT}/index.html")
+html = open(f"{BASE}/out/sydney-pump-outlook.html").read()
+for old, new in DASHBOARD_CREDITS:
+    if old in html: html = html.replace(old, new)
+    else: print(f"export_api: WARNING dashboard credit not found: {old[:60]!r}")
+open(f"{OUT}/index.html", "w").write(html)
 print(f"export_api: {ctx['asof']}, {len(data['stations'])} stations, " + ", ".join(f"{k} {v // 1024}KB" for k, v in files.items() if k != "station/count")
       + (f"; station files {len(sizes)}, p50 {sizes[len(sizes) // 2] // 1024}KB, max {sizes[-1] // 1024}KB" if sizes else "; NO station files")
       + (f"; WARNINGS: {warnings}" if warnings else ""))

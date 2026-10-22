@@ -42,4 +42,10 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Owner has two Expo accounts (nathann97, nathannguy); the project lives on nathann97.
 - AIP / FRED worked from GitHub runners on the first run; both stay best-effort (model forward-fills, `meta.warnings` flags staleness).
 - GitHub cron can start 10–30 min late; scheduled workflows pause after 60 days of no repo activity (daily `data` commits count).
-- NSW FuelCheck licence terms matter only if the app goes public.
+- **Data licences** (`DATA-LICENSE.md`):
+  - The repo and API are public, so everything in them counts as published.
+  - NSW FuelCheck is CC BY-SA 3.0 AU and is now attributed.
+  - **Open:**
+    - AIP's TGP (© AIP, all rights reserved) is still republished: `tgp.csv`, `history.json` `tgp`, and the Today and Trends wholesale figures. The owner was advised to email aip@aip.com.au.
+    - Brent and AUD/USD now come from EIA and the RBA, but both cite commercial vendors (Refinitiv, WM/Reuters), and the raw series sit in the public `data` branch.
+    - The Claude task still pulls FRED, whose terms bar ML training.

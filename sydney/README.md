@@ -12,8 +12,8 @@ A Claude scheduled task runs every morning (6:52am Sydney):
 The walk-forward backtest (`model.py --backtest`, about 8 minutes) reruns on the first Monday of each month.
 
 ## Headless run (GitHub Actions) and app API
-`.github/workflows/daily.yml` runs the same pipeline with no browser, every day at 19:30 UTC (06:30 AEDT / 05:30 AEST), alongside the Claude task above and without touching `main`:
-1. `pipeline/fetch.py` replaces the four Chrome pulls and writes the same files into `inbox/` (only the NSW snapshot is required; FRED, AIP and monthly history are best-effort).
+`.github/workflows/daily.yml` runs the same pipeline with no browser, up to 5 times a day (see the cron slots in `daily.yml`), alongside the Claude task above and without touching `main`:
+1. `pipeline/fetch.py` replaces the four Chrome pulls and writes the same files into `inbox/` (only the NSW snapshot is required; Brent/AUD, AIP and monthly history are best-effort). Brent comes from the US EIA (which sources it from Refinitiv) and AUD/USD from the RBA (sourced from WM/Reuters), not FRED, whose terms bar using its content to train models. Neither is relicensed here (see `DATA-LICENSE.md`). `update.py` replaces `store/fred.csv` with them, keeping the file name and FRED column ids, so `model.py` is unchanged.
 2. `pipeline/run_daily.sh`, unchanged (with `--backtest` on the first Monday of the month).
 3. `pipeline/export_api.py` runs `build.py` and writes the app API (with `station_api.py` for the per-station files), failing if the data isn't today's or a check fails.
 4. State (`store/`, `archive/`) is committed to the `data` branch (seeded from `main` on the first run); the API and dashboard are deployed to GitHub Pages.
@@ -38,11 +38,11 @@ API keys live in `pipeline/credentials.py` and `pipeline/pull_nsw.js`, which are
 | `pipeline/` | all code |
 | `store/daily.csv` | Sydney daily price summary per fuel, Jan 2019 onward (history + daily snapshots) |
 | `store/events/` | Sydney price-change records from the NSW monthly files |
-| `store/tgp.csv`, `store/fred.csv` | wholesale TGP (AIP), Brent and AUD/USD (FRED) |
+| `store/tgp.csv`, `store/fred.csv` | wholesale TGP (AIP), Brent and AUD/USD (FRED for the Claude task; EIA and RBA on the `data` branch) |
 | `store/backtest*` | walk-forward backtest results |
 | `store/forecast.json`, `store/stations_today.json` | today's forecast and station prices |
 | `archive/` | daily station-level Sydney snapshots (gzipped JSON) |
 | `out/sydney-pump-outlook.html` | the dashboard |
 
 Sydney = postcodes 2000-2234, 2555-2574, 2740-2786. Prices in cents per litre incl. GST.
-Sources: NSW Government FuelCheck (API.NSW, data.nsw.gov.au), Australian Institute of Petroleum, FRED (Federal Reserve Bank of St. Louis).
+Sources: NSW Government FuelCheck (API.NSW, data.nsw.gov.au; CC BY-SA 3.0 AU), Australian Institute of Petroleum (© AIP), Brent crude from the U.S. Energy Information Administration (Refinitiv), AUD/USD from the Reserve Bank of Australia (WM/Reuters); the Claude task's Chrome pull still uses FRED. Licence and attribution for the data and the API: [`DATA-LICENSE.md`](../DATA-LICENSE.md). Every API file carries `generated_at` (the app's "Refreshed" time), plus `attribution` and `license_note`.

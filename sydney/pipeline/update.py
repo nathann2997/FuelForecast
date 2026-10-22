@@ -70,8 +70,19 @@ if x:
     T.to_csv(f"{STORE}/tgp.csv", index_label="date")
     log.append(f"tgp to {T.index.max().date()}")
 
-# ---- FRED Brent (USD/bbl) and AUD/USD
-fr = newest("fredgraph*.csv") or newest("fred_brent_aud*.csv")
+# ---- Brent (US EIA) and AUD/USD (RBA): the GitHub pipeline's source (fetch.py pull_macro), in place of FRED. Each file
+# holds the full history from 2018-06, so it replaces store/fred.csv outright and no FRED values are kept. The file
+# name and the FRED-id column names stay, so model.py is unchanged.
+er = newest("brent_audusd_eia_rba*.csv")
+fr_chrome = newest("fredgraph*.csv") or newest("fred_brent_aud*.csv")
+if er and fr_chrome and os.path.getmtime(fr_chrome) > os.path.getmtime(er): er = None   # a newer Chrome FRED pull wins
+if er:
+    Fr = pd.read_csv(er, parse_dates=["date"]).set_index("date")[["DCOILBRENTEU", "DEXUSAL"]].sort_index()
+    Fr.to_csv(f"{STORE}/fred.csv", index_label="date")
+    log.append(f"brent/aud (EIA/RBA) to {Fr.dropna().index.max().date()}")
+
+# ---- FRED Brent (USD/bbl) and AUD/USD (the Chrome pull, pull_fred.js); skipped when the EIA/RBA file is there
+fr = None if er else fr_chrome
 if fr:
     txt = open(fr).read()
     if txt.startswith("#"):

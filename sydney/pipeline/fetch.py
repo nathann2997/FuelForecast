@@ -1,9 +1,10 @@
-"""Headless replacement for the Chrome pulls (pull_nsw.js, pull_fred.js, find_aip.js, pull_history.js).
+"""Headless replacement for the Chrome pulls (pull_nsw.js, pull_fred.js, find_aip.js, pull_history.js). Brent and
+AUD/USD come from the US EIA and the RBA rather than FRED (see pull_macro).
 
 usage: python fetch.py BASE INBOX
 Writes into INBOX the same files the Chrome pulls download, so run_daily.sh / update.py consume them unchanged:
   nsw_snapshot_YYYYMMDD.json   NSW FuelCheck live prices (Sydney date)          -- required, exits 1 if it fails
-  fred_brent_aud.csv           FRED DCOILBRENTEU + DEXUSAL ('#'-block format)   -- optional
+  brent_audusd_eia_rba.csv     Brent (US EIA) + AUD/USD (RBA F11.1), FRED ids  -- optional (replaces the FRED pull)
   AIP_TGP_Data_*.xlsx          AIP terminal gate price workbook                -- optional
   syd_events_YYYYMM.csv        NSW monthly history after ctx.history_last       -- optional
 Credentials: env NSW_API_KEY / NSW_API_SECRET (GitHub Secrets), else pipeline/credentials.py.
@@ -61,19 +62,53 @@ def pull_nsw():
     return f"{name} ({len(j['prices'])} prices)"
 
 
-# ---- FRED Brent USD/bbl + AUD/USD (pull_fred.js)
-def pull_fred():
-    out, info = "", {}
-    for sid in ["DCOILBRENTEU", "DEXUSAL"]:
-        r = get(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd=2018-06-01")   # FRED rejects a spoofed browser UA
-        r.raise_for_status()
-        t = r.text
-        if not (t.startswith("observation_date") and sid in t.split("\n", 1)[0]):   # e.g. an HTML block/challenge page
-            raise RuntimeError(f"{sid}: not a FRED CSV ({t[:60]!r})")
-        info[sid] = t.strip().split("\n")[-1]
-        out += f"#{sid}\n{t}\n"
-    open(f"{INBOX}/fred_brent_aud.csv", "w").write(out)
-    return f"fred {info}"
+# ---- Brent USD/bbl and AUD/USD, in place of FRED (pull_fred.js), whose terms bar using FRED content to train models.
+# The same series from their publishers: Brent spot from the US EIA (FRED's DCOILBRENTEU is this EIA series; EIA cites
+# Refinitiv, an LSEG business, as its source) and A$1=USD from the RBA's F11.1 table (source WM/Reuters). Neither is
+# relicensed by this repo: see DATA-LICENSE.md. Columns keep FRED's ids
+# (DCOILBRENTEU, DEXUSAL) so update.py and model.py read them unchanged; update.py replaces store/fred.csv with it.
+EIA_BRENT = "https://www.eia.gov/dnav/pet/hist_xls/RBRTEd.xls"
+RBA_FX = ["https://www.rba.gov.au/statistics/tables/xls-hist/2018-2022.xls",   # closed years (the file never changes)
+          "https://www.rba.gov.au/statistics/tables/csv/f11.1-data.csv"]      # 2023 to date
+
+
+def rba_usd(t):
+    """The FXRUSD (A$1=USD) column of an F11.1 table read with header=None, as a date-indexed Series."""
+    import pandas as pd
+    first = t.iloc[:, 0].astype(str).str.strip()
+    hdr = first[first == "Series ID"].index[0]
+    col = next(c for c in t.columns if str(t.at[hdr, c]).strip() == "FXRUSD")
+    body = t.loc[hdr + 1:, [t.columns[0], col]]
+    raw = body.iloc[:, 0]
+    dates = pd.to_datetime(raw.where(raw.map(lambda v: not isinstance(v, str))), errors="coerce")   # xls: datetimes
+    dates = dates.fillna(pd.to_datetime(raw.where(raw.map(lambda v: isinstance(v, str))), format="%d-%b-%Y", errors="coerce"))
+    s = pd.Series(pd.to_numeric(body.iloc[:, 1], errors="coerce").values, index=dates.values)
+    return s[s.index.notna()].dropna()
+
+
+def pull_macro():
+    import pandas as pd
+    b = pd.read_excel(io.BytesIO(get(EIA_BRENT, headers=UA).content), sheet_name="Data 1", header=2)
+    brent = pd.Series(pd.to_numeric(b.iloc[:, 1], errors="coerce").values, index=pd.to_datetime(b.iloc[:, 0], errors="coerce")).dropna()
+    parts = []
+    for url in RBA_FX:
+        body = get(url, headers=UA).content
+        t = (pd.read_excel(io.BytesIO(body), sheet_name=0, header=None) if url.endswith(".xls")
+             else pd.read_csv(io.BytesIO(body), header=None, names=range(40), encoding="utf-8-sig", dtype=str))
+        parts.append(rba_usd(t))
+    aud = pd.concat(parts).sort_index()
+    aud = aud[~aud.index.duplicated(keep="last")]
+    F = pd.concat({"DCOILBRENTEU": brent, "DEXUSAL": aud}, axis=1).sort_index()
+    F = F[F.index >= "2018-06-01"]
+    # Don't feed the model a broken parse: plausible ranges, recent data, and the full history back to 2018
+    lb, la = brent[brent.index >= "2018-06-01"], aud[aud.index >= "2018-06-01"]
+    now = pd.Timestamp.now().normalize()
+    if not (20 < lb.iloc[-1] < 400 and 0.3 < la.iloc[-1] < 1.5 and len(lb) > 1500 and len(la) > 1500):
+        raise RuntimeError(f"implausible series: brent {lb.iloc[-1]} ({len(lb)} days), aud {la.iloc[-1]} ({len(la)} days)")
+    if (now - lb.index[-1]).days > 30 or (now - la.index[-1]).days > 30:
+        raise RuntimeError(f"stale series: brent to {lb.index[-1].date()}, aud to {la.index[-1].date()}")
+    F.to_csv(f"{INBOX}/brent_audusd_eia_rba.csv", index_label="date")
+    return f"brent (EIA) to {lb.index[-1].date()} {lb.iloc[-1]:g}; aud (RBA) to {la.index[-1].date()} {la.iloc[-1]:g}"
 
 
 # ---- AIP terminal gate prices (find_aip.js)
@@ -163,7 +198,7 @@ def pull_history():
     return "; ".join(done)
 
 
-for name, fn, required in [("nsw", pull_nsw, True), ("fred", pull_fred, False), ("aip", pull_aip, False), ("history", pull_history, False)]:
+for name, fn, required in [("nsw", pull_nsw, True), ("macro", pull_macro, False), ("aip", pull_aip, False), ("history", pull_history, False)]:
     try:
         log.append(f"{name}: {fn()}")
     except Exception as e:
