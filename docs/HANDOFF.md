@@ -10,6 +10,29 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [~] **Bowser 0.7, "prove it"** (2026-10-22; plan `docs/BOWSER_0.7_PLAN.md`; CHANGELOG builds A–D): built, QA audited and fixed, committed locally. **Not pushed or shipped.**
+  - **The four builds**, built one at a time in this order:
+    - A `2cc4ef9`: your price after discounts. It also covers the widget.
+    - B `6707418`: fill log and savings.
+    - C `4bc27e2`: track record, plus `track_api.py` and `api/v1/track.json`.
+    - D `6a9d319`: share a deal or your savings, plus the `/s/` share page.
+  - **How they connect:**
+    - A defines "your price". B logs it, and D deliberately shares the pump price instead.
+    - B's "when you filled" and C's scoring use the same 7-day window and the same "last day is over" rule.
+    - Today's proof strip shows C's "Calls right" tile beside B's "You saved".
+  - **Shipping:**
+    - The app part is JS only at runtime **0.6.1**, so an OTA update to `preview` only reaches phones with the 0.6.1 APK (that APK still needs building, see the app-ci entry).
+    - The pipeline part (`track_api.py`, `share.html`, `export_api.py`) goes live with the next workflow run after a push to `main`.
+    - Recording live calls starts with that run, so the first call is scored 8 days later. Until 10 live calls have played out, the headline is the replayed backtest, labelled "tested on 2021–2026 prices".
+  - **Next:**
+    - Get the owner's OK, then push (CI and Pages deploy), then `eas update` on `preview`.
+    - Check `track.json` and `/s/?id=…` on the live site.
+    - **Device checks:**
+      - The keyboard lifts the Filled-up and discount sheets.
+      - The Share sheet on Android and iOS.
+      - The share link opens the page, and "Have Bowser? Open it" opens the station.
+      - The widget shows your price after a discount change.
+    - **Known gap:** fills and calls whose week overlaps 1–12 Oct show "pending" until NSW publishes October's history.
 - [~] **app-ci fixed; app 0.6.1** (2026-10-22; CHANGELOG "app-ci fixed…"). Expo SDK 58 patch updates via `npx expo install --fix`, which also added the `expo-status-bar` plugin in `app.json`. The native fingerprint changed, so `version` moved to 0.6.1 (runtime `appVersion`), and 0.6.0 APKs no longer receive OTAs. This also clears the expo-doctor note in the "Data sources" item. **Next:** build a 0.6.1 preview APK (`npx eas-cli build -p android --profile preview`) and send testers the link. Until then, don't publish OTAs expecting 0.6.0 phones to receive them.
 - [x] **Web dashboard redesigned to match the app** (2026-10-22, 05446ef; CHANGELOG "Web dashboard redesigned…"): live.
   - Only `sydney/pipeline/template.html` changed. `build.py`, `export_api.py`, the store and `out/` were not touched.
