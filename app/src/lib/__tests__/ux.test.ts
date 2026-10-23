@@ -1,10 +1,9 @@
-// The 0.5.0 UX pieces: rise alerts, Today's best pick, the Trends cycle sentence and the small widget's bottom line.
+// The 0.5.0 UX pieces: rise alerts, the Trends cycle sentence and the small widget's bottom line (Today's best pick was
+// removed in the 2026-10-23 design review).
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { alertPlan, alertWorthy, setAlerts, syncAlerts } from '../alerts';
 import { cycleSummary } from '../copy';
-import { bestPick } from '../filters';
-import type { StationRow } from '../geo';
 import type { Forecast, LiveRow } from '../types';
 import { buildModel, compactForecast, compactStations, smallBottomLine, type WidgetSnapshot } from '../../widget/logic';
 import fixture from './forecast.fixture.json';
@@ -109,16 +108,6 @@ describe('rise alerts', () => {
     const n = mockNotes.cancelled;
     await syncAlerts(undefined, undefined, { now: day(22, 5) });
     expect(mockNotes.cancelled).toBe(n);
-  });
-});
-
-const sr = (id: string, price: number, age: number | null = 0): StationRow =>
-  ({ id, n: `S${id}`, b: 'B', s: 'S', pc: 2150, la: 0, lo: 0, m: 0, p: {}, price, age, adv: [price, age, 'ok', 'Any time', ''], d: 1 }) as unknown as StationRow;
-
-describe("Today's best pick", () => {
-  it('is the cheapest fresh price among pinned and nearby, skipping stale and id-less rows', () => {
-    expect(bestPick([sr('1', 230), null, sr('2', 228), sr('3', 220, 9), { ...sr('4', 210), id: '' }])!.id).toBe('2');
-    expect(bestPick([])).toBeNull();
   });
 });
 

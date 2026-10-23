@@ -277,10 +277,13 @@ export function FuelChip() {
   );
 }
 
+const FUEL_SHORT = [['U91', 'U91'], ['E10', 'E10'], ['P98', 'P98'], ['DL', 'Diesel']] as const;
+
 /** The fuel picker as a segmented control, for the settings screen */
 export function FuelPicker() {
   const { fuel } = useSettings();
-  return <Segmented options={FUELS} value={fuel} onChange={(f) => setSettings({ fuel: f })} />;
+  // Short names, as on the header chip: the full names wrapped "Diesel" onto a second row
+  return <Segmented options={FUEL_SHORT} value={fuel} onChange={(f) => setSettings({ fuel: f })} />;
 }
 
 /** Loading / error placeholder while a query has no data yet */

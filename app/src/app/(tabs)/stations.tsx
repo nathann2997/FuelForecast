@@ -13,8 +13,9 @@ import { useReady } from '@/lib/analytics';
 import { useForecast, useStations } from '@/lib/api';
 import { WHEN_NOTE } from '@/lib/copy';
 import { applyFilters, brandCounts, filterCount, pinnedRows } from '@/lib/filters';
-import { fuelName, nice, refreshedText } from '@/lib/format';
+import { nice, refreshedText } from '@/lib/format';
 import { areaName, rankStations } from '@/lib/geo';
+import { toneOf } from '@/lib/outlook';
 import { usePins } from '@/lib/pins';
 import { resetFilters, useSettings } from '@/lib/settings';
 
@@ -55,13 +56,14 @@ export default function Stations() {
   const nFilters = filterCount(s);
 
   const r = fq.data?.live.find((x) => x.fuel === s.fuel);
+  const sydney = r ? toneOf(r.verdict.cls) : undefined;   // rows leave out advice that only repeats it
   const area = home && data ? areaName(home, data.suburbs, live) : null;
   const order = s.pinnedOnly ? 'pinned only' : `${home ? `within ${s.radiusKm} km, ` : ''}${home && s.sort === 'distance' ? 'nearest' : 'cheapest'} first`;
 
   return (
     <Screen
       title="Stations"
-      subtitle={data ? `${fuelName(s.fuel)} · ${refreshedText(data.generated_at) || `prices from ${nice(data.asof)}`}` : 'Stations'}
+      subtitle={data ? refreshedText(data.generated_at) || `Prices from ${nice(data.asof)}` : undefined}
       onRefresh={() => { sq.refetch(); fq.refetch(); }}
       refreshing={sq.isRefetching}>
       {!data ? (
@@ -123,7 +125,7 @@ export default function Stations() {
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 {pinned.map((p, i) =>
                   p.row ? (
-                    <StationItem key={p.id} r={p.row} median={r?.now} last={i === pinned.length - 1} />
+                    <StationItem key={p.id} r={p.row} median={r?.now} sydney={sydney} last={i === pinned.length - 1} />
                   ) : (
                     <MissingPinItem key={p.id} id={p.id} station={p.station} fuel={s.fuel} last={i === pinned.length - 1} />
                   ),
@@ -146,7 +148,7 @@ export default function Stations() {
               {pinned.length ? <T kind="eyebrow">{home ? `Within ${s.radiusKm} km` : 'All stations'}</T> : null}
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 {rows.slice(0, show).map((x, i, a) => (
-                  <StationItem key={rowKey(x)} r={x} median={r?.now} last={i === a.length - 1} />
+                  <StationItem key={rowKey(x)} r={x} median={r?.now} sydney={sydney} last={i === a.length - 1} />
                 ))}
               </Card>
             </View>

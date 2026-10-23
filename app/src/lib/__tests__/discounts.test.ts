@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 import { chooseRows, compactForecast, compactStations, isFresh, type WidgetPrefs, type WidgetSnapshot } from '../../widget/logic';
 import { cleanDiscounts, MAX_DISCOUNTS, offFor, offText, withDiscount, yourPrice } from '../discounts';
-import { applyFilters, bestPick, FILTER_DEFAULTS, pinnedRows } from '../filters';
+import { applyFilters, FILTER_DEFAULTS, pinnedRows } from '../filters';
 import { rankStations } from '../geo';
 import { normalize } from '../settings';
 import type { Forecast, Station, StationPrice, Stations } from '../types';
@@ -82,11 +82,9 @@ describe('ranking by the price you pay', () => {
     const mine = rankStations(stations, 'U91', { home, radiusKm: 5, members: true, discounts: D });
     expect(applyFilters(mine, { ...FILTER_DEFAULTS, maxPrice: 199 }).map((r) => r.b)).toEqual(['BP', 'Shell']);
   });
-  it('gives pinned rows and the best pick your price', () => {
-    const p = pinnedRows(stations, 'U91', ['1', '2'], home, D);
-    expect(p.map((x) => x.row?.price)).toEqual([200, 198]);
-    expect(bestPick(p.map((x) => x.row))?.b).toBe('BP');
-    expect(bestPick(pinnedRows(stations, 'U91', ['1', '2'], home).map((x) => x.row))?.b).toBe('Ampol');
+  it('gives pinned rows your price', () => {
+    expect(pinnedRows(stations, 'U91', ['1', '2'], home, D).map((x) => x.row?.price)).toEqual([200, 198]);
+    expect(pinnedRows(stations, 'U91', ['1', '2'], home).map((x) => x.row?.price)).toEqual([200, 202]);
   });
 });
 

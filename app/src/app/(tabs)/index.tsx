@@ -6,19 +6,18 @@ import { AreaPicker } from '@/components/area-picker';
 import { OutlookChart } from '@/components/outlook-chart';
 import { SavingsStrip, TrackStrip } from '@/components/proof-strip';
 import { BowserWordmark } from '@/components/brand';
-import { ADVICE_TONE, MissingPinItem, OffTag, openStation, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
-import { Badge, Card, Disclosure, Loading, Screen, Section, StaleBanner, T, toneColors } from '@/components/ui';
+import { MissingPinItem, rowKey, STALE_DAYS, StationItem } from '@/components/station-row';
+import { Card, Disclosure, Loading, Screen, Section, StaleBanner, T, toneColors } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useArea } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
 import { useReady } from '@/lib/analytics';
 import { useForecast, useHistory, useStations } from '@/lib/api';
 import { horizons, jumpRisk, signalWhy } from '@/lib/copy';
-import { fmt, fuelName, nice, refreshedText, stationName } from '@/lib/format';
-import { offText } from '@/lib/discounts';
-import { bestPick, pinnedRows } from '@/lib/filters';
+import { fmt, nice, refreshedText } from '@/lib/format';
+import { pinnedRows } from '@/lib/filters';
 import { rankStations } from '@/lib/geo';
-import { dayLabel, dollars, outlook, riseDay } from '@/lib/outlook';
+import { dayLabel, outlook, riseDay } from '@/lib/outlook';
 import { usePins } from '@/lib/pins';
 import { useSettings } from '@/lib/settings';
 
@@ -46,8 +45,6 @@ export default function Today() {
     () => (sq.data ? pinnedRows(sq.data.stations, s.fuel, pins, home, s.discounts) : []),
     [sq.data, s.fuel, pins, home, s.discounts],
   );
-  const pick = useMemo(() => bestPick([...mine.map((p) => p.row), ...best]), [mine, best]);
-  const pickSave = pick && r ? r.now - pick.price : 0;   // c/L under the Sydney median
 
   if (!s.onboarded) return <Redirect href="/welcome" />;
 
@@ -55,7 +52,7 @@ export default function Today() {
     <Screen
       brand={<BowserWordmark height={25} />}
       title="Today"
-      subtitle={f ? `Sydney ${fuelName(s.fuel)} · ${refreshedText(f.generated_at) || dayLabel(f.asof)}` : undefined}
+      subtitle={f ? `Sydney · ${refreshedText(f.generated_at) || dayLabel(f.asof)}` : undefined}
       onRefresh={() => { fq.refetch(); sq.refetch(); hq.refetch(); }}
       refreshing={fq.isRefetching}>
       {!f || !r || !o ? (
@@ -70,34 +67,12 @@ export default function Today() {
             </T>
             <T kind="hero" color={t.fg} style={{ fontSize: 34, lineHeight: 40 }}>{o.head}</T>
             {o.deadline ? <T color={t.fg} style={{ fontWeight: '700' }}>{o.deadline}</T> : null}
-            {pick ? (
-              <Pressable
-                onPress={() => openStation(pick.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`Best for you: ${stationName(pick.n)}, ${pick.price.toFixed(1)} cents${pick.off ? ` with your ${offText(pick.off)} off` : ''}, ${pick.adv[3]}`}
-                style={({ pressed }) => [styles.pick, { backgroundColor: c.surface, opacity: pressed ? 0.8 : 1 }]}>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <T kind="eyebrow">Best for you</T>
-                  <T color={c.fg} style={{ fontWeight: '700', fontSize: 16 }} numberOfLines={1}>{stationName(pick.n)}</T>
-                  <View style={{ flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' }}>
-                    <Badge tone={ADVICE_TONE[pick.adv[2]] ?? 'calm'}>{pick.adv[3]}</Badge>
-                    {pick.off ? <OffTag off={pick.off} /> : null}
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                  <T kind="bignum">{pick.price.toFixed(1)}</T>
-                  {pickSave >= 0.5 ? (
-                    <T kind="small" color={c.cheap} style={{ fontWeight: '600' }}>saves {dollars(pickSave, s.tankL)} vs avg</T>
-                  ) : null}
-                </View>
-              </Pressable>
-            ) : null}
             <T color={t.fg} style={{ opacity: 0.9 }}>{o.detail}</T>
             <OutlookChart r={r} asof={f.asof} rise={riseDay(r)} tone={o.tone} />
             <View style={styles.horizons}>
               {horizons(r).map((h) => (
                 <View key={h.label} style={styles.hcell}>
-                  <T kind="eyebrow" color={t.fg} style={{ opacity: 0.75, fontSize: 10 }}>{h.label.replace('In ', '')}</T>
+                  <T kind="eyebrow" color={t.fg} style={{ opacity: 0.75, fontSize: 10 }} numberOfLines={1}>{h.short}</T>
                   <T kind="num" color={t.fg}>{h.value.toFixed(1)}</T>
                   <T kind="small" color={t.fg} style={{ opacity: 0.8 }}>{fmt(h.delta)}c</T>
                 </View>
@@ -105,17 +80,19 @@ export default function Today() {
             </View>
           </View>
 
-          <SavingsStrip />
-
-          {pins.length ? (
           <Section title="Your stations">
-            {!sq.data ? (
+            {!pins.length ? (
+              <Card style={{ gap: Spacing.one }}>
+                <T color={c.fg}>Pin the stations you use and they’ll show here first.</T>
+                <T kind="small">Swipe a station left, or tap Pin on its page.</T>
+              </Card>
+            ) : !sq.data ? (
               <Loading error={sq.error} onRetry={() => sq.refetch()} />
             ) : (
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 {mine.map((p, i) =>
                   p.row ? (
-                    <StationItem key={p.id} r={p.row} median={r.now} last={i === mine.length - 1} />
+                    <StationItem key={p.id} r={p.row} median={r.now} sydney={o.tone} last={i === mine.length - 1} />
                   ) : (
                     <MissingPinItem key={p.id} id={p.id} station={p.station} fuel={s.fuel} last={i === mine.length - 1} />
                   ),
@@ -123,10 +100,9 @@ export default function Today() {
               </Card>
             )}
           </Section>
-          ) : null}
 
           <Section
-            title={home ? `Cheapest near ${home.gps ? 'you' : home.label}` : 'Cheapest near you'}
+            title={home && !home.gps ? `Cheapest near ${home.label.replace(/\s\d{4}$/, '')}` : 'Cheapest near you'}   // the suburb without its postcode: one line
             action={home ? { label: 'See all →', onPress: () => router.navigate('/stations') } : undefined}>
             {!sq.data ? (
               <Loading error={sq.error} onRetry={() => sq.refetch()} />
@@ -140,11 +116,13 @@ export default function Today() {
             ) : (
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 {best.map((x, i) => (
-                  <StationItem key={rowKey(x)} r={x} median={r.now} last={i === best.length - 1} />
+                  <StationItem key={rowKey(x)} r={x} median={r.now} sydney={o.tone} last={i === best.length - 1} />
                 ))}
               </Card>
             )}
           </Section>
+
+          <SavingsStrip />
 
           <Disclosure title="Why we think this">
             <T>{signalWhy(r, f.stats, f.ctx, hq.data)}</T>
@@ -183,6 +161,5 @@ const styles = StyleSheet.create({
   hero: { borderRadius: 20, padding: Spacing.five, gap: Spacing.two },
   horizons: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
   hcell: { flex: 1, gap: 1 },
-  pick: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: 14, padding: Spacing.three, marginVertical: Spacing.one },
   fact: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Spacing.two },
 });

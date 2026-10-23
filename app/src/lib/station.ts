@@ -179,7 +179,7 @@ export type Tile = { h: 1 | 3 | 7 | 14; label: string; date: string; v: number; 
 
 /** The 1 / 3 / 7 / 14-day price tiles */
 export function forecastTiles(f: StationForecast, asof: string): Tile[] {
-  return ([[1, 'Tomorrow'], [3, '3 days'], [7, '7 days'], [14, '14 days']] as const).map(([h, label]) => ({
+  return ([[1, '1 day'], [3, '3 days'], [7, '7 days'], [14, '14 days']] as const).map(([h, label]) => ({
     h, label, date: addDays(asof, h),
     v: f.now + f[`d${h}`], lo: f.now + f[`lo${h}`], hi: f.now + f[`hi${h}`], delta: f[`d${h}`],
   }));

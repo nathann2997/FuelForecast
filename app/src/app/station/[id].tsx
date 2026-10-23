@@ -101,11 +101,6 @@ export default function StationPage() {
             <ShareIcon color={c.fg} size={22} />
           </IconButton>
         ) : null}
-        {head || pinned ? (
-          <IconButton label={pinned ? 'Unpin this station' : 'Pin this station'} onPress={onPin} selected={pinned}>
-            <PinIcon on={pinned} color={pinned ? c.actStrong : c.fg} />
-          </IconButton>
-        ) : null}
       </View>
 
       <ScrollView
@@ -266,12 +261,12 @@ export default function StationPage() {
                     <Stat label="Low" value={stats.low ? stats.low.v.toFixed(1) : '–'} sub={stats.low ? nice(stats.low.date, false) : ''} />
                     <Stat label="High" value={stats.high ? stats.high.v.toFixed(1) : '–'} sub={stats.high ? nice(stats.high.date, false) : ''} />
                     <Stat
-                      label="Avg vs median"
+                      label="Avg gap"
                       value={stats.avgGap != null ? `${fmt(stats.avgGap)}c` : '–'}
-                      sub={stats.avg != null ? `avg ${stats.avg.toFixed(1)}` : ''}
+                      sub="vs median"
                       color={stats.avgGap == null ? undefined : stats.avgGap < -0.05 ? c.cheap : stats.avgGap > 0.05 ? c.dear : undefined}
                     />
-                    <Stat label="Jumps" value={String(stats.jumps)} sub="of 5c or more" last />
+                    <Stat label="Jumps" value={String(stats.jumps)} sub="5c or more" last />
                   </View>
                 ) : null}
               </View>
@@ -288,7 +283,7 @@ export default function StationPage() {
                   <View style={styles.tiles}>
                     {forecastTiles(fc, d.asof).map((t) => (
                       <View key={t.h} style={[styles.tile, { backgroundColor: c.sunk }]}
-                        accessible accessibilityLabel={`${t.label}: about ${t.v.toFixed(1)} cents, ${fmt(t.delta)} cents`}>
+                        accessible accessibilityLabel={`In ${t.label}: about ${t.v.toFixed(1)} cents, ${fmt(t.delta)} cents`}>
                         <T kind="eyebrow" style={{ fontSize: 10 }}>{t.label}</T>
                         <T kind="num">{t.v.toFixed(1)}</T>
                         <T kind="small" color={t.delta > 0.05 ? c.dear : t.delta < -0.05 ? c.cheap : c.muted} style={{ fontWeight: '600' }}>

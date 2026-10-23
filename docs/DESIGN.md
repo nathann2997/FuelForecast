@@ -45,5 +45,30 @@ So the app answers in this order: **the decision → the place → the saving �
 
 ## Ideas for later (not built)
 - An Android home-screen widget showing the verdict and the best nearby price. This fits "open twice a week" even better than the app itself.
-- "Favourite stations" pinned to Today.
 - A local reminder on the rise day (on the device only, so no accounts are needed).
+
+# Design review — 2026-10-23
+
+The owner asked for a simpler Today ("show the trend for the fuel and the stations I pin"), then for a full design review. This section supersedes the Today and station-row notes above where they differ.
+
+**Today, top to bottom:**
+1. The verdict card: the median, the headline, the dollar detail, the 14-day sparkline, and 1 / 3 / 7 / 14-day tiles.
+2. **Your stations**, always shown. With no pins, a one-line hint explains how to pin.
+3. **Cheapest near {suburb}**, without the postcode so it fits on one line.
+4. **You saved**, once you've logged a fill.
+5. Why we think this, then Price trends.
+6. **Calls right**, at the bottom.
+
+"Best for you" is gone. It duplicated the cheapest nearby and the pinned stations, and pulled attention from the trend.
+
+**Quieter rows:** a station row's advice chip is left out when it only repeats the Sydney headline. On a "Wait if you can" day, 43 rows each said "Wait". The chip stays when it adds something: a Fill by date, Fill now, Skip for now (that station is dear right now), Check price, or advice that differs from the headline. Screen readers still hear the advice (`echoesSydney` in `lib/copy.ts`).
+
+**Labels that fit 360 dp:**
+- Forecast tiles read 1 day / 3 days / 7 days / 14 days ("TOMORROW" wrapped).
+- Station stats read "Avg gap · vs median" and "Jumps · 5c or more".
+- The fuel picker uses U91 / E10 / P98 / Diesel ("Diesel" had wrapped onto a second row).
+- Screen subtitles drop the fuel name, because the fuel chip beside the title already shows it.
+
+**Station page:** one pin control (the Pin / Pinned button). The duplicate top-bar pin is gone; Share stays in the top bar.
+
+**Not changed:** the web dashboard (`template.html`) keeps its own layout, because the Claude scheduled task shares it.

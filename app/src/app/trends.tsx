@@ -52,7 +52,7 @@ export default function TrendsScreen() {
   return (
     <Screen
       title="Trends"
-      subtitle={`Sydney ${fuelName(fuel)}${f?.generated_at ? ` · ${refreshedText(f.generated_at)}` : ''}`}
+      subtitle={`Sydney${f?.generated_at ? ` · ${refreshedText(f.generated_at)}` : ''}`}
       onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       onRefresh={() => { hq.refetch(); fq.refetch(); sq.refetch(); }}
       refreshing={hq.isRefetching}>

@@ -2,6 +2,29 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-23 — Design review: a simpler Today, quieter lists, labels that fit (JS only)
+
+Notes: `docs/DESIGN.md` "Design review — 2026-10-23".
+- **Today** (owner's request):
+  - "Best for you" is removed, along with `bestPick()`.
+  - The verdict card now leads straight into the fuel's trend and then **Your stations**, which always shows (with a hint on how to pin when empty).
+  - Cheapest nearby comes next, then "You saved" and the details. "Calls right" stays at the bottom.
+  - "Cheapest near" drops the postcode.
+- **Station rows** (Today, Stations): the advice chip is left out when it only repeats the Sydney headline, such as "Wait" on every row on a Wait day. Fill by, Fill now, Skip for now, Check price and differing advice still show. Screen readers still hear the advice.
+- **Fits at 360 dp:**
+  - Forecast tiles say "1 day" instead of a wrapped "TOMORROW" (Today and the station page). The station page's screen-reader text says "In 1 day".
+  - Station stats say "Avg gap · vs median" and "Jumps · 5c or more" instead of clipped labels.
+  - The fuel picker uses short names on one row (More, Welcome).
+  - Subtitles drop the fuel name, which the fuel chip already shows.
+- **Station page:** the duplicate top-bar pin is removed; the Pin / Pinned button stays.
+- The web dashboard deliberately keeps its layout (shared with the Claude task); `copy.ts` notes the split.
+- **Checks:** QA audit done, with no high or medium issues. Fixed from it:
+  - "Skip for now" was hidden on Wait days.
+  - Station tile screen-reader text.
+  - A stale test comment.
+  - Out-of-date DESIGN.md notes.
+  - tsc, lint and jest pass. Web preview at 360 and 390 px, light and dark, with and without pins.
+
 ## 2026-10-22 — Today: "Calls right" moves to the bottom (JS only)
 
 - At the owner's request, the track record tile ("Calls right 83%", opens `/track`) moves from under the verdict to the foot of Today, above the footer. Your pinned stations now come straight after the verdict, or after "You saved" if you've logged a fill.

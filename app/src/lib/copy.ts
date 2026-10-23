@@ -1,6 +1,9 @@
 // Text and derived numbers for the screens, ported from the dashboard (sydney/pipeline/template.html)
-// so the app says exactly what the web page says. Keep the two in step.
+// so the app says exactly what the web page says. Keep the two in step, except where the app's 2026-10-23 design review
+// deliberately differs (no "Best for you", "1 day" tile labels, quiet advice chips: docs/DESIGN.md); the dashboard is
+// shared with the Claude task and was left as it is.
 import { daysBetween, fmt, fuelName, nice } from './format';
+import { toneOf, type Tone } from './outlook';
 import type { AdviceCode, Ctx, Forecast, Fuel, History, LiveRow, Stats, VerdictCls } from './types';
 
 /** Wholesale TGP k days before asof (walking back over gaps), as in renderSignal() */
@@ -31,13 +34,15 @@ export function signalWhy(r: LiveRow, stats: Stats, ctx: Ctx, history: History |
   return `Expected ${path}. ${why}`.trim();
 }
 
-export type Horizon = { label: string; value: number; delta: number; cls: VerdictCls; lo: number; hi: number };
+/** `short`: the tile label ("1 day", "3 days"…): "Tomorrow" doesn't fit a quarter of a phone */
+export type Horizon = { label: string; short: string; value: number; delta: number; cls: VerdictCls; lo: number; hi: number };
 
 export function horizons(r: LiveRow): Horizon[] {
   return ([[1, 'Tomorrow'], [3, 'In 3 days'], [7, 'In 7 days'], [14, 'In 14 days']] as const).map(([h, label]) => {
     const d = r[`d${h}`];
     return {
       label,
+      short: `${h} day${h > 1 ? 's' : ''}`,
       value: r.now + d,
       delta: d,
       cls: d > 0.4 ? 'up' : d < -0.4 ? 'down' : 'flat',
@@ -54,6 +59,13 @@ export function jumpRisk(r: LiveRow): { pct: number; label: string; cls: Verdict
 
 /** Station advice code -> colour class, as ADV in the dashboard */
 export const ADVICE_CLS: Record<AdviceCode, VerdictCls> = { now: 'up', by: 'up', hi: 'down', wait: 'down', any: 'flat', ok: 'flat', chk: 'flat' };
+
+/** A station row leaves its advice chip out when it only repeats the Sydney headline (`sydney`: e.g. "Wait" on every
+ *  row while the verdict says Wait if you can). It stays when it adds something: a "Fill by" date, Fill now, Check
+ *  price, or advice that differs from the headline. */
+export const echoesSydney = (code: AdviceCode, sydney: Tone | undefined) =>
+  // "Skip for now" (hi) and Check price (chk) are about the station itself, so they always show
+  sydney != null && sydney !== 'act' && code !== 'chk' && code !== 'hi' && toneOf(ADVICE_CLS[code]) === sydney;
 
 export const WHEN_NOTE =
   'Each date is the Sydney forecast adjusted for the station: how fast it usually follows a price jump, and whether it follows them at all.';
