@@ -28,7 +28,7 @@ A content review of every screen, the widget, alerts and the update notice. The 
   - A "Version 0.6.1 → 0.7.0" line.
   - The release notes are rewritten as "What's new", plus the crash-report notice.
 - **Checks:** a QA copy review was run and its fixes applied. tsc, lint and jest (396) pass.
-- **Shipped (owner's "push live" standing for this content pass):** OTA to `preview` 0.7.0 71471044; the update notice again on older runtimes, from their `ota/` branches: 0.6.1 6faeb6e8, 0.6.0 12ecb1ce, 0.5.0 a72e63d4, 0.4.0 3d784066, 0.3.0 aa2cccf6. New release notes live in `api/v1/app.json` (run 40050456357).
+- **Shipped:** OTA to `preview` 0.7.0 71471044; the update notice again on older runtimes, from their `ota/` branches: 0.6.1 6faeb6e8, 0.6.0 12ecb1ce, 0.5.0 a72e63d4, 0.4.0 3d784066, 0.3.0 aa2cccf6. New release notes live in `api/v1/app.json` (run 40050456357).
 
 ## 2026-10-24 — OTA updates apply on the first open (JS only, runtime 0.7.0)
 
