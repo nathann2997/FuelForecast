@@ -2,6 +2,23 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-24 — OTA updates apply on the first open (JS only, runtime 0.7.0)
+
+- **Why:** the owner still saw "Best for you" and the old Today a day after OTA 707a5929 was published. The server side was right: 707a5929 was the newest `preview` update for runtime 0.7.0, and the 0.7.0 APK is a `preview`-channel build. But expo-updates' default (no `checkAutomatically` / `fallbackToCacheTimeout` in app.json) downloads a new update in the background at launch and only runs it on the *next* cold start, and Android keeps the app in memory, so a "reopen" often isn't a cold start.
+- **Fix:** `lib/ota.ts`.
+  - **At launch:** the app checks for an update while the splash is up. If one downloads within 2.5 s it restarts into it, so the new version shows on the first open. The splash has its own 4 s backstop.
+  - **On resume:** coming back after 30+ minutes away does the same within 3 s.
+  - **Otherwise:** anything slower is kept for the next launch, as before. Failures (offline, a failed restart) just carry on.
+  - **Cost:** at most one extra network round trip before the splash hides.
+  - This fix arrives the old way itself: it takes two full restarts once, then later updates apply on the first open.
+- **Checks:** QA audit done, with no high issues. Fixed from it:
+  - A failed restart could reject unhandled or hold the splash.
+  - The launch wait is shortened from 3.5 s to 2.5 s.
+  - The resume wait is shortened from 6 s to 3 s.
+  - A stale splash-timing comment in `update-notice.tsx`.
+  - On Android, the JS check queues behind the native launch download (no conflict) and can't loop after a restart.
+  - tsc, lint and jest pass (396).
+
 ## 2026-10-23 — Design review: a simpler Today, quieter lists, labels that fit (JS only)
 
 Notes: `docs/DESIGN.md` "Design review — 2026-10-23".

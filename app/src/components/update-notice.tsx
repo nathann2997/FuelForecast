@@ -44,7 +44,7 @@ export function UpdateNotice({ releaseUrl, onAction }: {
     if (Platform.OS === 'web' || asked) return;
     let live = true;
     const ctl = new AbortController();
-    // After the splash (hidden by 2.5 s at the latest), so it doesn't race the first screen
+    // After the splash (hidden within about 4 s: lib/ota.ts launch check), so it doesn't race the first screen
     const t = setTimeout(() => {
       const stop = setTimeout(() => ctl.abort(), 8000);   // a stalled connection: not mid-task minutes later
       fetch(releaseUrl, { headers: { Accept: 'application/json' }, signal: ctl.signal })

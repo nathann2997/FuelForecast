@@ -9,6 +9,7 @@ import Storage from '@/lib/storage';
 import { initAlerts } from '@/lib/alerts';
 import { configureAnalytics, reportError, track } from '@/lib/analytics';
 import { API_BASE, HttpError, isNotFound } from '@/lib/api';
+import { applyIfQuick, LAUNCH_WAIT_MS, launchCheck, RESUME_WAIT_MS, resumeWorthChecking } from '@/lib/ota';
 import { UpdateNotice } from '@/components/update-notice';
 import { useWidgetSync } from '@/widget/sync';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +26,13 @@ export function ErrorBoundary(props: ErrorBoundaryProps) {
 configureAnalytics();   // before any screen mounts
 SplashScreen.preventAutoHideAsync();
 initAlerts();
+launchCheck();   // look for an OTA update while the splash is up (lib/ota.ts); it never rejects
+
+/** The splash stays up until the launch update check is done (at most LAUNCH_WAIT_MS): if an update downloads in that
+ *  time the app restarts into it instead of showing the old version first */
+const hideSplash = () =>
+  // Its own backstop too: if a native restart never comes back, the splash still goes
+  Promise.race([launchCheck(), new Promise((r) => setTimeout(r, LAUNCH_WAIT_MS + 1500))]).finally(() => SplashScreen.hideAsync());
 
 // A deep link straight to a pushed screen (fuelforecast://station/<id> from the widget) gets the tabs behind it,
 // so Back goes to Today instead of closing the app
@@ -54,8 +62,17 @@ function RootLayout() {
   useWidgetSync(queryClient);   // keeps the home-screen widget in step (no-op on web)
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => focusManager.setFocused(s === 'active'));
-    const t = setTimeout(() => SplashScreen.hideAsync(), 2500);   // in case cache restore never settles
+    let away: number | null = null;
+    const sub = AppState.addEventListener('change', (s) => {
+      focusManager.setFocused(s === 'active');
+      if (s === 'background') away = Date.now();
+      else if (s === 'active') {
+        // Back after a long time away: a restart into a new update reads as a fresh open, not an interruption
+        if (resumeWorthChecking(away, Date.now())) applyIfQuick(RESUME_WAIT_MS);
+        away = null;
+      }
+    });
+    const t = setTimeout(hideSplash, 2500);   // in case cache restore never settles
     return () => {
       sub.remove();
       clearTimeout(t);
@@ -68,7 +85,7 @@ function RootLayout() {
       client={queryClient}
       // buster: bump to drop cached data a new app version can't use (0.3.0: stations need `id`)
       persistOptions={{ persister, maxAge: 2 * DAY, buster: 'schema-1-ids' }}
-      onSuccess={() => SplashScreen.hideAsync()}>
+      onSuccess={hideSplash}>
       <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }}>
