@@ -29,7 +29,7 @@ export type IosWidgetProps = {
 
 /** Props for an empty widget before the app has loaded anything (also createWidget's initial props). */
 export const EMPTY_PROPS: IosWidgetProps = {
-  tone: 'calm', fuel: 'U91', head: 'Open Bowser', rise: "to load today's outlook", riseShort: 'to load prices', sydney: null,
+  tone: 'calm', fuel: 'U91', head: 'Open Bowser', rise: 'to load today’s outlook', riseShort: 'to load prices', sydney: null,
   sydneyTone: 'flat', asOf: null, caption: '', rows: [], message: 'Open Bowser to load prices', best: null, url: TODAY_URI,
 };
 

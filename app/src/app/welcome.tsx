@@ -51,7 +51,7 @@ export default function Welcome() {
           <T kind="small">
             {Platform.OS === 'ios'
               ? 'Tip: add the Bowser widget. Touch and hold your Home Screen, tap Edit, then Add Widget.'
-              : 'Tip: add the Bowser widget. Long-press your home screen, then Widgets.'}
+              : 'Tip: add the Bowser widget. Touch and hold an empty spot on your home screen, then tap Widgets.'}
           </T>
         </Step>
       ) : null}

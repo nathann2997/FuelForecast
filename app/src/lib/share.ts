@@ -26,7 +26,7 @@ export function dealMessage(d: {
 /** Only a saving is worth bragging about: null when the total isn't positive */
 export function savingsMessage(s: SavingsSummary): string | null {
   if (Math.round(s.total * 100) <= 0) return null;
-  return `Bowser has saved me ${money(s.total)} on fuel${s.since ? ` since ${nice(s.since, false)}` : ''} (${s.n} fill${s.n === 1 ? '' : 's'}). It tells me when to fill up in Sydney and where it's cheapest.`;
+  return `Bowser has saved me ${money(s.total)} on fuel${s.since ? ` since ${nice(s.since, false)}` : ''} (${s.n} fill${s.n === 1 ? '' : 's'}). It tells me when to fill up in Sydney and where it’s cheapest.`;
 }
 
 /** Whether there's a share sheet: always on Android and iOS; on the web only where the browser has navigator.share

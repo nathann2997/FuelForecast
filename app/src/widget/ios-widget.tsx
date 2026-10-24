@@ -77,7 +77,7 @@ const BowserWidget = (props: IosWidgetProps, env: WidgetEnvironment) => {
       <VStack alignment="leading" spacing={3} modifiers={[fill, containerBackground(T.bg, 'widget'), widgetURL(props.best?.url ?? props.url)]}>
         <HStack>
           <Text modifiers={[font({ size: props.asOf ? 10 : 11, weight: 'bold' }), foregroundStyle(props.asOf ? P.muted : T.fg), lineLimit(1)]}>
-            {props.asOf ?? 'BOWSER'}
+            {props.asOf ?? 'Bowser'}
           </Text>
           <Spacer />
           {chip}

@@ -9,13 +9,15 @@ import type { Place } from './geo';
 /** Device position, or an Error with a message fit to show */
 export async function locate(): Promise<Place> {
   const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') throw new Error('Location permission was not given. Search a suburb or postcode instead.');
+  if (status !== 'granted') throw new Error('Bowser doesn’t have permission to use your location. Type a suburb or postcode instead.');
   const last = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 });
   const pos =
     last ??
     (await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      new Promise<never>((_, no) => setTimeout(() => no(new Error('Location timed out. Try again, or search a suburb.')), 15000)),
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => {
+        throw new Error('Couldn’t find your location. Check location is on, or type a suburb.');
+      }),
+      new Promise<never>((_, no) => setTimeout(() => no(new Error('Couldn’t find your location in time. Try again, or type a suburb.')), 15000)),
     ]));
   noteFix();
   return { label: 'your location', la: pos.coords.latitude, lo: pos.coords.longitude, gps: true };

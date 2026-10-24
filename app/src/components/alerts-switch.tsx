@@ -20,7 +20,7 @@ export function AlertsSwitch() {
     if (v && !on)
       Alert.alert('Notifications are off', 'Allow notifications for Bowser in Settings to get rise alerts.', [
         { text: 'Not now', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+        { text: 'Open settings', onPress: () => Linking.openSettings().catch(() => {}) },
       ]);
   };
   return (

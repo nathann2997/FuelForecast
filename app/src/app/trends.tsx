@@ -126,7 +126,7 @@ export default function TrendsScreen() {
 
           <Disclosure title="About this chart">
             <T kind="small" color={c.fg2}>
-              Sydney median vs the wholesale price. The band spans the cheapest to dearest 10% of stations; the dashed line is the forecast. Drag to read any day.
+              Sydney median vs the wholesale price. The band shows the middle 80% of station prices; the dashed line is the forecast. Drag to read any day.
             </T>
             {historyNote(f.ctx) ? <T kind="small">{historyNote(f.ctx)}</T> : null}
           </Disclosure>

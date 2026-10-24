@@ -140,7 +140,7 @@ export default function Today() {
 
           <TrackStrip />
 
-          <T kind="small">{refreshedText(f.generated_at) || `Prices from ${nice(f.asof)}`}. New prices up to 5 times a day. Estimates, not financial advice.</T>
+          <T kind="small">{refreshedText(f.generated_at) || `Prices as of ${nice(f.asof)}`}. New prices up to 5 times a day. Estimates, not financial advice.</T>
         </>
       )}
     </Screen>

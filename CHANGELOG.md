@@ -2,6 +2,33 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-24 — Copy review: plain words for drivers (JS, all runtimes for the update notice)
+
+A content review of every screen, the widget, alerts and the update notice. The audience is a few Sydney drivers who open Bowser before a drive. The share page already read well and is unchanged.
+- **Errors:** cards said things like "forecast.json: HTTP 500". They now say "Check your connection and try again", "Something went wrong on our end. Try again soon", or, for a schema mismatch, "Update the app to keep getting prices". Location errors from the phone are reworded the same way.
+- **One word for one number:** savings, the fill sheet, the "Logged" message and the You saved tile said "Sydney average" for the median that Today, the station page and the charts call the median. Now it's "Sydney median" everywhere, and Savings explains it once ("the middle price: half of Sydney's stations charge less, half more"). The planning docs were updated to match.
+- **More:**
+  - The model card is in plain words ("What it predicts", "What it looks at", "How it learns", "How it's tested", "Limits"); the jargon is gone (LightGBM, Huber loss, walk-forward, AUC).
+  - Accuracy stats read "average miss, 7 days ahead" and "if you assumed no change"; the table reads "Ahead / No change / Bowser / Better by", with "none" in place of a negative gain.
+  - The backtest note gives months ("Jan 2021 to Aug 2026"), not codes.
+  - Data sources read "Wholesale prices (AIP)", "Oil and exchange rate (EIA, RBA)" and "Days of station prices saved".
+  - The analytics note is shorter and says what's collected.
+- **Charts:** the legend reads "Middle 80% of stations" (the p10–p90 band; it used to say "Cheapest to dearest 10%"), "Wholesale price" and "Forecast, likely range". The tooltip and the Trends note match.
+- **Smaller fixes:**
+  - "Prices as of" in place of "Prices from".
+  - "Open settings" in sentence case.
+  - The Android widget tip now reads "Touch and hold an empty spot…".
+  - The station with no prices message, the widget's "No E10 prices at your pinned stations", and the fill-sheet note.
+  - The iOS small widget showed "BOWSER" in capitals (against the brand sheet); it now reads "Bowser".
+  - Curly apostrophes in visible and spoken text.
+- **Update notice:**
+  - Title "A new version of Bowser is ready".
+  - Install steps: "Tap Update, then Install on the page that opens…".
+  - Reassurance: "Your settings, pinned stations and fills stay as they are".
+  - A "Version 0.6.1 → 0.7.0" line.
+  - The release notes are rewritten as "What's new", plus the crash-report notice.
+- **Checks:** a QA copy review was run and its fixes applied. tsc, lint and jest (396) pass.
+
 ## 2026-10-24 — OTA updates apply on the first open (JS only, runtime 0.7.0)
 
 - **Why:** the owner still saw "Best for you" and the old Today a day after OTA 707a5929 was published. The server side was right: 707a5929 was the newest `preview` update for runtime 0.7.0, and the 0.7.0 APK is a `preview`-channel build. But expo-updates' default (no `checkAutomatically` / `fallbackToCacheTimeout` in app.json) downloads a new update in the background at launch and only runs it on the *next* cold start, and Android keeps the app in memory, so a "reopen" often isn't a cold start.

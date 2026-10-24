@@ -37,18 +37,18 @@ export default function Savings() {
       {!fills.length ? (
         <Card style={{ gap: Spacing.two }}>
           <T kind="h2">No fills yet</T>
-          <T>After you fill up, open the station in Bowser and tap Filled up. Bowser works out what you saved against the Sydney average.</T>
+          <T>After you fill up, open the station in Bowser and tap Filled up. Bowser works out what you saved against the Sydney median.</T>
         </Card>
       ) : (
         <>
           <View style={[styles.hero, { backgroundColor: c.surface, borderColor: c.line }]}>
-            <T kind="eyebrow">{roundCents(sum.total) > 0 ? 'Saved with Bowser' : roundCents(sum.total) < 0 ? 'Against the Sydney average' : 'Your fills'}</T>
+            <T kind="eyebrow">{roundCents(sum.total) > 0 ? 'Saved with Bowser' : roundCents(sum.total) < 0 ? 'Against the Sydney median' : 'Your fills'}</T>
             <T kind="hero" color={tone(sum.total)} style={{ fontSize: 44, lineHeight: 50, letterSpacing: -1.2 }}>{money(sum.total)}</T>
             <T kind="small" color={c.fg2}>
               {sum.n} fill{sum.n === 1 ? '' : 's'} · {Math.round(sum.litres)} L{sum.since ? ` since ${nice(sum.since, false)}` : ''}
             </T>
             <View style={[styles.split, { borderTopColor: c.line }]}>
-              <Part label="Where you filled" value={money(sum.where)} color={tone(sum.where)} sub="vs the Sydney average that day" />
+              <Part label="Where you filled" value={money(sum.where)} color={tone(sum.where)} sub="vs the Sydney median that day" />
               {sum.pending === sum.n ? (
                 <Part label="When you filled" value="pending" color={c.muted} sub={`vs the ${WINDOW} days after`} last />
               ) : (
@@ -82,7 +82,7 @@ export default function Savings() {
           When you filled: the average Sydney median over the {WINDOW} days after, less the median that day, times the litres. Filling before a rise counts as a saving; filling before a fall counts against you. It shows once at least 5 of those days are published, and can shift a little when NSW fills in the rest.
         </T>
         <T kind="small" color={c.fg2}>
-          Together they compare you with paying the average price at a typical time that week. Fills are kept on this phone only.
+          Together they compare you with paying a typical Sydney price at a typical time that week. The median is the middle price: half of Sydney’s stations charge less, half more. Your fills stay on this phone.
         </T>
       </Disclosure>
     </Screen>

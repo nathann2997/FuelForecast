@@ -123,14 +123,15 @@ export function backtestRows(f: Forecast, fuel: Fuel) {
 }
 
 export function backtestNote(f: Forecast, fuel: Fuel) {
-  return `${fuelName(fuel)}, mean absolute error in c/L, tested ${f.bt.test_from} to ${f.bt.test_to.slice(0, 7)}. "Shock months" are the 2022 and 2026 oil shocks (model vs no change). Direction counts moves of 1c or more. Price-jump classifier AUC ${f.bt.auc[fuel].toFixed(2)} (0.5 is a coin toss).`;
+  const month = (ym: string) => nice(`${ym.slice(0, 7)}-01`).replace(/^1 /, '');
+  return `${fuelName(fuel)}: the average miss in cents a litre, forecasting each month from ${month(f.bt.test_from)} to ${month(f.bt.test_to)} with only the data before it. “No change” assumes today’s price holds. Direction is how often Bowser called the move right, for moves of 1c or more. Jump warnings score ${f.bt.auc[fuel].toFixed(2)} out of 1, where 0.5 is a coin toss.`;
 }
 
 export function historyNote(ctx: Ctx) {
   if (!ctx.history_last) return '';
   const gapDays = daysBetween(ctx.history_last, ctx.asof) - (ctx.snapshot_days ?? 0);
   return gapDays > 3
-    ? `Gaps fill in when NSW publishes each month's history, about a month late (latest: ${nice(ctx.history_last)}).`
+    ? `Gaps fill in when NSW publishes each month’s history, about a month late (latest: ${nice(ctx.history_last)}).`
     : '';
 }
 

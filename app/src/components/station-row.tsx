@@ -111,7 +111,7 @@ export function StationItem({ r, median, sydney, last }: { r: StationRow; median
             disabled={!hasId}
             accessibilityRole={hasId ? 'button' : undefined}
             accessibilityLabel={`${name}${pinned ? ', pinned' : ''}, ${r.price.toFixed(1)} cents${r.off ? ` with your ${offText(r.off)} off, pump price ${r.pump.toFixed(1)}` : ''}, ${label}`}
-            accessibilityHint={hasId ? "Opens the station's prices and forecast" : undefined}
+            accessibilityHint={hasId ? "Opens the station’s prices and forecast" : undefined}
             {...a11y}
             style={({ pressed }) => [styles.item, { backgroundColor: pressed ? c.sunk : c.surface }]}>
             <View style={{ flex: 1, gap: 3 }}>

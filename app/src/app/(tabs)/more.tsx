@@ -19,11 +19,11 @@ import { useFills } from '@/lib/fills';
 import { setSettings, useSettings } from '@/lib/settings';
 
 const MODEL = [
-  ['Target', 'Change in the Sydney median pump price over 1, 3, 7 and 14 days for U91, E10, Premium 98 and diesel, plus the chance of a 5c+ jump within 7 days.'],
-  ['Inputs', 'Pump margin over the terminal gate price (TGP) and how it compares with the past year; wholesale moves over 1 to 28 days; Brent crude in Australian dollars and the AUD; how spread out station prices are and how many stations updated recently.'],
-  ['Model', 'Gradient-boosted trees (LightGBM, Huber loss) pooled across the four fuels, with a separate classifier for price jumps.'],
-  ['Validation', 'Walk-forward: retrained every month on all data before it, tested on each month from Jan 2021, including the 2022 and 2026 oil shocks. Ranges are 80% intervals from the past year of test errors.'],
-  ['Limits', 'It reacts to oil and wholesale moves as they happen but cannot see wars, OPEC decisions or excise changes coming.'],
+  ['What it predicts', 'How the Sydney median price of each fuel will move over the next 1, 3, 7 and 14 days, and the chance of a jump of 5c or more within a week.'],
+  ['What it looks at', 'How far pump prices sit above the wholesale price compared with the past year, recent wholesale moves, the oil price in Australian dollars, and how spread out and how fresh station prices are.'],
+  ['How it learns', 'A machine-learning model (gradient-boosted trees) trained on Sydney prices for all four fuels, with a separate model for price jumps.'],
+  ['How it’s tested', 'Every month since Jan 2021 was forecast using only the data before it, including the 2022 and 2026 oil shocks. Across the four fuels, the likely ranges covered about 8 in 10 of the past year’s outcomes.'],
+  ['Limits', 'It reacts to oil and wholesale moves as they happen, but it can’t see wars, OPEC decisions or excise changes coming.'],
 ] as const;
 
 const CC_BY_SA = 'https://creativecommons.org/licenses/by-sa/3.0/au/';
@@ -119,9 +119,9 @@ export default function More() {
         ) : (
           <>
             <Card style={styles.stats}>
-              <Stat big={`${week.model.toFixed(1)}c`} label="average 7-day error" />
+              <Stat big={`${week.model.toFixed(1)}c`} label="average miss, 7 days ahead" />
               <Stat big={`${week.dir}%`} label="right direction" />
-              <Stat big={`${week.naive.toFixed(1)}c`} label="error guessing no change" />
+              <Stat big={`${week.naive.toFixed(1)}c`} label="if you assumed no change" />
             </Card>
             <Pressable onPress={() => router.push('/track')} accessibilityRole="link" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
               <Card style={styles.between}>
@@ -132,11 +132,11 @@ export default function More() {
                 <T color={c.muted} style={{ fontSize: 22 }}>›</T>
               </Card>
             </Pressable>
-            <Disclosure title="Accuracy by horizon">
+            <Disclosure title="Accuracy by days ahead">
               <Card style={{ padding: 0, overflow: 'hidden' }}>
-                <Row cells={['Horizon', 'No change', 'Model', 'Gain', 'Direction']} head />
+                <Row cells={['Ahead', 'No change', 'Bowser', 'Better by', 'Direction']} head />
                 {backtestRows(f, s.fuel).map((r) => (
-                  <Row key={r.horizon} cells={[r.horizon, `${r.naive.toFixed(1)}c`, `${r.model.toFixed(1)}c`, `${r.gain}%`, `${r.dir}%`]} />
+                  <Row key={r.horizon} cells={[r.horizon, `${r.naive.toFixed(1)}c`, `${r.model.toFixed(1)}c`, r.gain > 0 ? `${r.gain}%` : 'none', `${r.dir}%`]} />
                 ))}
               </Card>
               <T kind="small">{backtestNote(f, s.fuel)}</T>
@@ -147,7 +147,7 @@ export default function More() {
 
       <Disclosure title="How the forecast works">
         {MODEL.map(([k, v]) => (
-          <T key={k} kind="small" color={c.fg2}><T kind="small" style={{ fontWeight: '700' }} color={c.fg}>{k}. </T>{v}</T>
+          <T key={k} kind="small" color={c.fg2}><T kind="small" style={{ fontWeight: '700' }} color={c.fg}>{k}: </T>{v}</T>
         ))}
       </Disclosure>
 
@@ -161,11 +161,11 @@ export default function More() {
         {m ? (
           <View style={{ gap: Spacing.two }}>
             <Fresh label="Live Sydney prices" date={m.asof} ok={1} today={m.asof} />
-            <Fresh label="Wholesale TGP (AIP)" date={m.tgp_last} ok={5} today={m.asof} />
-            <Fresh label="Brent (EIA) and AUD (RBA)" date={m.fred_last} ok={10} today={m.asof} />
-            <Fresh label="Full NSW price history" date={m.history_last} ok={60} today={m.asof} />
+            <Fresh label="Wholesale prices (AIP)" date={m.tgp_last} ok={5} today={m.asof} />
+            <Fresh label="Oil and exchange rate (EIA, RBA)" date={m.fred_last} ok={10} today={m.asof} />
+            <Fresh label="NSW monthly price history" date={m.history_last} ok={60} today={m.asof} />
             <View style={styles.between}>
-              <T kind="small">Daily snapshots stored</T>
+              <T kind="small">Days of station prices saved</T>
               <T kind="num" style={{ fontSize: 13 }}>{m.snapshot_days ?? '–'}</T>
             </View>
             <T kind="small">{refreshedText(m.generated_at)}. New prices up to 5 times a day.</T>
@@ -193,7 +193,7 @@ export default function More() {
           </View>
         </View>
         <T kind="small">Forecasts are estimates for planning, not financial advice.</T>
-        <T kind="small">Bowser sends anonymous usage and crash reports (which screens and features are used, how fast they load) to improve the app. Never your location, area or what you paid.</T>
+        <T kind="small">Bowser sends anonymous usage and crash reports (which screens you open, how fast they load) so problems get found and fixed. They never include your location, your area or what you paid.</T>
       </Section>
     </Screen>
   );
@@ -210,7 +210,7 @@ function WidgetLocation() {
   return (
     <Section title="Widget location">
       <Card style={{ gap: Spacing.three }}>
-        <T>Let the widget follow you when Bowser is closed. Stays on your phone.</T>
+        <T>Let the widget show stations near you even when Bowser is closed. Your location stays on your phone.</T>
         <View style={styles.between}>
           <T color={c.fg2} style={{ flex: 1 }}>Status</T>
           <T color={w.status === 'On' ? c.cheap : c.fg} style={{ fontWeight: '700', flexShrink: 1, textAlign: 'right' }}>{w.status}</T>
@@ -262,7 +262,7 @@ function Fresh({ label, date, ok, today }: { label: string; date: string | null;
     <View style={styles.between}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: good ? c.cheap : c.chip }} />
-        <T kind="small" color={c.fg2}>{label}</T>
+        <T kind="small" color={c.fg2} style={{ flexShrink: 1 }}>{label}</T>
       </View>
       <T kind="num" style={{ fontSize: 13 }}>{date ? nice(date) : '–'}</T>
     </View>

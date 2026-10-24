@@ -278,7 +278,7 @@ describe('medium widget list modes', () => {
   it('Pinned: pin order, never falling back to the area', () => {
     expect(chooseRows(s, prefs(), ['c', 'a'], 3, 'pinned').rows.map((x) => x.id)).toEqual(['c', 'a']);
     expect(chooseRows(s, prefs(), [], 3, 'pinned')).toMatchObject({ mode: 'no-pins', rows: [], message: 'No pinned stations. Pin one in Bowser' });
-    expect(chooseRows(snap(), prefs(), ['7'], 3, 'pinned')).toMatchObject({ mode: 'no-pins', message: "Your pinned stations don't list U91" });
+    expect(chooseRows(snap(), prefs(), ['7'], 3, 'pinned')).toMatchObject({ mode: 'no-pins', message: 'No U91 prices at your pinned stations' });
   });
   it('keeps the empty states', () => {
     for (const m of ['nearest', 'cheapest'] as const)
@@ -326,7 +326,7 @@ describe('widget list length and fuel chip', () => {
     expect(u.rows[1]).toMatchObject({ id: '1', note: '−8.0c' });   // 229.9 vs the U91 median 237.9
   });
   it('Pinned names the widget\'s fuel when no pin sells it, and the default mode follows the widget\'s fuel', () => {
-    expect(chooseRows(snap(), prefs({ fuel: 'E10' }), ['1'], 10, 'pinned').message).toBe("Your pinned stations don't list E10");
+    expect(chooseRows(snap(), prefs({ fuel: 'E10' }), ['1'], 10, 'pinned').message).toBe('No E10 prices at your pinned stations');
     expect(resolveMode(null, snap(), prefs({ fuel: 'U91' }), ['1'])).toBe('pinned');
     expect(resolveMode(null, snap(), prefs({ fuel: 'DL' }), ['1'])).toBe('cheapest');
     expect(resolveMode(null, snap(), prefs({ fuel: 'DL' }), ['7'])).toBe('pinned');

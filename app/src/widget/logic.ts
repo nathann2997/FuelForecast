@@ -292,7 +292,7 @@ export function chooseRows(
     if (rows.length) return { mode: 'pinned', caption: null, rows, message: null };   // the mode row says Pinned
     if (mode === 'pinned')
       return pins.length
-        ? { mode: 'no-pins', caption: null, rows: [], message: `Your pinned stations don't list ${fuel}` }
+        ? { mode: 'no-pins', caption: null, rows: [], message: `No ${fuel} prices at your pinned stations` }
         : { mode: 'no-pins', caption: null, rows: [], message: 'No pinned stations. Pin one in Bowser' };
   }
 
@@ -327,7 +327,7 @@ export function buildModel(
     ? { tone: toneOf(r.verdict.cls), head: r.verdict.head, rise: riseText(r, f.asof, today), riseShort: riseShort(r, f.asof, today), sydney: sydneyForecast(r) }
     : f
       ? { tone: 'calm' as Tone, head: `No outlook for ${fuel}`, rise: null, riseShort: null, sydney: null }
-      : { tone: 'calm' as Tone, head: 'Open Bowser', rise: "to load today's outlook", riseShort: 'to load prices', sydney: null };
+      : { tone: 'calm' as Tone, head: 'Open Bowser', rise: 'to load today’s outlook', riseShort: 'to load prices', sydney: null };
   const rows = chooseRows(snap, prefs, pins, max, mode);
   const best = rows.rows.filter((x) => !x.stale).reduce<WidgetRow | null>((a, x) => (!a || Number(x.price) < Number(a.price) ? x : a), null);
   return {

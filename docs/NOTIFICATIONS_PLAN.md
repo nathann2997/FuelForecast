@@ -52,7 +52,7 @@ Every notification must either save money or close a loop. Anything that's only 
   - (a) at its lowest in 30 days, or
   - (b) at least 5c under its own usual premium vs the median (`profile.typ`),
   - and the Sydney verdict isn't "Wait if you can" (no point nudging during a fall).
-- **Copy:** "**Shell North Rocks dropped to 224.9** · its lowest in 30 days, 9c under the Sydney average."
+- **Copy:** "**Shell North Rocks dropped to 224.9** · its lowest in 30 days, 9c under the Sydney median."
 - **Tap:** the station page.
 - **Cap:** one per station per 7 days.
 - **Optional price target per pinned station (decide):** "Tell me under 225.0", set on the station page. A target you set yourself bypasses the weekly budget, at most once a day per station.

@@ -27,14 +27,14 @@ export function SavingsStrip() {
         big={money(sum.total)}
         tone={saved > 0 ? 'cheap' : saved < 0 ? 'dear' : 'flat'}
         sub={`${sum.n} fill${sum.n === 1 ? '' : 's'}`}
-        a11y={`${saved > 0 ? 'You saved' : 'Your fills, against the Sydney average'}: ${money(sum.total)} over ${sum.n} fill${sum.n === 1 ? '' : 's'}. Opens your savings`}
+        a11y={`${saved > 0 ? 'You saved' : 'Your fills, against the Sydney median'}: ${money(sum.total)} over ${sum.n} fill${sum.n === 1 ? '' : 's'}. Opens your savings`}
         onPress={() => router.push('/savings')}
       />
     </View>
   );
 }
 
-/** How often Bowser's calls were right, at the foot of Today (your stations come first) */
+/** How often Bowser’s calls were right, at the foot of Today (your stations come first) */
 export function TrackStrip() {
   const tq = useTrack();
   const { fuel } = useSettings();
@@ -47,7 +47,7 @@ export function TrackStrip() {
         big={`${h.pct}%`}
         tone="flat"
         sub={h.sub}
-        a11y={`Bowser's calls: right ${h.pct}% of the time, ${h.sub}. Opens the track record`}
+        a11y={`Bowser’s calls: right ${h.pct}% of the time, ${h.sub}. Opens the track record`}
         onPress={() => router.push('/track')}
       />
     </View>

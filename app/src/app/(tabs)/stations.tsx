@@ -63,7 +63,7 @@ export default function Stations() {
   return (
     <Screen
       title="Stations"
-      subtitle={data ? refreshedText(data.generated_at) || `Prices from ${nice(data.asof)}` : undefined}
+      subtitle={data ? refreshedText(data.generated_at) || `Prices as of ${nice(data.asof)}` : undefined}
       onRefresh={() => { sq.refetch(); fq.refetch(); }}
       refreshing={sq.isRefetching}>
       {!data ? (

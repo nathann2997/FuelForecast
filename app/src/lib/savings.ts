@@ -79,9 +79,9 @@ export function money(v: number) {
 export function loggedText(f: Pick<Fill, 'paid' | 'litres' | 'median'>): string {
   if (f.median == null) return 'Logged.';
   const gap = f.median - f.paid;
-  if (Math.abs(gap) < 0.05) return 'Logged. You paid the Sydney average.';
+  if (Math.abs(gap) < 0.05) return 'Logged. You paid the Sydney median.';
   const d = money(Math.abs((gap * f.litres) / 100));
   return gap > 0
-    ? `Logged. ${gap.toFixed(1)}c under the Sydney average, about ${d} saved.`
-    : `Logged. ${Math.abs(gap).toFixed(1)}c over the Sydney average, about ${d} more.`;
+    ? `Logged. ${gap.toFixed(1)}c under the Sydney median, about ${d} saved.`
+    : `Logged. ${Math.abs(gap).toFixed(1)}c over the Sydney median, about ${d} more.`;
 }

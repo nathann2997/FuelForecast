@@ -63,11 +63,11 @@ export function FillSheet({
       {gap != null ? (
         <T kind="small" color={gap > 0.05 ? c.cheap : gap < -0.05 ? c.dear : c.fg2} style={{ fontWeight: '600' }}>
           {Math.abs(gap) < 0.05
-            ? 'The Sydney average today.'
-            : `${Math.abs(gap).toFixed(1)}c ${gap > 0 ? 'under' : 'over'} the Sydney average (${median!.toFixed(1)}), ${money(Math.abs((gap * litres!) / 100))} on this fill.`}
+            ? 'Right on the Sydney median today.'
+            : `${Math.abs(gap).toFixed(1)}c ${gap > 0 ? 'under' : 'over'} the Sydney median (${median!.toFixed(1)}), ${money(Math.abs((gap * litres!) / 100))} on this fill.`}
         </T>
       ) : null}
-      <T kind="small">Bowser adds what the week after shows about your timing once it has passed. Stored on this phone only.</T>
+      <T kind="small">A week from now, Bowser also shows whether you filled at a good time. Your fills stay on this phone.</T>
     </Sheet>
   );
 }

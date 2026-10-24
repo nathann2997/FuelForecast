@@ -43,7 +43,7 @@ export function AreaPicker({ suburbs, onDone }: { suburbs: Suburb[]; onDone?: ()
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
       const m = e instanceof Error ? e.message : '';
-      track('area.locate_failed', { reason: /permission/i.test(m) ? 'denied' : /timed out/i.test(m) ? 'timeout' : 'other' }, 'warn');
+      track('area.locate_failed', { reason: /permission/i.test(m) ? 'denied' : /in time/i.test(m) ? 'timeout' : 'other' }, 'warn');
     } finally {
       setBusy(false);
     }

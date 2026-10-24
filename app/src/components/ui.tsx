@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { HttpError } from '@/lib/api';
 import { FUELS, fuelName, nice, sydneyToday } from '@/lib/format';
 import type { Tone } from '@/lib/outlook';
 import { setSettings, useSettings } from '@/lib/settings';
@@ -286,6 +287,14 @@ export function FuelPicker() {
   return <Segmented options={FUEL_SHORT} value={fuel} onChange={(f) => setSettings({ fuel: f })} />;
 }
 
+/** What went wrong, for people: the technical message goes to analytics (data.fetch_failed), not the screen */
+const errorText = (e: unknown) =>
+  e instanceof Error && /app expects/.test(e.message)
+    ? 'This version of Bowser can’t read today’s data. Update the app to keep getting prices.'
+    : e instanceof HttpError && e.status >= 400
+      ? 'Something went wrong on our end. Try again soon.'
+      : 'Check your connection and try again.';
+
 /** Loading / error placeholder while a query has no data yet */
 export function Loading({ error, onRetry }: { error?: unknown; onRetry?: () => void }) {
   const c = useTheme();
@@ -293,7 +302,7 @@ export function Loading({ error, onRetry }: { error?: unknown; onRetry?: () => v
   return (
     <Card style={{ gap: Spacing.two }}>
       <T kind="h2">Couldn’t load prices</T>
-      <T>{error instanceof Error ? error.message : String(error)}</T>
+      <T>{errorText(error)}</T>
       {onRetry ? (
         <Pressable onPress={onRetry} accessibilityRole="button">
           <T color={c.tgp} style={{ fontWeight: '700' }}>Try again</T>

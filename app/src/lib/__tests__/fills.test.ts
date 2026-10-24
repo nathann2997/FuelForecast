@@ -111,9 +111,9 @@ describe('savings', () => {
     expect(summarise([], full)).toMatchObject({ n: 0, total: 0, since: null });
   });
   it('confirms a new fill with what it saved against the average', () => {
-    expect(loggedText({ paid: 226, litres: 50, median: 236 })).toBe('Logged. 10.0c under the Sydney average, about $5.00 saved.');
-    expect(loggedText({ paid: 240, litres: 40, median: 236 })).toBe('Logged. 4.0c over the Sydney average, about $1.60 more.');
-    expect(loggedText({ paid: 236, litres: 40, median: 236 })).toBe('Logged. You paid the Sydney average.');
+    expect(loggedText({ paid: 226, litres: 50, median: 236 })).toBe('Logged. 10.0c under the Sydney median, about $5.00 saved.');
+    expect(loggedText({ paid: 240, litres: 40, median: 236 })).toBe('Logged. 4.0c over the Sydney median, about $1.60 more.');
+    expect(loggedText({ paid: 236, litres: 40, median: 236 })).toBe('Logged. You paid the Sydney median.');
     expect(loggedText({ paid: 236, litres: 40, median: null })).toBe('Logged.');
   });
   it('formats dollars with a real minus sign', () => {

@@ -180,7 +180,7 @@ export default function StationPage() {
             <LoadingSkeleton />
           )
         ) : !fuel || !tk ? (
-          <Card><T>This station has no prices in the data right now.</T></Card>
+          <Card><T>This station hasn’t reported any prices lately.</T></Card>
         ) : (
           <>
             {q.isError ? (

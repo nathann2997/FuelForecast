@@ -117,9 +117,9 @@ export function PriceChart({ d, label }: { d: ChartData; label: string }) {
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         <Key color={c.retail} text={`${label} median`} />
-        <Key color={c.band} text="Cheapest to dearest 10%" block />
-        <Key color={c.tgp} text="Wholesale TGP" />
-        <Key color={c.fan} text="Forecast 80% range" block />
+        <Key color={c.band} text="Middle 80% of stations" block />
+        <Key color={c.tgp} text="Wholesale price" />
+        <Key color={c.fan} text="Forecast, likely range" block />
       </View>
     </View>
   );
@@ -132,7 +132,7 @@ function tooltip(d: ChartData, i: number, label: string) {
   const med = val(d.med, i), fc = val(d.fc, i), p10 = val(d.p10, i), tgp = val(d.tgp, i);
   if (med) parts.push(`${label} median ${med}`);
   if (fc && i > d.asofIndex) parts.push(`forecast ${fc} (${val(d.lo, i)} to ${val(d.hi, i)})`);
-  if (p10) parts.push(`cheapest 10% ${p10}`);
+  if (p10) parts.push(`cheapest 10% under ${p10}`);
   if (tgp) parts.push(`wholesale ${tgp}`);
   return parts.length ? parts.join(' · ') : 'No data for this day';
 }

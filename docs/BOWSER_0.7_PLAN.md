@@ -39,7 +39,7 @@ Every build follows the same steps: design, then build, then checks (`tsc`, `exp
 - **Not in A:** shared deals use pump prices on purpose (your friends don't have your discount).
 
 ## B — Fill log and savings
-- **Entry:** on the station page, a third action, **Filled up**, opens a sheet. It's prefilled with the fuel (the page's), the price you paid (your price today, editable) and the litres (your tank size, editable). Save, then a note: "Logged. 4.2c under the Sydney average, about $2.10 saved."
+- **Entry:** on the station page, a third action, **Filled up**, opens a sheet. It's prefilled with the fuel (the page's), the price you paid (your price today, editable) and the litres (your tank size, editable). Save, then a note: "Logged. 4.2c under the Sydney median, about $2.10 saved."
 - **Storage:** `lib/fills.ts`, a store keyed `fills.v1` like `pins.ts`, newest first, capped at 500. A `Fill` holds `{ id, date (Sydney ISO), stationId, name, brand, suburb, fuel, pump, paid, litres, median }`, where `median` is the Sydney median for that fuel on that day.
 - **Savings, per fill:**
   - **Where** = (Sydney median that day − paid) × litres. Known at once.
@@ -69,7 +69,7 @@ Every build follows the same steps: design, then build, then checks (`tsc`, `exp
   - **More:** a link from "How good is the forecast?".
 
 ## D — Share a deal (quick win)
-- **Station page:** a **Share** action. React Native's `Share` sends text with the station, the pump price, the gap to the Sydney average, Bowser's advice and a link.
+- **Station page:** a **Share** action. React Native's `Share` sends text with the station, the pump price, the gap to the Sydney median, Bowser's advice and a link.
 - **Link:** `https://nathann2997.github.io/FuelForecast/s/?id=<code>`, a small static page (`sydney/pipeline/share.html`, copied by `export_api.py`).
   - It reads `stations.json` and shows that station's prices and advice, with **Open in Bowser** (`fuelforecast://station/<id>`) and **Directions**.
   - So friends without the app still see the deal.
