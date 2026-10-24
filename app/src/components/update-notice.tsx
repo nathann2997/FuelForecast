@@ -44,7 +44,7 @@ export function UpdateNotice({ releaseUrl, onAction }: {
     if (Platform.OS === 'web' || asked) return;
     let live = true;
     const ctl = new AbortController();
-    // After the splash (hidden by 2.5 s at the latest), so it doesn't race the first screen
+    // After the splash (hidden within about 4 s: lib/ota.ts launch check), so it doesn't race the first screen
     const t = setTimeout(() => {
       const stop = setTimeout(() => ctl.abort(), 8000);   // a stalled connection: not mid-task minutes later
       fetch(releaseUrl, { headers: { Accept: 'application/json' }, signal: ctl.signal })
@@ -82,12 +82,15 @@ export function UpdateNotice({ releaseUrl, onAction }: {
       <View style={styles.backdrop}>
         <View style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]} accessibilityViewIsModal>
           <Text style={[styles.title, { color: c.fg }]} accessibilityRole="header" maxFontSizeMultiplier={1.6}>
-            Bowser {rel.version} is available
+            A new version of Bowser is ready
           </Text>
           {/* Scrolls at large text sizes so the buttons stay on screen */}
           <ScrollView style={{ maxHeight: 220 }}>
             <Text style={[styles.body, { color: c.fg2 }]} maxFontSizeMultiplier={1.6}>
-              {rel.notes ?? 'A new version is ready.'} You have {Constants.expoConfig?.version}. Install the update to keep getting fixes and new features.
+              {rel.notes ? `${rel.notes}\n\n` : ''}Tap Update, then Install on the page that opens. When it’s downloaded, open the file to install it. Your settings, pinned stations and fills stay as they are.
+            </Text>
+            <Text style={[styles.version, { color: c.fg2 }]} maxFontSizeMultiplier={1.6}>
+              Version {Constants.expoConfig?.version} → {rel.version}
             </Text>
           </ScrollView>
           <Pressable
@@ -113,6 +116,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 20, gap: 12 },
   title: { fontSize: 19, fontWeight: '800' },
   body: { fontSize: 15, lineHeight: 21 },
+  version: { fontSize: 13, marginTop: 8 },
   primary: { backgroundColor: '#ffb22e', borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
   primaryText: { color: '#141618', fontSize: 16, fontWeight: '800' },
   later: { alignItems: 'center', paddingVertical: 6 },
