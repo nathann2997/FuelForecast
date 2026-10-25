@@ -1,9 +1,11 @@
-<title>Bowser · Sydney fuel outlook</title>
+<meta charset="utf-8">
+<title>Bowser</title>
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 /* Layout and tokens mirror the Bowser app (app/src/constants/theme.ts, docs/DESIGN.md): the decision, then the place,
-   then the saving, then the evidence. One tone scale (act / wait / calm) colours the hero, the advice chips and the
+   then the saving, then the evidence (Today as in the 2026-10-23 design review: the verdict card, your stations, the
+   cheapest near you). One tone scale (act / wait / calm) colours the hero, the advice chips and the
    sparkline. System font with tabular figures; light and dark themes match. */
 :root{
   --bg:#f6f6f3; --surface:#ffffff; --sunk:#eeefeb; --line:#e2e3df; --fg:#141618; --fg2:#45494d; --muted:#6f7479;
@@ -91,10 +93,6 @@ details.disc[open]>summary::after{content:"\2212"}
 .hero h1{color:var(--t-fg);font-size:clamp(34px,4.4vw,42px);line-height:1.12;font-weight:800;letter-spacing:-.6px}
 .hero .deadline{font-weight:700}
 .hero .detail{opacity:.92}
-.pick{display:flex;align-items:center;gap:12px;border-radius:14px;padding:12px;margin:4px 0;background:var(--surface);color:var(--fg2);border:0;text-align:left;width:100%;cursor:pointer}
-.pick:hover{opacity:.9}
-.pick .nm{font-weight:700;font-size:16px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pick-empty{border-radius:14px;padding:12px;margin:4px 0;background:var(--surface);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .spark{height:132px;margin-top:4px;position:relative}
 .spark svg{position:absolute;inset:0;display:block;overflow:visible}
 .hz{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -127,7 +125,13 @@ details.disc[open]>summary::after{content:"\2212"}
 .st>summary::-webkit-details-marker{display:none}
 .st>summary:hover,.st[open]>summary{background:var(--sunk)}
 .st-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.st-name{font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-name{font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.st-name span{overflow:hidden;text-overflow:ellipsis}
+.pinmark{display:none;flex:none;width:14px;height:14px;fill:var(--muted)}
+.st.is-pinned .pinmark{display:block}
+.st-actions{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.st.missing .st-name{color:var(--muted)}
 .st-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st-chips{display:flex;gap:8px;align-items:center;margin-top:2px;min-width:0}
 .st-price{text-align:right;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
@@ -136,6 +140,10 @@ details.disc[open]>summary::after{content:"\2212"}
 .st-more{padding:4px 16px 14px;display:flex;flex-direction:column;gap:6px;background:var(--sunk)}
 .st-more p{color:var(--fg2);font-size:14px}
 .empty{padding:16px}
+.hint{display:flex;flex-direction:column;gap:4px}
+.hint p:first-child{color:var(--fg)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.stats .bignum{font-size:20px}
 
 /* trends */
 .chartbox{position:relative;height:340px}
@@ -197,6 +205,11 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
   <div class="today">
     <div class="col">
       <section class="hero t-calm" id="hero" aria-live="polite" aria-labelledby="verdict"></section>
+      <section class="section" id="pinsSec" aria-labelledby="pinH">
+        <h2 id="pinH" tabindex="-1">Your stations</h2>
+        <div id="pinList"></div>
+        <div class="sr" id="pinStatus" role="status"></div>
+      </section>
       <details class="disc"><summary>Why we think this</summary><div class="disc-body" id="whyBody"></div></details>
       <button class="link" type="button" id="toTrends" style="align-self:flex-start">Price trends and the cycle →</button>
     </div>
@@ -214,7 +227,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
           <div class="seg" id="sort" role="group" aria-label="Sort"></div>
         </div>
         <div class="ctl-row">
-          <button class="chip" type="button" id="members" aria-pressed="true">Members-only sites</button>
+          <button class="chip" type="button" id="members" aria-pressed="true">Members-only sites (Costco)</button>
           <button class="chip" type="button" id="old" aria-pressed="false" hidden></button>
           <details class="multi" id="brandBox"><summary class="chip" id="brandSummary">All brands</summary>
             <div class="multi-panel"><div class="multi-actions"><button type="button" class="chip" id="brandAll">Select all</button><button type="button" class="chip" id="brandNone">Clear</button></div><div id="brandList" role="group" aria-label="Brands"></div></div>
@@ -247,32 +260,30 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
       </div>
     </div>
     <details class="disc"><summary>More facts</summary><div class="disc-body facts" id="facts"></div></details>
-    <details class="disc"><summary>About this chart</summary><div class="disc-body"><p class="small" style="color:var(--fg2)">Sydney median vs the wholesale price (terminal gate price). The band spans the cheapest to dearest 10% of stations; the dashed line is the forecast and the shaded fan its 80% range. Hover to read any day.</p><p class="small" id="gapNote"></p></div></details>
+    <details class="disc"><summary>About this chart</summary><div class="disc-body"><p class="small" style="color:var(--fg2)">Sydney median vs the wholesale price. The band shows the middle 80% of station prices; the dashed line is the forecast and the shaded fan its likely range. Hover to read any day.</p><p class="small" id="gapNote"></p></div></details>
   </section>
 
   <section class="section" aria-labelledby="mh">
-    <h2 id="mh">How good is the forecast</h2>
+    <h2 id="mh">How good is the forecast?</h2>
     <div class="grid2">
       <div class="section">
-        <p id="accLine" style="color:var(--fg)"></p>
-        <div class="card tablewrap"><table><thead><tr><th>Horizon</th><th class="n">No change</th><th class="n">Model</th><th class="n">Gain</th><th class="n">Shock months</th><th class="n">Direction</th></tr></thead><tbody id="btTable"></tbody></table></div>
+        <div class="card stats" id="accStats"></div>
+        <div class="card tablewrap"><table><thead><tr><th>Ahead</th><th class="n">No change</th><th class="n">Bowser</th><th class="n">Better by</th><th class="n">Direction</th></tr></thead><tbody id="btTable"></tbody></table></div>
         <p class="small" id="btNote"></p>
       </div>
       <div class="section">
         <details class="disc"><summary>How it works</summary><div class="disc-body">
           <ul class="clean">
-            <li><b>Target.</b> Change in the Sydney median pump price over 1, 3, 7 and 14 days for U91, E10, Premium 98 and diesel, plus the chance of a 5c+ jump within 7 days.</li>
-            <li><b>Inputs.</b> Pump margin over the terminal gate price (TGP) and how it compares with the past year; wholesale moves over 1 to 28 days; Brent crude in Australian dollars and the AUD; how spread out station prices are and how many stations repriced recently; and cycle memory (recent momentum, distance from the 4-week high and low, days since the last price jump).</li>
-            <li><b>Model.</b> Gradient-boosted trees (LightGBM, Huber loss) pooled across the four fuels, with a separate classifier for price jumps.</li>
-            <li><b>Validation.</b> Walk-forward: retrained every month on all data before it, tested on each month from Jan 2021, including the 2022 and 2026 oil shocks. Ranges are 80% intervals from the past year of test errors.</li>
-            <li><b>Cycle memory</b> needs about four weeks of unbroken daily data. Until the daily refresh has built that up after the September gap, the live forecast uses the model without it, which tested almost as well.</li>
-            <li><b>Limits.</b> It reacts to oil and wholesale moves as they happen but cannot see wars, OPEC decisions or excise changes coming.</li>
+            <li><b>What it predicts:</b> how the Sydney median price of each fuel will move over the next 1, 3, 7 and 14 days, and the chance of a jump of 5c or more within a week.</li>
+            <li><b>What it looks at:</b> how far pump prices sit above the wholesale price compared with the past year, recent wholesale moves, the oil price in Australian dollars, how spread out and how fresh station prices are, and where we are in the price cycle.</li>
+            <li><b>How it learns:</b> a machine-learning model (gradient-boosted trees) trained on Sydney prices for all four fuels, with a separate model for price jumps.</li>
+            <li><b>How it’s tested:</b> every month since Jan 2021 was forecast using only the data before it, including the 2022 and 2026 oil shocks. Across the four fuels, the likely ranges covered about 8 in 10 of the past year’s outcomes.</li>
+            <li><b>Limits:</b> it reacts to oil and wholesale moves as they happen, but it can’t see wars, OPEC decisions or excise changes coming.</li>
           </ul>
-          <p class="small" id="liveModel"></p>
         </div></details>
         <details class="disc" id="btBox"><summary>Backtest: predicted vs actual</summary><div class="disc-body">
           <p class="small">Sydney U91, 7-day change, last two years.</p>
-          <div class="legend"><span><i style="background:var(--fg)"></i>Actual change</span><span><i style="background:var(--retail)"></i>Model prediction (made 7 days earlier)</span></div>
+          <div class="legend"><span><i style="background:var(--fg)"></i>Actual change</span><span><i style="background:var(--retail)"></i>Bowser’s forecast (made 7 days earlier)</span></div>
           <div class="chartbox" style="height:280px"><canvas id="bt" role="img" aria-label="Backtest predicted versus actual seven day change"></canvas></div>
         </div></details>
         <details class="disc"><summary>Data freshness</summary><div class="disc-body fresh" id="fresh"></div></details>
@@ -282,7 +293,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
 
   <footer>
     <div>Sources: NSW Government FuelCheck API (live) and monthly price history on data.nsw.gov.au; Australian Institute of Petroleum terminal gate prices; Brent crude (DCOILBRENTEU) and AUD/USD (DEXUSAL) from FRED, Federal Reserve Bank of St. Louis. Sydney means postcodes 2000 to 2234, 2555 to 2574 and 2740 to 2786. Prices in Australian cents per litre including GST.</div>
-    <div>Forecasts are statistical estimates for planning, not financial advice.</div>
+    <div>Forecasts are estimates for planning, not financial advice.</div>
   </footer>
 </div>
 
@@ -302,6 +313,13 @@ const store = {
 };
 const TANKS = [30,40,50,60,70,80], RADII = [2,5,10,20], STALE_DAYS = 7, PAGE = 10;
 const savedArea = store.get("area", null);
+// Pins: this data has no station codes, and 50-odd stations share a name and postcode with another site, so the key adds
+// the (5 dp) coordinates. Newest first, at most 10 like the app. Saved in this browser when storage is allowed.
+const MAX_PINS = 10, pinKey = s => `${s.n}|${s.pc}|${s.la}|${s.lo}`;
+const KEY_I = new Map(); D.stations.forEach((s, i) => KEY_I.set(pinKey(s), i));
+const canStore = (() => { try { localStorage.setItem("bowser.probe", "1"); localStorage.removeItem("bowser.probe"); return true; } catch { return false; } })();
+let pins = [...new Set((Array.isArray(store.get("pins", [])) ? store.get("pins", []) : []).filter(k => typeof k === "string" && k.split("|").length === 4))].slice(0, MAX_PINS);
+const isPinned = i => pins.includes(pinKey(D.stations[i]));
 let state = {
   fuel: live[store.get("fuel")] ? store.get("fuel") : "U91",
   tank: TANKS.includes(store.get("tank")) ? store.get("tank") : 50,
@@ -330,6 +348,7 @@ function brandSuburb(name, brand, suburb){
   const e = brand.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");
   return e && new RegExp(`(^|\\W)${e}(\\W|$)`,"i").test(name) ? suburb : `${brand} · ${suburb}`;
 }
+const PIN_SVG = `<svg class="pinmark" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/></svg>`;
 const updatedText = a => a == null ? "" : a === 0 ? "Updated today" : a === 1 ? "Updated 1 day ago" : `Updated ${a} days ago`;
 const mapsUrl = (la, lo) => `https://www.google.com/maps/search/?api=1&query=${+la},${+lo}`;
 
@@ -372,14 +391,14 @@ function outlook(r){
 }
 
 // ---- header
-$("asofLine").textContent = `Sydney prices ${nice(CTX.asof)} · Wholesale to ${nice(CTX.tgp_last)} · Brent and AUD to ${nice(CTX.fred_last)}`;
+$("asofLine").textContent = `Sydney · Prices as of ${nice(CTX.asof)}`;
 const fuelEl = $("fuel"), tankEl = $("tank");
 fuelEl.innerHTML = FUELS.map(([k,l]) => `<option value="${k}">${l}</option>`).join("");
 tankEl.innerHTML = TANKS.map(t => `<option value="${t}">${t} L tank</option>`).join("");
 fuelEl.value = state.fuel; tankEl.value = state.tank;
 fuelEl.addEventListener("change", () => { state.fuel = fuelEl.value; store.set("fuel", state.fuel); state.shown = PAGE; render(); });
 tankEl.addEventListener("change", () => { state.tank = +tankEl.value; store.set("tank", state.tank); renderHero(); renderInsights(); });
-if (CTX.asof < sydToday()) { $("stale").hidden = false; $("stale").textContent = `Showing prices from ${nice(CTX.asof)}. Today’s update hasn’t arrived yet.`; }
+if (CTX.asof < sydToday()) { $("stale").hidden = false; $("stale").textContent = `Showing prices as of ${nice(CTX.asof)}. Today’s update hasn’t arrived yet.`; }
 
 // ---- stations
 const SUBS = {}; D.stations.forEach(s => { const k = s.s+"|"+s.pc; (SUBS[k] = SUBS[k] || {s:s.s, pc:s.pc, la:[], lo:[]}); SUBS[k].la.push(s.la); SUBS[k].lo.push(s.lo); });
@@ -399,30 +418,38 @@ function findSuburb(q){
 let brandSel = null;   // null = all brands
 const areaSet = () => state.area && !state.area.missing ? state.area : null;
 /** Rows for the fuel, area and filters, sorted; `old` counts prices older than STALE_DAYS, hidden unless asked for */
-function stationRows({brands = true, keepOld = state.old} = {}){
+function stationRows(){
   const f = state.fuel, a = areaSet();
   let rows = [];
   D.stations.forEach((s, i) => {
     const p = s.p[f];
-    if (!p || p[0] == null || (!state.members && s.m) || (brands && brandSel && !brandSel.has(s.b))) return;
+    if (!p || p[0] == null || (!state.members && s.m) || (brandSel && !brandSel.has(s.b))) return;
     rows.push({...s, i, price:p[0], age:p[1], adv:p.slice(2), d: a ? km(a.la, a.lo, s.la, s.lo) : null});
   });
   if (a) rows = rows.filter(s => s.d <= state.radius);
   const old = rows.filter(s => s.age != null && s.age > STALE_DAYS).length;
-  if (!keepOld) rows = rows.filter(s => s.age == null || s.age <= STALE_DAYS);
+  if (!state.old) rows = rows.filter(s => s.age == null || s.age <= STALE_DAYS);
   rows.sort(state.sort === "near" && a ? (x,y) => x.d - y.d || x.price - y.price : (x,y) => x.price - y.price || (x.d??0) - (y.d??0));
   return {rows, old};
 }
-function stationItem(s, med){
-  const name = stationName(s.n), gap = s.price - med, stale = s.age != null && s.age > STALE_DAYS;
+// A chip that only repeats the Sydney headline is left out ("Wait" on every row on a Wait day); a Fill by date, Fill now,
+// Skip for now and Check price always show (echoesSydney() in app/src/lib/copy.ts)
+const echoesSydney = (code, sydney) => sydney !== "act" && code !== "chk" && code !== "hi" && ADVICE_TONE[code] === sydney;
+const rowLabel = (name, pinned, s) => `${name}${pinned ? ", pinned" : ""}, ${s.price.toFixed(1)} cents, ${s.adv[1]}`;
+const pinBtn = (i, name, pinned) => `<button type="button" class="chip" data-pin="${i}" aria-label="${pinned ? "Unpin" : "Pin"} ${esc(name)}">${pinned ? "Unpin" : "Pin"}</button>`;
+function stationItem(s, med, tone, where = "list"){
+  const name = stationName(s.n), gap = s.price - med, stale = s.age != null && s.age > STALE_DAYS, pinned = isPinned(s.i);
   const gapTxt = Math.abs(gap) < 0.05 ? "at median" : `${gap < 0 ? "−" : "+"}${Math.abs(gap).toFixed(1)}c`;
-  return `<details class="st" id="st-${s.i}"><summary aria-label="${esc(name)}, ${s.price.toFixed(1)} cents, ${esc(s.adv[1])}">
-    <div class="st-main"><div class="st-name">${esc(name)}</div>
+  const quiet = echoesSydney(s.adv[0], tone);
+  const chips = (quiet ? "" : `<span class="badge t-${ADVICE_TONE[s.adv[0]] || "calm"}">${esc(s.adv[1])}</span>`) + (stale ? `<span class="small up">${updatedText(s.age)}</span>` : "");
+  return `<details class="st${pinned ? " is-pinned" : ""}" id="st-${where}-${s.i}" data-i="${s.i}"><summary aria-label="${esc(rowLabel(name, pinned, s))}">
+    <div class="st-main"><div class="st-name"><span>${esc(name)}</span>${PIN_SVG}</div>
       <div class="small st-sub">${esc(brandSuburb(name, s.b, s.s))}${s.d != null ? ` · ${s.d.toFixed(1)} km` : ""}${s.m ? " · Members" : ""}</div>
-      <div class="st-chips"><span class="badge t-${ADVICE_TONE[s.adv[0]] || "calm"}">${esc(s.adv[1])}</span>${stale ? `<span class="small up">${updatedText(s.age)}</span>` : ""}</div></div>
+      ${chips ? `<div class="st-chips">${chips}</div>` : ""}</div>
     <div class="st-price"><div class="bignum">${s.price.toFixed(1)}</div><div class="small ${gap < -0.05 ? "cheap" : gap > 0.05 ? "dear" : ""}">${gapTxt}</div></div>
   </summary><div class="st-more"><p>${esc(s.adv[2])}</p><div class="small">${[updatedText(s.age) + (stale ? " · check before driving" : ""), `${esc(s.s)} ${esc(s.pc)}`].filter(Boolean).join(" · ")}</div>
-    <a class="link" href="${mapsUrl(s.la, s.lo)}" target="_blank" rel="noopener noreferrer">Show on map →</a></div></details>`;
+    <div class="st-actions">${pinBtn(s.i, name, pinned)}
+      <a class="link" href="${mapsUrl(s.la, s.lo)}" target="_blank" rel="noopener noreferrer">Show on map →</a></div></div></details>`;
 }
 function brandOptions(){
   const counts = {}; D.stations.forEach(s => { if (s.p[state.fuel]) counts[s.b] = (counts[s.b]||0)+1; });
@@ -471,6 +498,51 @@ gpsEl.addEventListener("click", () => {
 });
 $("more").addEventListener("click", () => { state.shown += 20; renderStations(); });
 
+function renderPins(){
+  const f = state.fuel, med = live[f].now, tone = outlook(live[f]).tone, a = areaSet(), el = $("pinList");
+  if (!pins.length) {
+    el.innerHTML = `<div class="card hint"><p>Pin the stations you use and they’ll show here first.</p><p class="small">Open a station in the list and select Pin.${canStore ? " Pins are saved in this browser." : ""}</p></div>`;
+    return;
+  }
+  const rows = pins.map((k, n) => {
+    const i = KEY_I.get(k);
+    if (i == null) {   // gone from today's data (closed, renamed or not reporting): still listed so it can be unpinned
+      const nm = stationName(k.split("|")[0]);
+      return `<details class="st missing is-pinned"><summary><div class="st-main"><div class="st-name"><span>${esc(nm)}</span>${PIN_SVG}</div><div class="small st-sub">Not in today’s prices</div></div></summary><div class="st-more"><div class="st-actions"><button type="button" class="chip" data-unpin="${n}" aria-label="Unpin ${esc(nm)}">Unpin</button></div></div></details>`;
+    }
+    const s = D.stations[i], p = s.p[f], nm = stationName(s.n);
+    if (!p || p[0] == null) return `<details class="st missing is-pinned" data-i="${i}"><summary><div class="st-main"><div class="st-name"><span>${esc(nm)}</span>${PIN_SVG}</div><div class="small st-sub">No ${f === "DL" ? "Diesel" : esc(f)} here</div></div></summary><div class="st-more"><div class="st-actions">${pinBtn(i, nm, true)}</div></div></details>`;
+    return stationItem({...s, i, price:p[0], age:p[1], adv:p.slice(2), d: a ? km(a.la, a.lo, s.la, s.lo) : null}, med, tone, "pin");
+  });
+  el.innerHTML = `<div class="card list">${rows.join("")}</div>`;
+}
+/** Re-render the pin list without the page jumping under the pointer (it sits above the main list on narrow screens) */
+function refreshPins(anchor){
+  const inPins = $("pinList").contains(anchor), top = anchor.getBoundingClientRect().top;
+  renderPins();
+  if (inPins) $("pinH").focus({preventScroll:true});   // the row just removed had focus
+  else window.scrollBy(0, anchor.getBoundingClientRect().top - top);
+}
+document.addEventListener("click", e => {
+  const u = e.target.closest("[data-unpin]");
+  if (u) { pins = pins.filter((_, n) => n !== +u.dataset.unpin); store.set("pins", pins); $("pinStatus").textContent = "Unpinned"; refreshPins(u); return; }
+  const b = e.target.closest("[data-pin]"); if (!b) return;
+  const i = +b.dataset.pin, s = D.stations[i], k = pinKey(s), name = stationName(s.n);
+  if (pins.includes(k)) pins = pins.filter(x => x !== k);
+  else if (pins.length >= MAX_PINS) { $("pinStatus").textContent = b.textContent = `You can pin up to ${MAX_PINS} stations`; setTimeout(() => b.textContent = "Pin", 2500); return; }
+  else pins = [k, ...pins];
+  store.set("pins", pins);
+  const on = pins.includes(k);
+  $("pinStatus").textContent = `${on ? "Pinned" : "Unpinned"} ${name}`;
+  document.querySelectorAll(`.st[data-i="${i}"]`).forEach(d => {
+    d.classList.toggle("is-pinned", on);
+    const sm = d.querySelector("summary[aria-label]"), p = s.p[state.fuel];
+    if (sm && p) sm.setAttribute("aria-label", rowLabel(name, on, {price:p[0], adv:p.slice(2)}));
+  });
+  document.querySelectorAll(`[data-pin="${i}"]`).forEach(x => { x.textContent = on ? "Unpin" : "Pin"; x.setAttribute("aria-label", `${on ? "Unpin" : "Pin"} ${name}`); });
+  refreshPins(b);
+});
+
 const WHEN = "Each “when to fill” date is the Sydney forecast adjusted for the station: how fast it usually follows a price jump, and whether it follows them at all. Prices are as last reported to FuelCheck.";
 function renderStations(){
   const f = state.fuel, med = live[f].now, missing = state.area && state.area.missing, area = areaSet();
@@ -483,7 +555,8 @@ function renderStations(){
   oldEl.hidden = !old && !state.old;
   oldEl.textContent = state.old ? "Hide prices older than 7 days" : `Show ${old} older price${old===1?"":"s"}`;
   oldEl.setAttribute("aria-pressed", String(state.old));
-  $("stList").innerHTML = rows.slice(0, state.shown).map(s => stationItem(s, med)).join("")
+  const tone = outlook(live[f]).tone;
+  $("stList").innerHTML = rows.slice(0, state.shown).map(s => stationItem(s, med, tone, "list")).join("")
     || `<div class="empty">${missing ? `No Sydney suburb matches “${esc(qEl.value)}”. Try a postcode.` : area ? `No recent prices within ${state.radius} km. Try a wider radius.` : "No stations match these filters."}</div>`;
   $("more").hidden = rows.length <= state.shown;
   $("more").textContent = `Show more (${rows.length - state.shown} left)`;
@@ -492,7 +565,7 @@ function renderStations(){
   $("stNote").textContent = (area && !area.gps ? "Distance is straight-line from the suburb’s centre. " : "") + WHEN;
 }
 
-// ---- hero: the decision, the best station for you, the saving, the next 14 days
+// ---- hero: the decision, the saving, the next 14 days
 function sparkline(){
   const el = $("spark"); if (!el) return;
   const r = live[state.fuel], o = outlook(r);
@@ -515,34 +588,16 @@ function sparkline(){
   </svg>`;
 }
 function renderHero(){
-  const f = state.fuel, r = live[f], o = outlook(r), a = areaSet();
+  const f = state.fuel, r = live[f], o = outlook(r);
   const hero = $("hero"); hero.className = `hero t-${o.tone}`;
-  // Best for you: the cheapest recent price in your area, any brand (Today's best pick in the app)
-  const pick = a ? stationRows({brands:false, keepOld:false}).rows.slice().sort((x,y) => x.price - y.price)[0] : null;
-  const save = pick ? r.now - pick.price : 0;
-  const pickHtml = pick
-    ? `<button type="button" class="pick" id="pick" data-i="${pick.i}" aria-label="Best for you: ${esc(stationName(pick.n))}, ${pick.price.toFixed(1)} cents, ${esc(pick.adv[1])}">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><div class="eyebrow">Best for you</div><div class="nm">${esc(stationName(pick.n))}</div><div><span class="badge t-${ADVICE_TONE[pick.adv[0]] || "calm"}">${esc(pick.adv[1])}</span></div></div>
-        <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end"><div class="bignum">${pick.price.toFixed(1)}</div>${save >= 0.5 ? `<div class="small cheap" style="font-weight:600">saves ${dollars(save, state.tank)} vs avg</div>` : ""}</div>
-      </button>`
-    : `<div class="pick-empty"><span style="color:var(--fg2)">${a ? `No recent prices within ${state.radius} km.` : "Where do you fill up?"}</span><button type="button" class="link" id="setArea">${a ? "Change area →" : "Set your area →"}</button></div>`;
-  const hz = [[1,"Tomorrow"],[3,"3 days"],[7,"7 days"],[14,"14 days"]].map(([h,l]) => `<div><span class="eyebrow">${l}</span><span class="v">${(r.now + r["d"+h]).toFixed(1)}</span><span class="d">${fmt(r["d"+h])}c</span></div>`).join("");
-  hero.innerHTML = `<div class="median">Sydney ${fuelName(f)} median ${r.now.toFixed(1)}c/L</div>
+  const hz = [1,3,7,14].map(h => `<div><span class="eyebrow">${h} day${h > 1 ? "s" : ""}</span><span class="v">${(r.now + r["d"+h]).toFixed(1)}</span><span class="d">${fmt(r["d"+h])}c</span></div>`).join("");
+  hero.innerHTML = `<div class="median">Sydney median ${r.now.toFixed(1)}c/L</div>
     <h1 id="verdict">${o.head}</h1>
     ${o.deadline ? `<p class="deadline">${o.deadline}</p>` : ""}
-    ${pickHtml}
     <p class="detail">${o.detail}</p>
     <div class="spark" id="spark" role="img" aria-label="Expected Sydney median over 14 days: ${r.now.toFixed(1)}c today to about ${(r.now + r.d14).toFixed(1)}c${o.riseDate ? `, likely rising from ${dayLabel(o.riseDate)}` : ""}"></div>
     <div class="hz">${hz}</div>`;
   sparkline();
-  const pk = $("pick");
-  if (pk) pk.addEventListener("click", () => {
-    const row = $("st-" + pk.dataset.i) || $("stations");
-    if (row.tagName === "DETAILS") row.open = true;
-    row.scrollIntoView({behavior:"smooth", block:"center"});
-  });
-  const sa = $("setArea");
-  if (sa) sa.addEventListener("click", () => { $("stations").scrollIntoView({behavior:"smooth", block:"start"}); qEl.focus({preventScroll:true}); });
 }
 function renderWhy(){
   const f = state.fuel, r = live[f];
@@ -555,16 +610,13 @@ function renderWhy(){
   else why = `Retailers are selling ${r.margin.toFixed(1)}c above the wholesale price, against a typical ${typ.toFixed(0)}c, after wholesale moved ${fmt(t28,0)}c in four weeks. ${r.margin < typ-6 ? "Thin margins usually end in a price jump." : r.margin > typ+8 ? "Fat margins usually get discounted away." : ""}`;
   const p = r.d7 > 0.9 ? `up about ${r.d7.toFixed(1)}c over 7 days` : r.d7 < -0.9 ? `down about ${Math.abs(r.d7).toFixed(1)}c over 7 days` : "roughly flat over the next week";
   const pct = Math.round(r.p_jump7*100), lvl = pct >= 50 ? "high" : pct <= 15 ? "low" : "moderate";
-  const range = h => `${(r.now + r["lo"+h]).toFixed(0)} to ${(r.now + r["hi"+h]).toFixed(0)}c`;
   $("whyBody").innerHTML = `<p>Expected ${p}. ${why}</p>
     <div style="display:flex;flex-direction:column;gap:4px">
       <div class="fact"><span>Chance of a 5c+ jump this week</span><b>${pct}% (${lvl})</b></div>
       <div class="fact"><span>Cheapest 10% of Sydney stations</span><b>${r.p10.toFixed(1)}c</b></div>
       <div class="fact"><span>Wholesale price</span><b>${r.tgp.toFixed(1)}c</b></div>
-      <div class="fact"><span>Likely range in 7 days</span><b>${range(7)}</b></div>
-      <div class="fact"><span>Likely range in 14 days</span><b>${range(14)}</b></div>
     </div>
-    <p class="small">The shaded band is the likely (80%) range, from the past year of out-of-sample errors.</p>`;
+    <p class="small">The shaded band is the likely range.</p>`;
 }
 
 // ---- trends
@@ -579,11 +631,11 @@ function renderMain(){
   const h = D.hist[state.fuel], r = live[state.fuel];
   const gapDays = daysBetween(CTX.history_last, CTX.asof) - CTX.snapshot_days;
   $("gapNote").textContent = gapDays > 3
-    ? `Why the gap: the live NSW feed only gives today's prices, so daily history comes from NSW's monthly files, published about a month late (latest: ${nice(CTX.history_last)}). The daily refresh adds a point each morning, and fills the gap automatically when NSW publishes each new month.`
+    ? `Why the gap: the live NSW feed only gives today’s prices, so daily history comes from NSW's monthly files, published about a month late (latest: ${nice(CTX.history_last)}). The daily refresh adds a point each morning, and fills the gap automatically when NSW publishes each new month.`
     : `History to ${nice(CTX.history_last)} from NSW monthly files, then daily live snapshots.`;
-  $("legend").innerHTML = `<span><i style="background:var(--retail)"></i>Median</span>
-    <span><i class="band" style="background:var(--band)"></i>Cheapest–dearest 10%</span>
-    <span><i style="background:var(--tgp)"></i>Wholesale</span>
+  $("legend").innerHTML = `<span><i style="background:var(--retail)"></i>${state.fuel === "DL" ? "Diesel" : state.fuel} median</span>
+    <span><i class="band" style="background:var(--band)"></i>Middle 80% of stations</span>
+    <span><i style="background:var(--tgp)"></i>Wholesale price</span>
     <span><i style="background:repeating-linear-gradient(90deg,var(--retail) 0 4px,transparent 4px 7px)"></i>Forecast</span>`;
   if (!window.Chart) return;
   const all = []; for (let i=0;i<h.med.length;i++) all.push(day(D.start,i));
@@ -601,9 +653,9 @@ function renderMain(){
   const short = span <= 400;
   const cfg = {type:"line", data:{labels, datasets:[
       {label:"Dearest 10%", data:p90, borderWidth:0, pointRadius:0, fill:false, spanGaps:false},
-      {label:"Cheapest 10%", data:p10, borderWidth:0, pointRadius:0, backgroundColor:css("--band"), fill:"-1", spanGaps:false},
-      {label:"Median pump price", data:med, borderColor:css("--retail"), borderWidth:short?2:1.5, pointRadius:c=>c.dataIndex===a?5:0, pointBackgroundColor:css("--retail"), pointBorderColor:css("--surface"), pointBorderWidth:2, tension:.1, spanGaps:false},
-      {label:"Wholesale TGP", data:tg, borderColor:css("--tgp"), borderWidth:short?2:1.5, pointRadius:0, tension:.1, spanGaps:true},
+      {label:"Cheapest 10% under", data:p10, borderWidth:0, pointRadius:0, backgroundColor:css("--band"), fill:"-1", spanGaps:false},
+      {label:"Sydney median", data:med, borderColor:css("--retail"), borderWidth:short?2:1.5, pointRadius:c=>c.dataIndex===a?5:0, pointBackgroundColor:css("--retail"), pointBorderColor:css("--surface"), pointBorderWidth:2, tension:.1, spanGaps:false},
+      {label:"Wholesale price", data:tg, borderColor:css("--tgp"), borderWidth:short?2:1.5, pointRadius:0, tension:.1, spanGaps:true},
       {label:"Forecast high", data:hi, borderWidth:0, pointRadius:0, fill:false},
       {label:"Forecast low", data:lo, borderWidth:0, pointRadius:0, backgroundColor:css("--fan"), fill:"-1"},
       {label:"Forecast", data:fc, borderColor:css("--retail"), borderDash:[5,4], borderWidth:2, pointRadius:0}]},
@@ -662,7 +714,7 @@ function renderBrands(){
       <span class="bv">${x.prem < 0 ? "−" : "+"}${Math.abs(x.prem).toFixed(1)}c</span></div>`).join("") || `<p class="small">No brand has 3+ stations selling ${fuelName(state.fuel)} today.</p>`;
   const btn = $("allBrands"); btn.hidden = b.length <= SHOWN; btn.textContent = allBrands ? "Show fewer" : `Show all ${b.length} brands`;
   const costco = D.stations.some(s => s.b === "Costco");
-  $("brandNote").textContent = `Average price at each brand's Sydney stations vs the Sydney median (${live[state.fuel].now.toFixed(1)}c), ${nice(D.snap_asof)}. Brands with 3+ stations selling this fuel.` + (costco ? " Costco is members-only and only reports E10 and Premium 98." : "");
+  $("brandNote").textContent = `Average price at each brand’s Sydney stations vs the Sydney median (${live[state.fuel].now.toFixed(1)}c), ${nice(D.snap_asof)}. Brands with 3+ stations selling this fuel.` + (costco ? " Costco is members-only and only reports E10 and Premium 98." : "");
 }
 $("allBrands").addEventListener("click", () => { allBrands = !allBrands; renderBrands(); });
 $("toTrends").addEventListener("click", () => $("trends").scrollIntoView({behavior:"smooth", block:"start"}));
@@ -685,22 +737,24 @@ $("btBox").addEventListener("toggle", renderBT);
 function renderBTTable(){
   const S = D.bt.summary, f = state.fuel, prod = D.bt.prod;
   $("btTable").innerHTML = [1,3,7,14].map(h => { const r = S[f+"|"+h];
-    return `<tr><td>${h} day${h>1?"s":""}</td><td class="n">${r.naive.toFixed(1)}c</td><td class="n">${r[prod].toFixed(1)}c</td><td class="n"><b>${Math.round((1-r[prod]/r.naive)*100)}%</b></td><td class="n">${r.model_shock.toFixed(1)} vs ${r.naive_shock.toFixed(1)}</td><td class="n">${Math.round(r.dir*100)}%</td></tr>`; }).join("");
+    const gain = Math.round((1-r[prod]/r.naive)*100);
+    return `<tr><td>${h} day${h>1?"s":""}</td><td class="n">${r.naive.toFixed(1)}c</td><td class="n">${r[prod].toFixed(1)}c</td><td class="n"><b>${gain > 0 ? gain + "%" : "none"}</b></td><td class="n">${Math.round(r.dir*100)}%</td></tr>`; }).join("");
   const r7 = S[f+"|7"];
-  $("accLine").textContent = `A week ahead, the ${fuelName(f)} forecast is off by about ${r7[prod].toFixed(1)}c on average, ${Math.round((1-r7[prod]/r7.naive)*100)}% closer than assuming prices stay where they are.`;
-  $("btNote").textContent = `Mean absolute error in c/L, tested ${D.bt.test_from} to ${D.bt.test_to.slice(0,7)}. "Shock months" are the 2022 and 2026 oil shocks (model vs no change). Direction counts moves of 1c or more. Price-jump classifier AUC ${D.bt.auc[f].toFixed(2)} (0.5 is a coin toss).`;
-  $("liveModel").textContent = `Live model: ${CTX.live_model}.`;
+  $("accStats").innerHTML = [[`${r7[prod].toFixed(1)}c`, "average miss, 7 days ahead"], [`${Math.round(r7.dir*100)}%`, "right direction"], [`${r7.naive.toFixed(1)}c`, "if you assumed no change"]]
+    .map(([b,l]) => `<div><div class="bignum">${b}</div><div class="small">${l}</div></div>`).join("");
+  const month = ym => { const [y,m] = ym.split("-").map(Number); return `${MO[m-1]} ${y}`; };
+  $("btNote").textContent = `${fuelName(f)}: the average miss in cents a litre, forecasting each month from ${month(D.bt.test_from)} to ${month(D.bt.test_to)} with only the data before it. “No change” assumes today’s price holds. Direction is how often Bowser called the move right, for moves of 1c or more. Jump warnings score ${D.bt.auc[f].toFixed(2)} out of 1, where 0.5 is a coin toss.`;
 }
 function renderFresh(){
   const age = s => daysBetween(s, CTX.asof);
   const items = [
-    ["Live Sydney prices", CTX.asof, 1], ["Wholesale TGP (AIP)", CTX.tgp_last, 5], ["Brent and AUD (FRED)", CTX.fred_last, 10],
-    ["Full NSW price history", CTX.history_last, 60]];
+    ["Live Sydney prices", CTX.asof, 1], ["Wholesale prices (AIP)", CTX.tgp_last, 5], ["Brent and AUD (FRED)", CTX.fred_last, 10],
+    ["NSW monthly price history", CTX.history_last, 60]];
   $("fresh").innerHTML = items.map(([l,d,ok])=>`<div><span><span class="dot ${age(d)<=ok?"ok":"warn"}"></span>${l}</span><b>${nice(d)}</b></div>`).join("")
-    + `<div><span>Daily snapshots stored</span><b>${CTX.snapshot_days}</b></div>`;
+    + `<div><span>Days of station prices saved</span><b>${CTX.snapshot_days}</b></div>`;
 }
 
-function renderToday(){ renderStations(); renderHero(); }
+function renderToday(){ renderStations(); renderPins(); renderHero(); }
 function render(){
   $("trEyebrow").textContent = `Sydney ${fuelName(state.fuel)}`;
   brandOptions(); renderToday(); renderWhy(); renderInsights(); renderMain(); renderBrands(); renderBTTable();

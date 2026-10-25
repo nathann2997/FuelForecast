@@ -2,6 +2,34 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-25 — Web dashboard matches the app again (`template.html`, pipeline only)
+
+The dashboard last matched the app on 22 Oct. This brings in the 23 Oct design review and the 24 Oct copy review.
+- **Today:**
+  - The verdict card no longer has "Best for you".
+  - It uses the app's "Sydney median Xc/L" line and "1 day / 3 days / 7 days / 14 days" tiles.
+  - "Why we think this" has the app's three facts.
+- **Your stations** (new, under the verdict as in the app):
+  - Pin or Unpin from an open station row; at most 10.
+  - Saved in this browser when storage is allowed. They don't sync with the app.
+  - A pinned station with no price for the fuel shows "No E10 here". One that's gone from today's data shows "Not in today's prices" and can still be unpinned.
+  - Keys are name, postcode and coordinates, because 26 name and postcode pairs cover two sites (e.g. two 7-Eleven Mosman). The data has no station codes, and `build.py` isn't changed.
+- **Quieter rows:** an advice chip that only repeats the Sydney headline is left out, as in the app (`echoesSydney`).
+- **Wording, as in the app:**
+  - The plain model card and backtest note.
+  - Accuracy stats: "average miss, 7 days ahead", "right direction" and "if you assumed no change". The table reads Ahead / No change / Bowser / Better by / Direction, without "Shock months".
+  - The chart legend "Middle 80% of stations" and "Wholesale price".
+  - Data freshness labels.
+  - "Prices as of" in the header and the stale banner.
+- **Published copy:** the freshness label now reads "Oil and exchange rate (EIA, RBA)". `DASHBOARD_CREDITS` rewrites the template's FRED label, which stays true for the Claude scheduled task.
+- **Brand:** the page title is "Bowser" with no descriptor (`docs/BRAND.md`).
+- **`<meta charset="utf-8">`:** without it, a host that sends no charset decodes the page as Latin-1, the inline script no longer matches its CSP hash, and the page goes blank. GitHub Pages sends UTF-8, so the live site wasn't affected.
+- **Checks:**
+  - A full local export on a scratch copy, with no credit warnings.
+  - Headless Chrome at 500 and 1280 px.
+  - A CDP test: pin, reload, unpin, an orphaned pin, junk and duplicate stored keys, twin stations and a fuel switch, with no console errors.
+  - A QA audit with no high-severity issues left; fixed from it: the twin-key collision, unremovable orphan pins, `Object.prototype` keys, the page jumping on pin, stale labels, and the toggle semantics.
+
 ## 2026-10-24 — Copy review: plain words for drivers (JS, all runtimes for the update notice)
 
 A content review of every screen, the widget, alerts and the update notice. The audience is a few Sydney drivers who open Bowser before a drive. The share page already read well and is unchanged.

@@ -69,7 +69,7 @@ DASHBOARD_CREDITS = [
      "monthly price history on data.nsw.gov.au (© State of NSW, NSW Fair Trading, CC BY-SA 3.0 AU; adapted, with forecasts added);"),
     ("Brent crude (DCOILBRENTEU) and AUD/USD (DEXUSAL) from FRED, Federal Reserve Bank of St. Louis.",
      "Brent crude from the U.S. Energy Information Administration (Refinitiv) and AUD/USD from the Reserve Bank of Australia (WM/Reuters)."),
-    ('"Brent and AUD (FRED)"', '"Brent (EIA) and AUD (RBA)"'),
+    ('"Brent and AUD (FRED)"', '"Oil and exchange rate (EIA, RBA)"'),
 ]
 
 
