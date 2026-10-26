@@ -18,7 +18,7 @@ export function FilterSheet({
   onClose: () => void;
   brands: { brand: string; n: number }[];   // most common first
   staleCount: number;                        // stations hidden for old prices
-  resultCount: number;                       // stations the list shows with the current filters
+  resultCount: number | null;                // stations the list shows with the current filters; null on the map (it shows what's in view)
   hasHome: boolean;                          // sort by distance and radius need an area
 }) {
   const c = useTheme();
@@ -56,7 +56,7 @@ export function FilterSheet({
             <Button label="Reset" kind="secondary" onPress={reset} />
           </View>
           <View style={{ flex: 2 }}>
-            <Button label={resultCount === 0 ? 'No stations match' : `Show ${resultCount} station${resultCount === 1 ? '' : 's'}`} onPress={onClose} />
+            <Button label={resultCount == null ? 'Show on map' : resultCount === 0 ? 'No stations match' : `Show ${resultCount} station${resultCount === 1 ? '' : 's'}`} onPress={onClose} />
           </View>
         </View>
       }>

@@ -19,6 +19,8 @@ const TUNE =
 
 const MAP =
   'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z';
+const LOCATE =
+  'M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z';
 const LIST = 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z';
 
 const Icon = ({ d, size = 20, color }: P & { d: string }) => (
@@ -33,6 +35,8 @@ export const MapPinIcon = (p: P) => <Icon d={PLACE} {...p} />;
 /** The Stations map / list toggle */
 export const MapIcon = (p: P) => <Icon d={MAP} {...p} />;
 export const ListIcon = (p: P) => <Icon d={LIST} {...p} />;
+/** Centre the map on you */
+export const LocateIcon = (p: P) => <Icon d={LOCATE} {...p} />;
 export const FilterIcon = (p: P) => <Icon d={TUNE} {...p} />;
 export const ShareIcon = (p: P) => <Icon d={SHARE} {...p} />;
 /** A fuel pump: "Filled up" (log a fill) */

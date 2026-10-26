@@ -17,22 +17,33 @@ export function regionFor(p: Place, radiusKm: number): Region {
   return { latitude: p.la, longitude: p.lo, latitudeDelta, longitudeDelta: latitudeDelta / Math.cos((p.la * Math.PI) / 180) };
 }
 
-/** Google's zoom level for a region (0 = the whole world), for clustering */
-export const zoomOf = (r: Region) => Math.max(0, Math.min(20, Math.log2(360 / Math.max(r.longitudeDelta, 1e-6))));
+/** Google's zoom level for a region shown `widthDp` wide (0 = the whole world on one 256 dp tile), for clustering */
+export const zoomOf = (r: Region, widthDp: number) =>
+  Math.max(0, Math.min(21, Math.log2((360 * widthDp) / (256 * Math.max(r.longitudeDelta, 1e-9)))));
+
+/** The longitude span that zoom `z` shows across `widthDp` */
+export const lonSpanAt = (z: number, widthDp: number) => (360 * widthDp) / (256 * 2 ** z);
 
 /** [west, south, east, north] of a region */
 export const bboxOf = (r: Region): [number, number, number, number] => [
   r.longitude - r.longitudeDelta / 2, r.latitude - r.latitudeDelta / 2, r.longitude + r.longitudeDelta / 2, r.latitude + r.latitudeDelta / 2,
 ];
 
-/** Offer "Search this area" once the map's centre has moved a quarter of the radius (at least 1 km) from the area searched */
-export const offerSearch = (centre: Place, r: Region, radiusKm: number) =>
-  km(centre.la, centre.lo, r.latitude, r.longitude) > Math.max(1, radiusKm / 4);
+/** A box grown by `f` of its size on each side, and by `bottom` more at the bottom: tags hang above their point, so one
+ *  just below the screen still shows */
+export function padBox([w, so, e, n]: [number, number, number, number], f: number, bottom = 0): [number, number, number, number] {
+  const dx = (e - w) * f;
+  const dy = n - so;
+  return [w - dx, so - dy * (f + bottom), e + dx, n + dy * f];
+}
+
+/** Whether a point is inside a [west, south, east, north] box */
+export const inBox = ([w, so, e, n]: [number, number, number, number], la: number, lo: number) => lo >= w && lo <= e && la >= so && la <= n;
 
 /**
  * Whether the area really changed from `a` to `b`: another suburb, GPS versus a suburb, or a GPS fix that moved more
- * than a quarter of the radius (at least 1 km). The map follows such a change and drops a search made from the old
- * area; a GPS re-read a few hundred metres on (useArea refreshes on every focus) does neither.
+ * than a quarter of the radius (at least 1 km). The map re-centres on such a change; a GPS re-read a few hundred metres
+ * on (useArea refreshes on every focus) doesn't pull it back.
  */
 export function areaMoved(a: Place | null, b: Place | null, radiusKm: number) {
   if (!a || !b) return a !== b;
@@ -40,28 +51,24 @@ export function areaMoved(a: Place | null, b: Place | null, radiusKm: number) {
   return km(a.la, a.lo, b.la, b.lo) > Math.max(1, radiusKm / 4);
 }
 
-/**
- * The stations the map shows: the same radius, members and discount rules as the list, but around `centre` (where the
- * map last searched, or the area). Distances stay from `home`, where the driver is, not from the searched spot.
- * No centre and no home: every station.
- */
-export function areaRows(
+/** Every station the map can show for `fuel` (members and discount rules as the list, no radius: the map shows what's
+ *  in view), with distances from `home`. */
+export function mapStations(
   stations: Station[],
   fuel: Fuel,
-  opts: { centre: Place | null; home: Place | null; radiusKm: number; members: boolean; discounts?: Discounts },
+  opts: { home: Place | null; members: boolean; discounts?: Discounts },
 ): StationRow[] {
-  const rows = rankStations(stations, fuel, { home: opts.centre, radiusKm: opts.radiusKm, members: opts.members, discounts: opts.discounts });
-  if (opts.centre === opts.home) return rows;
   const h = opts.home;
-  return rows.map((r) => ({ ...r, d: h ? km(h.la, h.lo, r.la, r.lo) : null }));
+  return rankStations(stations, fuel, { home: null, radiusKm: 0, members: opts.members, discounts: opts.discounts }).map((r) => ({
+    ...r, d: h ? km(h.la, h.lo, r.la, r.lo) : null,
+  }));
 }
 
-/** Pin colour: the cheapest third of the stations on the map, the middle third, the dearest third */
+/** Pin colour: the cheapest third of the stations in view, the middle third, the dearest third */
 export type Tier = 'low' | 'mid' | 'high';
 
 /**
- * Splits the prices (what you pay) of the stations in the area into thirds, and returns the colour for any price: so a
- * pinned station outside the area is coloured against the area too. Ties stay together, so a price never gets two
+ * Splits the prices (what you pay) of the stations in view into thirds, and returns the colour for any price. Ties stay together, so a price never gets two
  * colours. When the spread is under 1c, or there are fewer than 3 stations, everything is 'mid': colours would claim
  * differences that aren't there.
  */

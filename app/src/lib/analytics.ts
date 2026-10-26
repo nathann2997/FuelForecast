@@ -24,7 +24,6 @@ export type EventName =
   | 'fill.removed'
   | 'share.opened'           // kind: deal | savings; shared: false when the sheet was dismissed
   | 'directions.opened'      // ok: false when no maps app took the link
-  | 'map.searched'           // "Search this area" on the Stations map (never the place itself)
   | 'alerts.toggled'         // on: what was asked; granted: whether they're on afterwards
   | 'data.fetch_failed'      // a query gave up after its retries
   | 'update.notice';         // action: shown | update | later, for the newer APK in api/v1/app.json

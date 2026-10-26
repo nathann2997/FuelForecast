@@ -2,6 +2,41 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-26 — Map rework after the first device test (JS only, runtime 0.8.0)
+
+The owner's first look at 0.8.0 (dark mode, P98) raised four problems. Two big blue dots looked like location markers, most stations seemed missing, and "Search this area" felt slow. The design also didn't match the app.
+- **The blue dots were clusters with no number:**
+  - Bubbles had `tracksViewChanges={false}` from the first paint, so Android captured them before the count text drew.
+  - With supercluster's radius at 120 (about 60 dp), roughly 50 of the 59 stations were hidden in two blank bubbles.
+  - **Fix:** a `useTracking` hook gives every marker (tags, clusters, the "you" dot) a 500 ms redraw window whenever its look changes.
+  - Clusters now use the app's primary colours (dark on light, light on dark), so they can't be taken for the blue "you" dot.
+  - Clustering is lighter (radius 60, about 30 dp, so only overlapping tags merge), and it stops at zoom 13, so every station has its own tag from suburb zoom in.
+- **Stations load as you pan:**
+  - "Search this area", the radius circle and the searched-area state are gone.
+  - The map holds every station for the fuel that passes the filters (826 for P98, 77 of them hidden as more than 7 days old, as in the list). It shows the ones in view after each pan or zoom.
+  - The radius now only sets how far the map shows when it opens. The ◎ button goes back there.
+  - Colours are the cheapest, middle and dearest third **of the stations in view**, and the card says "One of the cheapest in view".
+  - The header reads "N stations in view".
+- **Matches the app:**
+  - The map has the list's header: the refresh line, "Stations", the fuel chip, then the area bar with "Change" and a filter button. Switching views no longer moves the top of the screen.
+  - The Map/List button uses the primary button colours, not blue.
+  - The station card is compact and sits over the bottom of the map like the app's sheets: name, price, the fill-up chip and "7 days: ~X" on one line, then Directions, Pin and Details. The reason text lives on the station page.
+  - While the card is open, the map's bottom padding equals the card's height, so the Google logo and the centred tag stay above it. The toggle and the locate button hide.
+  - The re-centre button has a proper "my location" icon and a visible border in dark mode.
+  - Tags have 10 dp corners. Selection is a thick outline, and pinned tags are marked by their pin icon.
+- **QA audit, round 2** (subagent, read against the react-native-maps Android source):
+  - **Colours not refreshing:** Android only redraws a marker's picture when it's added or resized. `tracksViewChanges` doesn't redraw on a colour-only change (MarkerManager/MapMarker.java). So a tag would keep its old colour or price after a pan, a refresh or a theme switch. Tags, clusters and the "you" dot are now keyed by their look and come back as new markers, tracked for 500 ms after mount. This also applies the z-order, which Android only reads when a marker is created.
+  - **Docked card:** it left a 10–130 dp map on a 360×640 phone. That's replaced by the overlay card and padding described above.
+  - **Clusters failing to split:** Android fits `animateToRegion` by the limiting span. Tapping now uses `animateCamera` with a real zoom on Android (span on iOS), and the clustering zoom accounts for the map's width (`zoomOf(region, widthDp)`).
+  - **Tags popping in and out:** tags load 15% past each edge, and 40% past the bottom (`padBox`), so they don't pop in at the edges. The count still uses the exact view.
+  - **Colours shifting on every nudge:** they now recompute only after a real move (most of a zoom level, or a third of the screen), never on the tap's own re-centring.
+  - **Selection reappearing:** a selection that leaves the map is cleared, so it doesn't pop back.
+  - **Filter button:** on the map it reads "Show on map", not a whole-Sydney count.
+  - **Pinned tags:** the dark outline is back, and they sit on top again.
+  - **Dark-mode contrast:** green and red tags use dark price text in dark mode, because white text was about 2.3:1.
+- **Removed:** `offerSearch`, `areaRows` and the `map.searched` event. Added `inBox`, `padBox`, `lonSpanAt` and `mapStations`. Tests: 410 pass. Android and web bundles export.
+- **Not yet seen on a device.**
+
 ## 2026-10-26 — Bowser 0.8.0: Stations map (native build, not pushed)
 
 The owner asked for a map view toggled by one button, as in 18 Birdies, that looks like NSW FuelCheck. They approved Google Maps "if it's free" and all five suggested extras.

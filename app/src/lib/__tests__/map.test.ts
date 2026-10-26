@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import Supercluster from 'supercluster';
 
 import { km } from '../geo';
-import { areaMoved, areaRows, bboxOf, brandLabel, offerSearch, priceTiers, regionFor, zoomOf } from '../map';
+import { areaMoved, bboxOf, brandLabel, inBox, lonSpanAt, mapStations, padBox, priceTiers, regionFor, zoomOf } from '../map';
 import { DEFAULTS, normalize } from '../settings';
 import type { Station } from '../types';
 
@@ -37,22 +37,18 @@ describe('priceTiers', () => {
   });
 });
 
-describe('areaRows', () => {
+describe('mapStations', () => {
   const home = { label: 'home', la: -33.87, lo: 151.0 };
-  const far = { label: 'there', la: -33.87, lo: 151.2 };   // about 18.5 km east
   const stations = [st('1', -33.87, 151.0, 200), st('2', -33.87, 151.2, 210), st('3', -33.87, 151.21, 190, 1)];
 
-  it('is the list rule around the area', () => {
-    expect(areaRows(stations, 'U91', { centre: home, home, radiusKm: 5, members: true }).map((r) => r.id)).toEqual(['1']);
+  it('has every station, however far, with distances from home', () => {
+    const rows = mapStations(stations, 'U91', { home, members: true });
+    expect(rows.map((r) => r.id)).toEqual(['3', '1', '2']);
+    expect(rows.find((r) => r.id === '2')!.d).toBeCloseTo(km(home.la, home.lo, -33.87, 151.2), 5);
   });
-  it('searches around another spot but keeps distances from home', () => {
-    const rows = areaRows(stations, 'U91', { centre: far, home, radiusKm: 5, members: true });
-    expect(rows.map((r) => r.id)).toEqual(['3', '2']);
-    expect(rows[1].d).toBeCloseTo(km(home.la, home.lo, -33.87, 151.2), 5);
-  });
-  it('respects members-only and shows everything with no area', () => {
-    expect(areaRows(stations, 'U91', { centre: far, home, radiusKm: 5, members: false }).map((r) => r.id)).toEqual(['2']);
-    expect(areaRows(stations, 'U91', { centre: null, home: null, radiusKm: 5, members: true })).toHaveLength(3);
+  it('respects members-only, and has no distances without an area', () => {
+    expect(mapStations(stations, 'U91', { home, members: false }).map((r) => r.id)).toEqual(['1', '2']);
+    expect(mapStations(stations, 'U91', { home: null, members: true }).every((r) => r.d === null)).toBe(true);
   });
 });
 
@@ -63,14 +59,21 @@ describe('regions', () => {
     expect(r.longitudeDelta).toBeGreaterThan(r.latitudeDelta);   // degrees of longitude are shorter here
     const [w, s, e, n] = bboxOf(r);
     expect(w < 151 && e > 151 && s < -33.87 && n > -33.87).toBe(true);
-    expect(zoomOf(r)).toBeGreaterThan(10);
-    expect(zoomOf(r)).toBeLessThan(14);
+    expect(zoomOf(r, 360)).toBeGreaterThan(11);
+    expect(zoomOf(r, 360)).toBeLessThan(13);
+    expect(zoomOf(r, 720)).toBeCloseTo(zoomOf(r, 360) + 1, 6);   // a wider view of the same span is one level closer
+    expect(lonSpanAt(zoomOf(r, 360), 360)).toBeCloseTo(r.longitudeDelta, 9);
   });
-  it('offers a search once the map has moved far enough', () => {
-    const c = { label: '', la: -33.87, lo: 151 };
-    expect(offerSearch(c, regionFor(c, 5), 5)).toBe(false);
-    expect(offerSearch(c, regionFor({ label: '', la: -33.87, lo: 151.03 }, 5), 5)).toBe(true);   // ~2.8 km
-    expect(offerSearch(c, regionFor({ label: '', la: -33.87, lo: 151.008 }, 5), 5)).toBe(false); // ~0.7 km
+  it('knows what is in view', () => {
+    const b = bboxOf(regionFor({ label: '', la: -33.87, lo: 151 }, 5));
+    expect(inBox(b, -33.87, 151.02)).toBe(true);
+    expect(inBox(b, -33.87, 151.2)).toBe(false);
+    expect(inBox(b, -33.5, 151)).toBe(false);
+  });
+  it('pads the box, more at the bottom', () => {
+    const [w, s, e, n] = padBox([150, -34, 151, -33], 0.2, 0.3);
+    expect([w, e, n]).toEqual([149.8, 151.2, -32.8]);
+    expect(s).toBeCloseTo(-34.5, 9);
   });
 });
 
