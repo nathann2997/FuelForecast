@@ -2,6 +2,81 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-26 — Bowser 0.8.0: Stations map (native build, not pushed)
+
+The owner asked for a map view toggled by one button, as in 18 Birdies, that looks like NSW FuelCheck. They approved Google Maps "if it's free" and all five suggested extras.
+- **Map source:** Google Maps through `react-native-maps` 1.29.11. It uses Google on Android and Apple Maps on iOS, which needs no key.
+  - Google's price list (checked 2026-10-26; usage page updated 2026-10-23) shows the "Maps SDK" SKU as **Unlimited**, with no charge.
+  - A billing account is still required.
+  - The rejected alternative was MapLibre + OpenFreeMap. It's free with no key, but best-effort and donation-funded.
+- **Toggle:** a floating blue "Map" button on Stations. On the map it changes to "List".
+- **Map:**
+  - It uses the same fuel, filters, discounts, radius and members rule as the list. The radius is drawn as a circle.
+  - Each station is a price tag with a short brand label. There are no brand logos, because the repo has no logo assets.
+  - When zoomed out, stations merge into numbered circles (supercluster); tapping one zooms in.
+  - Google's business places are hidden so its own petrol icons don't sit under the tags.
+  - A dark map style follows the phone's theme.
+- **The five extras:**
+  1. **Colour-coded tags:** green for the cheapest third of the stations in the area, amber for the middle third, red for the dearest third. With fewer than 3 stations or less than 1c spread, all tags are amber. A "Cheaper ● ● ● Dearer" legend sits in the header.
+  2. **Forecast on the card:** tapping a tag opens a card with the price and the gap to the median. It also shows the when-to-fill chip with its reason, "In 7 days: about X", and "One of the cheapest here" where it applies. Buttons: Directions, Pin/Unpin, Details.
+  3. **Pinned stations:** shown whatever the radius and filters, as in the list, with a dark outline and a pin icon. They are coloured against the area.
+  4. **Search this area:** appears once the map has moved a quarter of the radius (at least 1 km) away. It re-centres the radius there. This is map-only state: the saved area, Today, the list and the widget don't change. "‹ Back to near you" and the ◎ button return.
+  5. **Remember the view:** a new `settings.view` (`list` by default). Stations reopens on whichever view was used last.
+- **Privacy:**
+  - The map's own location layer (`showsUserLocation`) is off. The blue "you" dot is drawn from Bowser's existing fix, so the map library never reads the phone's position.
+  - The map provider does see the area on screen, because it serves those map tiles. The location permission text now says so: "Bowser never sends it anywhere. The map provider sees the area you're viewing, as with any map." The old wording ("never leaves your phone") was too strong once a map is on screen.
+  - The "you" dot is hidden while the phone can't locate. The map header says "last known", as the list does.
+  - A new analytics event, `map.searched`, records that a search happened, never the place.
+- **Key handling:**
+  - `app.config.js` reads `GOOGLE_MAPS_ANDROID_API_KEY` (an EAS env var, never committed) into `android.config.googleMaps.apiKey`.
+  - Expo strips `android.config` from the public config, so OTA manifests don't carry the key. The APK's own manifest does, as every Maps app's must, which is why the key is restricted to this package and signing SHA-1.
+  - An Android EAS build without the key fails at config time, rather than shipping a blank grey map.
+  - No runtime flag is used, so an OTA update can't hide or show the map. iOS needs no key.
+  - The web preview never shows the button (`station-map.web.tsx` stub).
+- **Version:** 0.8.0, because there's a new native module (runtime `appVersion`). The map JS can't reach 0.7.0 phones.
+- **Files:**
+  - New: `app/app.config.js`, `src/lib/map.ts`, `src/components/station-map.tsx` and `.web.tsx`, `src/lib/__tests__/map.test.ts`.
+  - Changed: `(tabs)/stations.tsx`, `icons.tsx` (Map/List icons), `settings.ts`, `analytics.ts`, `app.json`, and `package.json`. In `package.json`, Jest now transforms `supercluster|kdbush`, which ship as ES modules.
+- **QA audit** (subagent; 11 findings, fixed except the open items listed below):
+  - **Key handling:** the key leaked into the public config through the react-native-maps plugin props, and an OTA update could flip `mapsReady`. Both are replaced as described above.
+  - **Search state:** a new suburb, or a real move (`areaMoved`: more than a quarter of the radius, at least 1 km), clears a search. A GPS re-read a few hundred metres on does not.
+  - **Following the area:** the map no longer snaps back on every GPS re-read. It follows only a real move (more than a quarter of the radius, at least 1 km) or a radius change.
+  - **Clusters:** tapping one zooms half a level past its split point, so it can't get stuck. Their keys include the count and colour, because Android keeps a marker's first picture.
+  - **Selected tag:** selection is a blue border, not a scale that Android clips.
+  - **Map header:** Filters is an icon with a count badge, and the radius moved to the second row, so the place name fits at 360 dp.
+  - **Location:** the "you" dot and the "last known" wording follow the location state.
+  - **Map padding:** it's fixed, because changing it moved the camera.
+  - **Tapping a tag:** a tag in the lower half moves up clear of the card.
+  - **Cluster size:** the cluster radius now matches a tag's width (about 60 dp).
+  - **Re-renders:** the tag-tap handler is stable, so the memoised tags don't re-render on every pan.
+- **Known, open:**
+  - With no area set, "Search this area" narrows all stations down to one radius.
+  - Unpinning a station outside the area from its card closes the card.
+  - The fixed bottom map padding (80 dp) means an open card probably covers the Google logo. Google's terms don't allow obscuring it, so check on a device. If it's covered, set a constant padding of about the card plus toggle height.
+- **Checks:**
+  - Typecheck, lint and jest pass: 410 tests, 15 of them new in `map.test.ts`. They cover the tiers, the area rows with a searched centre, the region maths, the search threshold, the view setting, and supercluster running under Jest.
+  - Android and web bundles export. expo-doctor reports the same 7 out-of-date patch versions as before.
+  - **Not yet seen on a device:** there's no emulator here, so the map needs the 0.8.0 preview APK.
+- **Owner to do before the build:**
+  1. In Google Cloud, create a project with billing, and enable only "Maps SDK for Android".
+  2. Create an API key restricted to Android apps: package `com.nathann2997.fuelforecast` plus the SHA-1 of the EAS signing key (`npx eas-cli credentials -p android`). Add a budget alert.
+  3. Store the key as `GOOGLE_MAPS_ANDROID_API_KEY`: `npx eas-cli env:create --name GOOGLE_MAPS_ANDROID_API_KEY --value <key> --environment preview --environment production --visibility sensitive`. Use sensitive visibility, not secret, so local `eas update` and `expo config` can read it too.
+  4. Build: `npx eas-cli build -p android --profile preview`. When it finishes, update `sydney/pipeline/app_release.json`.
+- **Device checks:**
+  - **Toggle:** it switches both ways, the view is remembered after a restart, and the button doesn't hide the last list item.
+  - **Performance:** tags render, and panning stays smooth at 20 km.
+  - **Clusters:** they split when tapped.
+  - **Search this area:** it shows after panning, and Back returns.
+  - **Station card:** Directions, Pin and Details work. The card sits above the tab bar, with the toggle above it.
+  - **Dark mode:** the map and tags are styled correctly.
+  - **No area set:** the map shows all of Sydney.
+  - **Location withdrawn:** the "you" dot disappears and the header says "last known".
+  - **Area change:** a new area clears a "Searched area".
+  - **Location re-read:** switching apps doesn't pull a panned map back.
+  - **Tag rendering:** tags aren't blank or clipped on first paint at 20 km, or right after a fuel switch (the 400 ms `tracksViewChanges` window).
+  - **Google logo:** it stays visible with a card open.
+  - **First native compile:** this is the first build of react-native-maps 1.29 on RN 0.88 with the new architecture.
+
 ## 2026-10-25 — Web dashboard matches the app again (`template.html`, pipeline only)
 
 The dashboard last matched the app on 22 Oct. This brings in the 23 Oct design review and the 24 Oct copy review.

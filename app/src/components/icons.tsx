@@ -17,6 +17,10 @@ const SHARE =
 const TUNE =
   'M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z';
 
+const MAP =
+  'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z';
+const LIST = 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z';
+
 const Icon = ({ d, size = 20, color }: P & { d: string }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false} pointerEvents="none">
     <Path d={d} fill={color} />
@@ -26,6 +30,9 @@ const Icon = ({ d, size = 20, color }: P & { d: string }) => (
 export const PinIcon = ({ filled, ...p }: P & { filled?: boolean }) => <Icon d={filled ? PIN_FILLED : PIN_OUTLINE} {...p} />;
 /** A map pin: "show on the map" (not the pin-to-favourites PinIcon) */
 export const MapPinIcon = (p: P) => <Icon d={PLACE} {...p} />;
+/** The Stations map / list toggle */
+export const MapIcon = (p: P) => <Icon d={MAP} {...p} />;
+export const ListIcon = (p: P) => <Icon d={LIST} {...p} />;
 export const FilterIcon = (p: P) => <Icon d={TUNE} {...p} />;
 export const ShareIcon = (p: P) => <Icon d={SHARE} {...p} />;
 /** A fuel pump: "Filled up" (log a fill) */
