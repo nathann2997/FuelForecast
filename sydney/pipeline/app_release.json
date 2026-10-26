@@ -1,8 +1,8 @@
 {
   "android": {
-    "version": "0.7.0",
-    "url": "https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/9e1d7d49-b7ba-470c-bb1d-350d1d90d33e",
-    "notes": "What’s new: stations ranked by your price after discounts, a log of your fills and what you’ve saved, how often Bowser gets it right, and a way to share a good price with friends. Bowser now also sends anonymous crash reports so bugs get fixed faster."
+    "version": "0.8.0",
+    "url": "https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/69dad55d-48de-4f95-90db-ade6fb1bbbf1",
+    "notes": "What’s new: a map of nearby stations. Tap Map on the Stations tab to see prices on a map, coloured from cheapest to dearest. Tap a price for the fill-up call and directions, or search another area before you drive there."
   },
   "ios": null
 }
