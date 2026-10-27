@@ -10,12 +10,15 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
-- [~] **Premium 95 (P95) as a fifth fuel** (2026-10-27; CHANGELOG same title). A user asked for E85 and 95. P95 is built in full: pipeline, model, dashboard, share page and app (JS only, runtime 0.8.0). E85 is left out (17 stations, too few to forecast). QA audited and fixed. Committed locally, **not pushed**. **Next:**
-  1. Push `main`, then right away run `gh workflow run daily.yml -f backtest=true`. That run backfills P95 on the `data` branch by itself (`lacks_fuel` re-pull plus the archive backfill) and gives P95 its backtest and track record.
-  2. Check `forecast.json` has five fuels and data-health is clear.
-  3. Then `eas update` to `preview`.
-  4. **Device checks:** see the CHANGELOG entry.
-  5. **Owner's call:** keep the shared model (other fuels' 7-day error up about 0.1c), or fit P95 separately.
+- [~] **Premium 95 (P95) as a fifth fuel** (2026-10-27, bee2d9d + data 09ce0be; CHANGELOG same title). A user asked for E85 and 95. P95 is built in full: pipeline, model, dashboard, share page and app (JS only, runtime 0.8.0). E85 is left out (17 stations, too few to forecast). QA audited and fixed. **Live:**
+  - Pushed. Workflow run 40428442344 (with the backtest) passed.
+  - The live API has five fuels, 551 P95 stations, P95 history from 2019, its backtest (AUC 0.94) and its replay, with no warnings.
+  - data-health run 40429312037 is clear.
+  - OTA to `preview` at runtime 0.8.0: update group d45ff55e-fdee-4178-b112-1784eb1e7f0e.
+
+  **Next:**
+  - Device checks: see the CHANGELOG entry.
+  - **Owner's call:** keep the shared model (the other fuels' 7-day error is up about 0.1c), or fit P95 separately.
 - [~] **Bowser 0.8.0: Stations map** (2026-10-26; CHANGELOG same title). The owner asked for it, which reverses the "no map" MVP decision above. It's a Map/List toggle on Stations, with Google Maps via react-native-maps (Apple Maps on iOS), colour-coded price tags, clusters, a station card with the fill-up call, pinned stations, "Search this area" and the remembered view. It's a native module, so version 0.8.0. Pushed (ad57c16). Key set in EAS (preview and production). Preview APK: EAS build 69dad55d, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/69dad55d-48de-4f95-90db-ade6fb1bbbf1. `app_release.json` points at 0.8.0, so older apps show the update notice. After the owner's first device test, the map was reworked (16f6ad5; CHANGELOG "Map rework after the first device test"): stations load as you pan, the blank cluster bubbles are fixed, and it uses the app's styling. OTA to `preview` at runtime 0.8.0: update group a37d91b5-7d11-4c4b-85c3-402fc9e91a60. **Next:** device check of the rework: cluster counts show, tags recolour after a big pan, the card doesn't hide the tapped tag or the Google logo, clusters split on a tap, and dark-mode contrast.
 - [x] **OTA updates apply on the first open** (2026-10-24; CHANGELOG entry of the same name). The owner still saw the pre-review Today on 0.7.0, because expo-updates runs a downloaded update only on the next cold start. `lib/ota.ts` now checks while the splash is up and restarts into a quick download. Pushed, and OTA to `preview` at runtime 0.7.0: update group e0da3fb4-16ea-4b16-a56a-7aca51235acc (it includes the design review). **The owner needs two full restarts once** (force stop, open, wait about 10 s, force stop, open); after that, updates show on the first open.
 - [x] **Design review: a simpler Today** (2026-10-23; 3ace2b2, 2d31012; CHANGELOG "Design review"; `docs/DESIGN.md` "Design review — 2026-10-23"). "Best for you" removed, so Today leads with the trend and then Your stations. "Calls right" is at the bottom. Advice chips that only repeat the headline are hidden. Labels fit at 360 dp. Pushed, and OTA to `preview` at runtime 0.7.0: update group 707a5929-bcf0-41d4-8a1b-e41b230285fd (with source maps). Reaches 0.7.0 installs on their next cold start. **Next:** a device check of Today with and without pins, and the Stations list on a Wait day.

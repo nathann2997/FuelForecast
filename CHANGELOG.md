@@ -39,6 +39,10 @@ A user asked for E85 and 95. NSW FuelCheck carries both. **P95 is built in full;
   2. Right away, run `gh workflow run daily.yml -f backtest=true`. Until then, data-health reports "P95 missing" (critical) and remediate reruns on its own budget.
   3. Then the OTA. A new build on the old API would spin on Today and Trends for a P95 user.
 - **Device checks:** the five-label fuel picker at large font scale on a 360 dp phone, the 3.5 dp widget dots, and P95 on Today, Stations, the map, the station page and the widget.
+- **Shipped 2026-10-27:**
+  - Pushed. Workflow run 40428442344 (`backtest=true`) passed, and the live API carries P95 in every file with no warnings.
+  - data-health run 40429312037 is clear.
+  - OTA to `preview` at runtime 0.8.0: update group d45ff55e-fdee-4178-b112-1784eb1e7f0e.
 
 ## 2026-10-26 — Map rework after the first device test (JS only, runtime 0.8.0)
 
