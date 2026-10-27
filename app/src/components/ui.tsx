@@ -278,7 +278,7 @@ export function FuelChip() {
   );
 }
 
-const FUEL_SHORT = [['U91', 'U91'], ['E10', 'E10'], ['P98', 'P98'], ['DL', 'Diesel']] as const;
+const FUEL_SHORT = [['U91', 'U91'], ['E10', 'E10'], ['P95', 'P95'], ['P98', 'P98'], ['DL', 'Diesel']] as const;
 
 /** The fuel picker as a segmented control, for the settings screen */
 export function FuelPicker() {

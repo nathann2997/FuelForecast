@@ -22,8 +22,8 @@ export function signalWhy(r: LiveRow, stats: Stats, ctx: Ctx, history: History |
   let why: string;
   if (r.fuel === 'DL')
     why = `Pump diesel is ${r.margin.toFixed(0)}c above wholesale${moved ? `, and wholesale diesel moved ${moved}c over the last four weeks` : ''}.`;
-  else if (r.fuel === 'P98')
-    why = `Premium 98 carries a ${r.margin.toFixed(0)}c margin over the unleaded wholesale price, so it reacts less to the cycle than U91.`;
+  else if (r.fuel === 'P98' || r.fuel === 'P95')
+    why = `${fuelName(r.fuel)} carries a ${r.margin.toFixed(0)}c margin over the unleaded wholesale price, so it reacts less to the cycle than U91.`;
   else
     why =
       `Retailers are selling ${r.margin.toFixed(1)}c above the wholesale price, against a typical ${typ.toFixed(0)}c` +
@@ -88,7 +88,7 @@ export function insights(f: Forecast): { title: string; big: string; body: strin
     { title: 'Day of week', big: 'under 1c', body: `${names[lo]} is cheapest and ${names[hi]} dearest, but the gap is under 1c. The cycle matters far more.` },
     { title: 'Shop around', big: `${n(ST.shop_around)}c`, body: 'How much less the cheapest 10% of stations charge than the median, on a typical day.' },
     { title: 'Diesel premium', big: `${n(ST.dl_gap_now)}c`, body: `Over U91 today, against ${n(ST.dl_gap_2019_25)}c on average from 2019 to 2025.` },
-    { title: 'E10 and Premium', big: `${n(ST.e10_disc)}c / ${n(ST.p98_prem)}c`, body: `E10 below U91, Premium 98 above, on average since 2023.` },
+    { title: 'E10 and Premium', big: `${n(ST.e10_disc)}c / ${n(ST.p95_prem)}c / ${n(ST.p98_prem)}c`, body: `E10 below U91, Premium 95 and 98 above, on average since 2023.` },
     { title: 'Since 2019', big: `${n(ST.low_2019)}c → ${n(ST.high_all)}c`, body: `Sydney U91 median, from the 2020 low to the high on ${day(ST.high_date)}.` },
     { title: 'Oil today', big: `US$${n(CTX.brent_usd)}`, body: `Brent crude a barrel, about A$${n(CTX.brent_aud)} (${day(CTX.fred_last)}).` },
   ];
@@ -107,9 +107,10 @@ export function cycleSummary(f: Forecast): string {
   return `Mid-cycle: prices are still sliding, ${since} days since the last jump.`;
 }
 
+/** Empty for a fuel the published backtest doesn't cover yet (P95 until its first backtest run) */
 export function backtestRows(f: Forecast, fuel: Fuel) {
   const S = f.bt.summary, prod = f.bt.prod;
-  return [1, 3, 7, 14].map((h) => {
+  return [1, 3, 7, 14].filter((h) => S[`${fuel}|${h}`]).map((h) => {
     const r = S[`${fuel}|${h}`];
     return {
       horizon: `${h} day${h > 1 ? 's' : ''}`,
@@ -124,7 +125,9 @@ export function backtestRows(f: Forecast, fuel: Fuel) {
 
 export function backtestNote(f: Forecast, fuel: Fuel) {
   const month = (ym: string) => nice(`${ym.slice(0, 7)}-01`).replace(/^1 /, '');
-  return `${fuelName(fuel)}: the average miss in cents a litre, forecasting each month from ${month(f.bt.test_from)} to ${month(f.bt.test_to)} with only the data before it. “No change” assumes today’s price holds. Direction is how often Bowser called the move right, for moves of 1c or more. Jump warnings score ${f.bt.auc[fuel].toFixed(2)} out of 1, where 0.5 is a coin toss.`;
+  const auc = f.bt.auc[fuel];
+  if (auc == null) return `${fuelName(fuel)} hasn’t been through the monthly accuracy test yet.`;
+  return `${fuelName(fuel)}: the average miss in cents a litre, forecasting each month from ${month(f.bt.test_from)} to ${month(f.bt.test_to)} with only the data before it. “No change” assumes today’s price holds. Direction is how often Bowser called the move right, for moves of 1c or more. Jump warnings score ${auc.toFixed(2)} out of 1, where 0.5 is a coin toss.`;
 }
 
 export function historyNote(ctx: Ctx) {

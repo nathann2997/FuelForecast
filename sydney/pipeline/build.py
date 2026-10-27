@@ -4,6 +4,8 @@ usage: python build.py BASE  -> BASE/out/sydney-pump-outlook.html
 """
 import json, os, sys
 import numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from fuels import FUELS
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE = f"{BASE}/store"
@@ -16,7 +18,7 @@ asof = pd.Timestamp(FC["ctx"]["asof"])
 start = pd.Timestamp("2019-01-01"); days = pd.date_range(start, asof)
 
 hist = {}
-for f in ["U91", "E10", "P98", "DL"]:
+for f in FUELS:
     g = D[D.fuel == f].set_index("date").reindex(days)
     hist[f] = {"med": [r1(v) for v in g["median"]], "p10": [r1(v) for v in g.p10], "p90": [r1(v) for v in g.p90]}
 Tg = T.reindex(days).ffill(limit=4)
@@ -64,6 +66,7 @@ stats = {
     "dow": [r1(v) for v in dev.reindex(range(7))],
     "shop_around": spread("U91", "median", "p10"),
     "p98_prem": r1((syd.xs("P98", level="fuel")["median"] - u.reindex(syd.xs("P98", level="fuel").index)).loc["2023-01-01":].mean()),
+    "p95_prem": r1((syd.xs("P95", level="fuel")["median"] - u.reindex(syd.xs("P95", level="fuel").index)).loc["2023-01-01":].mean()),
     "e10_disc": r1((u.reindex(syd.xs("E10", level="fuel").index) - syd.xs("E10", level="fuel")["median"]).loc["2023-01-01":].mean()),
     "dl_gap_now": r1(dl_gap.iloc[-1]), "dl_gap_2019_25": r1(dl_gap.loc["2019":"2025"].mean()),
     "margin_now": r1(margin.iloc[-1]), "margin_typ": r1(margin.loc["2019":"2025"].median()),

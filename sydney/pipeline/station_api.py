@@ -34,7 +34,7 @@ fc    Per fuel the station sells today: the Sydney forecast for that fuel turned
 import datetime as dt, glob, gzip, json, os, re
 import numpy as np, pandas as pd
 
-FUELS = ["U91", "E10", "P98", "DL"]
+from fuels import FUELS
 DAYS = 400          # days of history per file, ending at asof
 FFILL = 30          # max days the last known price is carried forward after a station-fuel's last change/observation
 FFILL_GAP = 180     # max days carried forward between two known prices (events are changes, so no event = same price)

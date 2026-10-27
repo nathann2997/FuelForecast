@@ -12,15 +12,14 @@ import numpy as np, pandas as pd
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INBOX = sys.argv[2] if len(sys.argv) > 2 else f"{BASE}/inbox"
 STORE = f"{BASE}/store"
-FUELS = ["U91", "E10", "P98", "DL"]
+from fuels import FUELS
 is_syd = lambda pc: (2000 <= pc <= 2234) or (2555 <= pc <= 2574) or (2740 <= pc <= 2786)
 newest = lambda pat: (sorted(glob.glob(f"{INBOX}/{pat}"), key=os.path.getmtime) or [None])[-1]
 log = []
 
 # ---- NSW live snapshot -> one daily row per fuel (same definitions as build_history.py)
-snap = newest("nsw_snapshot_*.json")
-if snap:
-    j = json.load(open(snap))
+def snapshot_rows(j, snap):
+    """Sydney stations, prices and one daily row per fuel from a raw (or archived) NSW snapshot."""
     st = pd.DataFrame(j["stations"]); pr = pd.DataFrame(j["prices"])
     st["postcode"] = pd.to_numeric(st.address.str.extract(r"NSW\s+(\d{4})\s*$")[0], errors="coerce")
     st["suburb"] = st.address.str.extract(r",\s*([^,]+?)\s+NSW\s+\d{4}\s*$")[0].str.title()
@@ -43,16 +42,37 @@ if snap:
                          share_upd_1d=(g.age <= 1).mean(), share_upd_3d=(g.age <= 3).mean(), share_upd_7d=(g.age <= 7).mean(),
                          recent_minus_old=(rec.median() - old.median()) if len(rec) > 5 and len(old) > 5 else np.nan,
                          source="snapshot"))
+    return st, pr, asof, rows
+
+
+snap = newest("nsw_snapshot_*.json")
+if snap:
+    j = json.load(open(snap))
+    st, pr, asof, rows = snapshot_rows(j, snap)
     D = pd.read_csv(f"{STORE}/daily.csv", parse_dates=["date"])
     new = pd.DataFrame(rows).round(3); new["date"] = pd.to_datetime(new.date)
     D = pd.concat([D[~((D.date == asof) & (D.source == "snapshot"))], new]).sort_values(["date", "fuel"])
     D = D.drop_duplicates(["date", "fuel"], keep="first")  # history rows win over a snapshot for the same day
+    # A fuel added to FUELS later (P95, 2026-10) has no snapshot rows for the days already archived: rebuild those days'
+    # missing fuels from archive/ (days after the published history only; the history covers the rest)
+    import gzip
+    hist_end = D[D.source == "history"].date.max()
+    back = []
+    for fn in sorted(glob.glob(f"{BASE}/archive/nsw_snapshot_*.json.gz")):
+        day = pd.Timestamp(re.search(r"(\d{8})", os.path.basename(fn)).group(1))
+        miss = set(FUELS) - set(D[D.date == day].fuel)
+        if day <= hist_end or day == asof or not miss: continue
+        with gzip.open(fn, "rt") as fh: arch = json.load(fh)
+        back += [r for r in snapshot_rows(arch, fn)[3] if r["fuel"] in miss]
+    if back:
+        b = pd.DataFrame(back).round(3); b["date"] = pd.to_datetime(b.date)
+        D = pd.concat([D, b]).sort_values(["date", "fuel"])
+        log.append(f"backfilled {len(b)} fuel-day(s) from archive/: {sorted(set(b.fuel))}")
     D.to_csv(f"{STORE}/daily.csv", index=False)
     pr["lat"] = pr.location.map(lambda l: (l or {}).get("latitude")); pr["lon"] = pr.location.map(lambda l: (l or {}).get("longitude"))
     keep = pr[["code", "key", "name", "brand", "postcode", "suburb", "lat", "lon", "fueltype", "price", "age"]]
     json.dump({"asof": str(asof.date()), "rows": keep.to_dict(orient="records")}, open(f"{STORE}/stations_today.json", "w"))
     # station-level archive: today's Sydney stations and prices, gzipped (kept in the repo)
-    import gzip
     os.makedirs(f"{BASE}/archive", exist_ok=True)
     codes = set(st.code.astype(str))
     with gzip.open(f"{BASE}/archive/nsw_snapshot_{asof:%Y%m%d}.json.gz", "wt") as fh:

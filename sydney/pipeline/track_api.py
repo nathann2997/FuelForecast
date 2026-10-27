@@ -21,7 +21,7 @@ import csv, datetime as dt, json, os
 
 import pandas as pd
 
-FUELS = ["U91", "E10", "P98", "DL"]
+from fuels import FUELS
 WINDOW, MIN_DAYS = 7, 5
 KEEP_DAYS = 60          # live calls listed in track.json (the summary counts all of them)
 FIELDS = ["date", "fuel", "cls", "head", "now", "d3", "d7", "p_jump7"]

@@ -25,7 +25,7 @@ def site(tmp, *, asof="2026-10-22", gen="2026-10-22T01:30:00+00:00", n=866, warn
     def w(name, obj):
         with open(os.path.join(api, name), "w") as fh: json.dump(obj, fh)
     w("meta.json", {"schema": 1, "asof": asof, "generated_at": gen, "warnings": list(warnings), "files": files, "history_last": "2026-09-30"})
-    w("forecast.json", {"schema": 1, "live": [live_row(f, m) for f, m in [("U91", 237.0), ("E10", 235.0), ("P98", 263.0), ("DL", 278.0)]]})
+    w("forecast.json", {"schema": 1, "live": [live_row(f, m) for f, m in [("U91", 237.0), ("E10", 235.0), ("P95", 255.0), ("P98", 263.0), ("DL", 278.0)]]})
     prices = prices or [237.0 + (i % 20) - 10 for i in range(n)]
     sts = [{"id": str(i + 1), "n": f"S{i}", "p": {"U91": [p, ages, "ok", "No rush", ""]}} for i, p in enumerate(prices)]
     w("stations.json", {"schema": 1, "stations": sts})

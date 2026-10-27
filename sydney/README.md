@@ -1,6 +1,6 @@
 # Sydney Pump Price Outlook
 
-Daily forecast of Sydney pump prices (U91, E10, Premium 98, diesel): a "fill up now or wait" signal, a 14-day outlook, a station finder and the evidence behind it.
+Daily forecast of Sydney pump prices (U91, E10, Premium 95, Premium 98, diesel; the list is `pipeline/fuels.py`): a "fill up now or wait" signal, a 14-day outlook, a station finder and the evidence behind it.
 
 ## Daily flow
 A Claude scheduled task runs every morning (6:52am Sydney):

@@ -13,7 +13,7 @@ for (const x of res) { const m = x.name.toLowerCase().match(/(jan|feb|mar|apr|ma
 want.sort((a,b)=>a.k-b.k);
 if (!want.length) { 'no new monthly file yet (latest published month ends ' + HIST_LAST + ')' } else {
 if (!window.XLSX) await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)});
-const FUELS = {U91:1,E10:1,P98:1,DL:1};
+const FUELS = {U91:1,E10:1,P95:1,P98:1,DL:1};
 const isSyd = pc => (pc>=2000&&pc<=2234)||(pc>=2555&&pc<=2574)||(pc>=2740&&pc<=2786);
 function csvRows(txt){const out=[];let row=[],f='',q=false;for(let i=0;i<txt.length;i++){const c=txt[i];if(q){if(c=='"'){if(txt[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else{if(c=='"')q=true;else if(c==','){row.push(f);f=''}else if(c=='\n'){row.push(f);out.push(row);row=[];f=''}else if(c!='\r')f+=c}}if(f||row.length){row.push(f);out.push(row)}return out}
 function pdate(t){if(t instanceof Date)return t;if(typeof t==='number')return new Date(Math.round((t-25569)*864e5)+new Date().getTimezoneOffset()*6e4);const s=String(t).trim();let m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})/);if(m)return new Date(+m[1],m[2]-1,+m[3],+m[4],+m[5]);m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?/i);if(m){let h=+(m[4]||0);if(m[6]){if(/pm/i.test(m[6])&&h<12)h+=12;if(/am/i.test(m[6])&&h==12)h=0}return new Date(+m[3],m[2]-1,+m[1],h,+(m[5]||0))}return null}

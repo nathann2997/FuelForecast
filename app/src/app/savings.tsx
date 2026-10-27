@@ -16,7 +16,7 @@ import { fillSaving, money, roundCents, summarise, WINDOW } from '@/lib/savings'
 import { canShare, savingsMessage, shareText } from '@/lib/share';
 import type { History } from '@/lib/types';
 
-const SHORT = { U91: 'U91', E10: 'E10', P98: 'P98', DL: 'Diesel' } as const;
+const SHORT = { U91: 'U91', E10: 'E10', P95: 'P95', P98: 'P98', DL: 'Diesel' } as const;
 
 export default function Savings() {
   const c = useTheme();

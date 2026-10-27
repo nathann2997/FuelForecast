@@ -21,8 +21,8 @@ import { setSettings, useSettings } from '@/lib/settings';
 const MODEL = [
   ['What it predicts', 'How the Sydney median price of each fuel will move over the next 1, 3, 7 and 14 days, and the chance of a jump of 5c or more within a week.'],
   ['What it looks at', 'How far pump prices sit above the wholesale price compared with the past year, recent wholesale moves, the oil price in Australian dollars, and how spread out and how fresh station prices are.'],
-  ['How it learns', 'A machine-learning model (gradient-boosted trees) trained on Sydney prices for all four fuels, with a separate model for price jumps.'],
-  ['How it’s tested', 'Every month since Jan 2021 was forecast using only the data before it, including the 2022 and 2026 oil shocks. Across the four fuels, the likely ranges covered about 8 in 10 of the past year’s outcomes.'],
+  ['How it learns', 'A machine-learning model (gradient-boosted trees) trained on Sydney prices for all five fuels, with a separate model for price jumps.'],
+  ['How it’s tested', 'Every month since Jan 2021 was forecast using only the data before it, including the 2022 and 2026 oil shocks. Across the fuels, the likely ranges covered about 8 in 10 of the past year’s outcomes.'],
   ['Limits', 'It reacts to oil and wholesale moves as they happen, but it can’t see wars, OPEC decisions or excise changes coming.'],
 ] as const;
 
@@ -114,15 +114,20 @@ export default function More() {
       {Platform.OS === 'android' ? <WidgetLocation /> : null}
 
       <Section title="How good is the forecast?">
-        {!f || !week ? (
+        {!f ? (
           <Loading error={fq.error} onRetry={() => fq.refetch()} />
         ) : (
           <>
-            <Card style={styles.stats}>
-              <Stat big={`${week.model.toFixed(1)}c`} label="average miss, 7 days ahead" />
-              <Stat big={`${week.dir}%`} label="right direction" />
-              <Stat big={`${week.naive.toFixed(1)}c`} label="if you assumed no change" />
-            </Card>
+            {week ? (
+              <Card style={styles.stats}>
+                <Stat big={`${week.model.toFixed(1)}c`} label="average miss, 7 days ahead" />
+                <Stat big={`${week.dir}%`} label="right direction" />
+                <Stat big={`${week.naive.toFixed(1)}c`} label="if you assumed no change" />
+              </Card>
+            ) : (
+              // a fuel the published backtest doesn't cover yet (P95 until its first monthly run)
+              <T kind="small">{backtestNote(f, s.fuel)}</T>
+            )}
             <Pressable onPress={() => router.push('/track')} accessibilityRole="link" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
               <Card style={styles.between}>
                 <View style={{ flex: 1, gap: 2 }}>
@@ -132,7 +137,7 @@ export default function More() {
                 <T color={c.muted} style={{ fontSize: 22 }}>›</T>
               </Card>
             </Pressable>
-            <Disclosure title="Accuracy by days ahead">
+            {week ? <Disclosure title="Accuracy by days ahead">
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 <Row cells={['Ahead', 'No change', 'Bowser', 'Better by', 'Direction']} head />
                 {backtestRows(f, s.fuel).map((r) => (
@@ -140,7 +145,7 @@ export default function More() {
                 ))}
               </Card>
               <T kind="small">{backtestNote(f, s.fuel)}</T>
-            </Disclosure>
+            </Disclosure> : null}
           </>
         )}
       </Section>

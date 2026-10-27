@@ -22,7 +22,7 @@ export type Settings = FilterSettings & {
 const KEY = 'settings.v1';
 export const DEFAULTS: Settings = { ...FILTER_DEFAULTS, fuel: 'U91', tankL: 50, home: null, onboarded: false, alerts: false, discounts: {}, view: 'list' };
 
-const FUEL_CODES: readonly Fuel[] = ['U91', 'E10', 'P98', 'DL'];
+const FUEL_CODES: readonly Fuel[] = ['U91', 'E10', 'P95', 'P98', 'DL'];
 const GROUPS = new Set<string>(ADVICE_GROUPS.map(([g]) => g));
 
 /** Merge a saved object over the defaults, keeping only fields of the right shape. Saved settings from older

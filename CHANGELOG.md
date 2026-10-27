@@ -2,6 +2,44 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-27 — Premium 95 (P95) as a fifth fuel (pipeline + app JS, runtime 0.8.0)
+
+A user asked for E85 and 95. NSW FuelCheck carries both. **P95 is built in full; E85 is not added.** E85 has 17 Sydney stations, below the 20-station floor in `build_history.py`; it has 1–57 price changes a month, and only 4 of 17 stations moved over 13–27 Oct. Its Sydney median is about 23c above U91.
+- **Data:**
+  - **History:** P95 history from Jan 2019 was already in the yearly extracts. The Aug/Sep 2026 monthly extracts had filtered it out, so they were pulled again from data.nsw.gov.au. The other fuels are unchanged: the only differences are about 70 one-minute timestamp roundings per month, and `daily.csv` rows are identical.
+  - **Snapshot days:** 13–27 Oct are backfilled from `archive/`.
+  - **Gap:** 1–12 Oct is missing for every fuel until NSW publishes October.
+- **Pipeline:**
+  - **One fuel list:** `sydney/pipeline/fuels.py` (`U91, E10, P95, P98, DL`), imported by every script. The JS, HTML and app copies are listed in its docstring.
+  - **Self-healing backfill, so the `data` branch fills itself on its next run:**
+    - `fetch.py` `lacks_fuel` re-pulls a stored monthly file from the last three months that lacks a tracked fuel. `run_daily.sh` then rebuilds the history.
+    - `update.py` adds the missing fuel's rows for archived snapshot days after the published history (`snapshot_rows()` is factored out for this).
+  - **Other changes:** `p95_prem` stat. The dashboard and share page list P95. The dashboard explains P95 the way it explains P98. Its accuracy table says "hasn't been through the monthly accuracy test yet" for a fuel the backtest lacks.
+- **Model (walk-forward backtest, Jan 2021 – Oct 2026):**
+  - **P95:** 7-day average miss 5.45c vs 11.67c for "no change" (53% better; P98 55%). Direction 87% (P98 86%). Jump AUC 0.937 (P98 0.935). Replayed calls right 79% (1,653 / 2,095). It's shown with the same verdict rule as the other fuels.
+  - **Cost to the other fuels:** the shared model now also trains on P95. Against a 4-fuel run on the same data with another seed, 7-day error is +1.0–2.0% for U91/E10/P98/DL, about 0.1c. The seed alone moves it ±0.7%. The 14-day change is within noise. Option if that matters: a separate model for P95.
+- **App (JS only, so an OTA at runtime 0.8.0):**
+  - **Fuel lists:** P95 is in the fuel type, the labels, settings, fills, savings, the station page and the widget fuel cycle.
+  - **Widget step dots:** there are now five. The dots are 3.5 dp with 1.5 dp gaps, which keeps the chip at its old 23.5 dp, so no widget line loses text.
+  - **Copy:** "E10 and Premium" gains P95, and the model text says five fuels.
+  - **Partial types:** `history.hist`, `track.live` and `replay`, and `bt.auc` are `Partial`. A fuel the published API or a phone's cache doesn't carry yet is guarded:
+    - The chart falls back to empty series.
+    - The backtest table has no rows, and the note says it isn't tested yet.
+    - More shows the note instead of a spinner that never ends.
+  - **Older builds:** checked. They ignore P95, because every lookup is keyed on the user's own fuel or a hardcoded 4-fuel list.
+- **QA audit** (subagent): no crashes in old or new builds. Findings fixed:
+  - The dashboard and More threw or spun for P95 until the `data` branch backtest reruns.
+  - The chart ignored the range with no history.
+  - Leftover "four fuels" text.
+  - An unclosed gzip read.
+  - The fuels.py docstring list.
+- **Checks:** health tests 24 OK. App tsc, lint and jest 410/410. Local `export_api.py` passes with no warnings. Headless dashboard test with P95 missing from the backtest.
+- **Rollout order:**
+  1. Push `main`.
+  2. Right away, run `gh workflow run daily.yml -f backtest=true`. Until then, data-health reports "P95 missing" (critical) and remediate reruns on its own budget.
+  3. Then the OTA. A new build on the old API would spin on Today and Trends for a P95 user.
+- **Device checks:** the five-label fuel picker at large font scale on a 360 dp phone, the 3.5 dp widget dots, and P95 on Today, Stations, the map, the station page and the widget.
+
 ## 2026-10-26 — Map rework after the first device test (JS only, runtime 0.8.0)
 
 The owner's first look at 0.8.0 (dark mode, P98) raised four problems. Two big blue dots looked like location markers, most stations seemed missing, and "Search this area" felt slow. The design also didn't match the app.

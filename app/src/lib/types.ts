@@ -1,6 +1,6 @@
 // Shapes of the static API published by the daily GitHub Actions run (sydney/pipeline/export_api.py).
 
-export type Fuel = 'U91' | 'E10' | 'P98' | 'DL';
+export type Fuel = 'U91' | 'E10' | 'P95' | 'P98' | 'DL';
 
 export type Meta = {
   schema: number;
@@ -57,6 +57,7 @@ export type Stats = {
   dow: (number | null)[];
   shop_around: number | null;
   p98_prem: number | null;
+  p95_prem?: number | null;      // added 2026-10 with P95
   e10_disc: number | null;
   dl_gap_now: number | null;
   dl_gap_2019_25: number | null;
@@ -71,7 +72,7 @@ export type BacktestRow = Record<string, number> & { naive: number; naive_shock:
 
 export type Backtest = {
   summary: Record<string, BacktestRow>;   // key "U91|7"
-  auc: Record<Fuel, number>;
+  auc: Partial<Record<Fuel, number>>;
   prod: string;                            // key into BacktestRow for the production model's MAE
   test_from: string;
   test_to: string;
@@ -118,7 +119,7 @@ export type Series = (number | null)[];
 export type History = Stamp & {
   schema: number;
   start: string;
-  hist: Record<Fuel, { med: Series; p10: Series; p90: Series }>;
+  hist: Partial<Record<Fuel, { med: Series; p10: Series; p90: Series }>>;   // Partial: P95 joined in 2026-10
   tgp: { ulp: Series; dl: Series };
 };
 
@@ -175,6 +176,6 @@ export type Track = Stamp & {
   window: number;                 // days after a call that it's scored on (7)
   min_days: number;
   calls: Call[];                  // live calls, last 60 days, newest first
-  live: Record<Fuel, Tally & { since: string | null }>;
-  replay: Record<Fuel, Tally> | null;   // the same rule replayed on the walk-forward backtest
+  live: Partial<Record<Fuel, Tally & { since: string | null }>>;
+  replay: Partial<Record<Fuel, Tally>> | null;   // the same rule replayed on the walk-forward backtest
 };

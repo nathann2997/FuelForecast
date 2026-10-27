@@ -15,7 +15,7 @@ import { useSettings } from '@/lib/settings';
 import type { Fuel, Stations } from '@/lib/types';
 
 const RANGE_OPTS = RANGES.map(([k]) => [k, k] as const);
-// insights() order: 0 cycle, 1 where we are now, 2 margin, 3 day of week, 4 shop around, 5 diesel, 6 E10/P98, 7 since 2019, 8 oil
+// insights() order: 0 cycle, 1 where we are now, 2 margin, 3 day of week, 4 shop around, 5 diesel, 6 E10/P95/P98, 7 since 2019, 8 oil
 const KEY = [1, 0, 4];
 const BRANDS_SHOWN = 6;
 

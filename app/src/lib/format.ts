@@ -3,6 +3,7 @@ import type { Fuel } from './types';
 export const FUELS: [Fuel, string][] = [
   ['U91', 'Unleaded 91'],
   ['E10', 'E10'],
+  ['P95', 'Premium 95'],
   ['P98', 'Premium 98'],
   ['DL', 'Diesel'],
 ];

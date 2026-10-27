@@ -88,6 +88,8 @@ describe('settings', () => {
     // onboarded: an older install with an area skips the welcome screen
     expect(normalize(old)).toEqual({ ...old, brands: [], advice: [], maxPrice: null, pinnedOnly: false, onboarded: true, alerts: false, discounts: {}, view: 'list' });
     expect(normalize({ fuel: 'E10' }).onboarded).toBe(false);
+    expect(normalize({ fuel: 'P95' }).fuel).toBe('P95');   // added 2026-10: not reset to U91
+    expect(normalize({ fuel: 'E85' }).fuel).toBe('U91');   // not tracked
     expect(normalize({ ...old, onboarded: false }).onboarded).toBe(false);
   });
   it('drops fields of the wrong shape', () => {

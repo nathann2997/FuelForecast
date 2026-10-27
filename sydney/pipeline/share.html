@@ -84,8 +84,8 @@
 <script>
 (function () {
   // Built with textContent only: nothing from the URL or the API is ever parsed as HTML.
-  var FUELS = { U91: 'Unleaded 91', E10: 'E10', P98: 'Premium 98', DL: 'Diesel' };
-  var SHORT = { U91: 'U91', E10: 'E10', P98: 'P98', DL: 'Diesel' };
+  var FUELS = { U91: 'Unleaded 91', E10: 'E10', P95: 'Premium 95', P98: 'Premium 98', DL: 'Diesel' };
+  var SHORT = { U91: 'U91', E10: 'E10', P95: 'P95', P98: 'P98', DL: 'Diesel' };
   var TONE = { now: 'act', by: 'act', wait: 'wait', hi: 'wait', any: 'calm', ok: 'calm', chk: 'calm' };
   var q = new URLSearchParams(location.search);
   var id = q.get('id') || '';
@@ -114,7 +114,7 @@
     var st = res[0], fc = res[1];
     var s = (st.stations || []).filter(function (x) { return String(x.id) === id; })[0];
     if (!s) { missing(); return; }
-    var sold = ['U91', 'E10', 'P98', 'DL'].filter(function (f) { return s.p && s.p[f] && num(s.p[f][0]); });
+    var sold = ['U91', 'E10', 'P95', 'P98', 'DL'].filter(function (f) { return s.p && s.p[f] && num(s.p[f][0]); });
     if (!sold.length) { missing('This station has no prices today.'); return; }
     var fuel = sold.indexOf(want) >= 0 ? want : sold[0];
     var p = s.p[fuel];

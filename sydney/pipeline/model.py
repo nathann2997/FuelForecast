@@ -10,7 +10,8 @@ from sklearn.metrics import roc_auc_score
 warnings.filterwarnings("ignore")
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE = f"{BASE}/store"; DO_BT = "--backtest" in sys.argv
-FUELS = ["U91", "E10", "P98", "DL"]; H = [1, 3, 7, 14]
+from fuels import FUELS
+H = [1, 3, 7, 14]
 PARAMS = dict(n_estimators=400, learning_rate=0.03, num_leaves=15, min_child_samples=40, subsample=0.8,
               subsample_freq=1, colsample_bytree=0.8, reg_lambda=2.0, verbose=-1)
 

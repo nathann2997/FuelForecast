@@ -9,7 +9,7 @@ import numpy as np, pandas as pd
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/Downloads"   # folder with syd_events_*.csv + syd_stations.csv
 OUT = sys.argv[2] if len(sys.argv) > 2 else "/home/claude/syd/store"
-FUELS = ["U91", "E10", "P98", "DL"]
+from fuels import FUELS
 
 # yearly extracts carry a numeric sid (mapped to an address key via syd_stations.csv);
 # monthly extracts made later by pull_history.js carry the address key directly.

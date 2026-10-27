@@ -14,7 +14,7 @@ import numpy as np, pandas as pd
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EV = f"{BASE}/store/events"
-FUELS = ["U91", "E10", "P98", "DL"]
+from fuels import FUELS
 norm = lambda s: re.sub(r"\s+", " ", str(s).upper().replace(",", " ")).strip()
 
 st = pd.read_csv(f"{EV}/syd_stations.csv", dtype=str)
@@ -58,7 +58,7 @@ for d, v in per_day.items():
         n6 = h[(h.date >= d) & (h.date < d + pd.Timedelta(days=6))].key.nunique()
         if n6 >= 0.3 * act.get(d.to_period("M"), 1e9): waves.append(d); prev = d
     else: prev = d
-H = ev[ev.fuel.isin(["U91", "E10", "P98"]) & (ev.dp >= 8)]
+H = ev[ev.fuel.isin(["U91", "E10", "P95", "P98"]) & (ev.dp >= 8)]
 first_seen = ev.groupby("key").ts.min()
 rows = []
 for d0 in waves:

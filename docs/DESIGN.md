@@ -66,7 +66,7 @@ The owner asked for a simpler Today ("show the trend for the fuel and the statio
 **Labels that fit 360 dp:**
 - Forecast tiles read 1 day / 3 days / 7 days / 14 days ("TOMORROW" wrapped).
 - Station stats read "Avg gap · vs median" and "Jumps · 5c or more".
-- The fuel picker uses U91 / E10 / P98 / Diesel ("Diesel" had wrapped onto a second row).
+- The fuel picker uses U91 / E10 / P95 / P98 / Diesel ("Diesel" had wrapped onto a second row).
 - Screen subtitles drop the fuel name, because the fuel chip beside the title already shows it.
 
 **Station page:** one pin control (the Pin / Pinned button). The duplicate top-bar pin is gone; Share stays in the top bar.

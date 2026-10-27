@@ -19,9 +19,9 @@ export type ChartData = {
 };
 
 export function chartData(history: History, r: LiveRow, ctx: Ctx, fuel: Fuel, range: RangeKey): ChartData {
-  const h = history.hist[fuel];
+  const h = history.hist[fuel] ?? { med: [], p10: [], p90: [] };   // a fuel history.json doesn't carry yet
   const span = RANGES.find((x) => x[0] === range)![1];
-  const n = h.med.length;
+  const n = history.hist[fuel] ? h.med.length : daysBetween(history.start, ctx.asof) + 1;   // no history yet: still honour the range
   const i0 = Math.max(0, n - span);
   const dates: string[] = [];
   for (let i = i0; i < n; i++) dates.push(addDays(history.start, i));
@@ -32,7 +32,7 @@ export function chartData(history: History, r: LiveRow, ctx: Ctx, fuel: Fuel, ra
   const med = nul(), p10 = nul(), p90 = nul(), tgp = nul(), fc = nul(), lo = nul(), hi = nul();
   const ts = fuel === 'DL' ? history.tgp.dl : history.tgp.ulp;
   for (let i = i0; i < n; i++) {
-    med[i - i0] = h.med[i]; p10[i - i0] = h.p10[i]; p90[i - i0] = h.p90[i]; tgp[i - i0] = ts[i];
+    med[i - i0] = h.med[i] ?? null; p10[i - i0] = h.p10[i] ?? null; p90[i - i0] = h.p90[i] ?? null; tgp[i - i0] = ts[i];
   }
   const pts = [
     [0, 0, 0, 0],

@@ -305,8 +305,9 @@ describe('widget list length and fuel chip', () => {
     const pins = many.stations.slice(0, 10).map((x) => x.id).reverse();
     expect(buildModel(s, prefs(), pins, TODAY, MAX_ROWS, 'pinned').rows.map((r) => r.id)).toEqual(pins);
   });
-  it('cycles U91 -> E10 -> P98 -> DL -> U91', () => {
-    expect([nextFuel('U91'), nextFuel('E10'), nextFuel('P98'), nextFuel('DL')]).toEqual(['E10', 'P98', 'DL', 'U91']);
+  it('cycles U91 -> E10 -> P95 -> P98 -> DL -> U91', () => {
+    expect([nextFuel('U91'), nextFuel('E10'), nextFuel('P95'), nextFuel('P98'), nextFuel('DL')]).toEqual(['E10', 'P95', 'P98', 'DL', 'U91']);
+    expect(fuelLabel('P95')).toBe('P95');
     expect(fuelLabel('DL')).toBe('Diesel');
     expect(fuelKey(3)).toBe('widget.fuel.3');
   });

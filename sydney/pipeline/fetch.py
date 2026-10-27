@@ -20,7 +20,7 @@ os.makedirs(INBOX, exist_ok=True)
 SYD = ZoneInfo("Australia/Sydney")
 TODAY = dt.datetime.now(SYD).strftime("%Y%m%d")       # runners are UTC; the snapshot is filed under the Sydney date
 UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
-FUELS = {"U91", "E10", "P98", "DL"}
+from fuels import FUELS
 is_syd = lambda pc: (2000 <= pc <= 2234) or (2555 <= pc <= 2574) or (2740 <= pc <= 2786)
 log, failed = [], []
 
@@ -185,6 +185,14 @@ def rows_of(url, content):
     return out
 
 
+def lacks_fuel(k):
+    """A stored monthly extract made before a fuel joined FUELS (P95 in 2026-10): pull that month again."""
+    fn = f"{BASE}/store/events/syd_events_{k // 12}{k % 12 + 1:02d}.csv"
+    if not os.path.exists(fn): return False
+    with open(fn) as fh: have = {line.split(",")[1] for line in fh if line.count(",") == 4}
+    return not set(FUELS) <= have
+
+
 def pull_history():
     fc = json.load(open(f"{BASE}/store/forecast.json"))
     hl = dt.date.fromisoformat(fc["ctx"]["history_last"]); last_k = hl.year * 12 + hl.month - 1
@@ -195,7 +203,8 @@ def pull_history():
         m = re.search(r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(20\d\d)", x["name"].lower())
         if not m or not re.search(r"\.(xlsx|csv)(\?|$)", x["url"], re.I): continue
         k = int(m.group(2)) * 12 + MON[m.group(1)]
-        if k > last_k and k not in want: want[k] = x["url"]
+        # recent months only, so a month NSW really published without a fuel isn't fetched again forever
+        if (k > last_k or (k > last_k - 3 and lacks_fuel(k))) and k not in want: want[k] = x["url"]
     if not want: return f"no new monthly file after {hl}"
     done = []
     for k in sorted(want)[:2]:

@@ -7,7 +7,7 @@ import type { Fuel } from './types';
 
 const KEY = 'fills.v1';
 export const MAX_FILLS = 500;
-const FUELS: readonly Fuel[] = ['U91', 'E10', 'P98', 'DL'];
+const FUELS: readonly Fuel[] = ['U91', 'E10', 'P95', 'P98', 'DL'];
 
 export type Fill = {
   id: string;

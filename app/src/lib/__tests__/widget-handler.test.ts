@@ -162,7 +162,7 @@ describe('widget task handler', () => {
     const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'E10' } });
     expect(mockStore.get(`widget.fuel.${ID}`)).toBe('E10');
     expect(render).toHaveBeenCalledTimes(1);
-    expect(chip(render.mock.calls[0][0])).toEqual({ label: 'E10', next: 'P98', step: 1 });
+    expect(chip(render.mock.calls[0][0])).toEqual({ label: 'E10', next: 'P95', step: 1 });
     expect(globalThis.fetch).not.toHaveBeenCalled();
     // the app's fuel is untouched
     expect(JSON.parse(mockStore.get('settings.v1')!).fuel).toBe('U91');
@@ -175,7 +175,7 @@ describe('widget task handler', () => {
     try {
       const render = await run({ clickAction: 'FUEL', clickActionData: { fuel: 'DL' }, widgetInfo: { ...INFO, widgetName: SMALL } });
       expect(mockStore.has(`widget.fuel.${ID}`)).toBe(false);
-      expect(chip(render.mock.calls[0][0])).toEqual({ label: 'Diesel', next: 'U91', step: 3 });
+      expect(chip(render.mock.calls[0][0])).toEqual({ label: 'Diesel', next: 'U91', step: 4 });
     } finally {
       storage.setItem = orig;
     }

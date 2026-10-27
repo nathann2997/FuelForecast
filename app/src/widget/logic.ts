@@ -15,7 +15,7 @@ export const TODAY_URI = 'fuelforecast://';
 export const stationUri = (id: string) => `fuelforecast://station/${encodeURIComponent(id)}`;
 
 const ADVICE_TONE: Record<AdviceCode, Tone> = { now: 'act', by: 'act', wait: 'wait', hi: 'wait', any: 'calm', ok: 'calm', chk: 'calm' };
-const FUEL_SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P98: 'P98', DL: 'Diesel' };
+const FUEL_SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P95: 'P95', P98: 'P98', DL: 'Diesel' };
 
 // ---- the cached snapshot (a compact copy of forecast.json + stations.json kept on the phone for offline renders)
 
@@ -409,10 +409,10 @@ export const fitsLine = (text: string, widthDp: number, sp: number) => text.leng
 export const firstFit = (candidates: string[], widthDp: number, sp: number) =>
   candidates.find((c) => fitsLine(c, widthDp, sp)) ?? candidates[candidates.length - 1];
 
-/** The fuel chip's step dots: one per fuel in FUEL_CYCLE, the widget's own filled. They say "one of four, tap for the
+/** The fuel chip's step dots: one per fuel in FUEL_CYCLE, the widget's own filled. They say "one of five, tap for the
  *  next" where a ▾ promised a dropdown that doesn't exist. */
-export const FUEL_DOTS = { size: 4, gap: 2.5, margin: 5 } as const;
-export const fuelDotsW = FUEL_DOTS.size * 4 + FUEL_DOTS.gap * 3;
+// 3.5 + 1.5 since P95 made it five dots (was 4 + 2.5 for four): the same 23.5 dp, so no widget line loses text
+export const FUEL_DOTS = { size: 3.5, gap: 1.5, margin: 5 } as const;
 /** Width of the fuel chip: 10+10 padding around "Diesel" etc. at 12 sp, plus the step dots when shown */
 export const chipW = (m: Pick<WidgetModel, 'fuel'>, dots = true) =>
   20 + m.fuel.length * 12 * AVG_EM + (dots ? FUEL_DOTS.margin + fuelDotsW : 0);
@@ -497,9 +497,11 @@ export function resolveOrigin(
   return { origin: home, live: false, canLocate };
 }
 
-// ---- the per-widget fuel chip (tap cycles U91 -> E10 -> P98 -> DL -> U91)
+// ---- the per-widget fuel chip (tap cycles U91 -> E10 -> P95 -> P98 -> DL -> U91)
 
-export const FUEL_CYCLE: readonly Fuel[] = ['U91', 'E10', 'P98', 'DL'];
+export const FUEL_CYCLE: readonly Fuel[] = ['U91', 'E10', 'P95', 'P98', 'DL'];
+/** Width of the step dots (FUEL_DOTS), one per fuel in the cycle; declared after FUEL_CYCLE, which it reads */
+export const fuelDotsW = FUEL_DOTS.size * FUEL_CYCLE.length + FUEL_DOTS.gap * (FUEL_CYCLE.length - 1);
 /** Custom click action the fuel chip sends (clickActionData: { fuel }, the fuel to switch to). */
 export const FUEL_ACTION = 'FUEL';
 export const fuelKey = (widgetId: number) => `widget.fuel.${widgetId}`;

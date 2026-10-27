@@ -39,7 +39,7 @@ function noteColor(c: Pal, t: NoteTone) {
 
 const open = { clickAction: 'OPEN_URI', clickActionData: { uri: TODAY_URI } } as const;
 
-/** Four step dots, the `on`-th filled and the rest faint: where this fuel sits in the tap cycle */
+/** One step dot per fuel, the `on`-th filled and the rest faint: where this fuel sits in the tap cycle */
 const fuelDotsSvg = (on: number, color: string) => {
   const { size, gap } = FUEL_DOTS;
   const r = size / 2;
@@ -48,7 +48,7 @@ const fuelDotsSvg = (on: number, color: string) => {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fuelDotsW} ${size}" width="${fuelDotsW}" height="${size}">${dots}</svg>`;
 };
 
-/** The fuel this widget shows, as a chip: a tap steps U91 -> E10 -> P98 -> Diesel for this widget only (FUEL click
+/** The fuel this widget shows, as a chip: a tap steps U91 -> E10 -> P95 -> P98 -> Diesel for this widget only (FUEL click
  *  action with the next fuel; register.android.ts saves it). Step dots, not a ▾: there is no menu. The compact small
  *  widget has no room for them, so it shows the pill alone. Fixed font size so large system text can't overflow it. */
 function FuelChip({ m, c, fg, height, dots = true }: { m: WidgetModel; c: Pal; fg: string; height: number; dots?: boolean }) {

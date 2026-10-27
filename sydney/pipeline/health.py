@@ -14,7 +14,7 @@ import datetime as dt, json, os, statistics, sys, time, urllib.error, urllib.req
 from zoneinfo import ZoneInfo
 
 SYD = ZoneInfo("Australia/Sydney")
-FUELS = ["U91", "E10", "P98", "DL"]
+from fuels import FUELS
 DEFAULT_BASE = "https://nathann2997.github.io/FuelForecast"
 
 # Freshness. The first run (05:13) can start late, so today's data is expected from 07:30. Daytime slots are at most 5 h

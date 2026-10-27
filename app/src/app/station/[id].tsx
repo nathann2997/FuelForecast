@@ -29,7 +29,7 @@ import {
 } from '@/lib/station';
 import type { Fuel, Station } from '@/lib/types';
 
-const SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P98: 'P98', DL: 'Diesel' };
+const SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P95: 'P95', P98: 'P98', DL: 'Diesel' };
 
 export default function StationPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -366,7 +366,7 @@ function ListFallback({
 }: { row: Station; preferred: Fuel; off: number; medianOf: (f: Fuel) => number | undefined; notFound: boolean; onRetry: () => void }) {
   const c = useTheme();
   const sold = (Object.keys(row.p) as Fuel[]).filter((f) => row.p[f]?.[0] != null);
-  const order = (['U91', 'E10', 'P98', 'DL'] as Fuel[]).filter((f) => sold.includes(f));
+  const order = (['U91', 'E10', 'P95', 'P98', 'DL'] as Fuel[]).filter((f) => sold.includes(f));
   const [pick, setPick] = useState<Fuel | null>(null);
   const fuel = pick && order.includes(pick) ? pick : pickFuel(order, preferred);
   const p = fuel ? row.p[fuel] : undefined;

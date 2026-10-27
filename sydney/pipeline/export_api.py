@@ -26,7 +26,7 @@ ALLOW_STALE = "--allow-stale" in sys.argv          # read before sys.argv is rep
 BASE = args[0] if args else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = args[1] if len(args) > 1 else f"{BASE}/out/site"
 SCHEMA = 1
-FUELS = ["U91", "E10", "P98", "DL"]
+from fuels import FUELS
 
 sys.argv = ["build.py", BASE]
 G = runpy.run_path(f"{BASE}/pipeline/build.py")
