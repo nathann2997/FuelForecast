@@ -53,9 +53,9 @@ They're good at "is it fast, is it broken". They can't answer the questions abov
 | **Funnels, retention, paths** | Yes, in the UI | Yes, in Explorations; clunky for apps | Yes | Yes | No | Some |
 | **One install's event stream** | Yes: person page and activity, live | Only through DebugView (test devices) or BigQuery | Yes | Yes | Session timeline | No |
 | **How fast data shows** | Seconds | Realtime view covers 30 minutes; reports take up to ~24 h | Minutes | Minutes | Live view | Minutes |
-| **Location from IP** | On by default; turn off with `disableGeoip` and the project's "discard client IP" | On by default (city level); GA4 has no per-app switch to drop it | On by default; can be turned off | On by default; can be turned off | Country only | Not stored |
+| **Location from IP** | On by default; turn off with `disableGeoip` and the project's "discard client IP" | IP isn't stored; city level is on by default, and "granular location and device data" can be turned off for the property, leaving state level | *(unverified)* | *(unverified)* | *(unverified)* | *(unverified)* |
 | **Advertising ID** | No | **Yes on Android by default** (`AD_ID` permission merged in). Needs a manifest flag and a permission removal, then checking the merged manifest | No | No | No | No |
-| **Querying from Claude** | Official MCP server (hosted, needs a key or OAuth) | Through the BigQuery export, which the connected BigQuery MCP can read. Sandbox tables reportedly expire after 60 days *(unverified)*; past that needs billing | MCP (installed, needs auth) | API | API | API |
+| **Querying from Claude** | Official MCP server (hosted, needs a key or OAuth) | Through the BigQuery export, which the connected BigQuery MCP can read. Sandbox tables reportedly expire after 60 days *(unverified)*; past that needs billing | MCP (installed, needs auth) | *(unverified)* | *(unverified)* | *(unverified)* |
 | **Expo integration** | JS SDK plus `expo-device` and `expo-localization` (Expo modules). Screen views by hand from `usePathname` | `@react-native-firebase/app` and `/analytics` (v26 needs the New Architecture, which we have), `google-services.json`, config plugin. **iOS must switch to static frameworks** (`useFrameworks: 'static'`, `forceStaticLinking`), with known v26 build issues (SPM). Untested against our maps and widget pods | JS SDK | JS SDK | JS SDK | JS SDK |
 | **Session replay** | Yes (separate native plugin) | No | Paid add-on | Some free | No | No |
 
@@ -70,7 +70,7 @@ If Bowser goes on the Play Store and grows into thousands of users, Firebase's "
 The costs at our stage:
 - **Too slow and too summarised for 10 people.** Reports lag up to a day. GA4 is built around aggregate audiences, so questions 2 and 4 mostly need BigQuery SQL.
 - **It collects the advertising ID on Android by default.** That contradicts "anonymous" and adds a Play Data Safety declaration, unless we strip it and verify the merged manifest.
-- **It derives city-level location from IP**, with no clean per-app switch. That sits badly with "never your location".
+- **City-level location is on by default.** It has to be turned off in the property's "granular location and device data" setting, which still leaves state level (NSW). GA4 itself doesn't store IP addresses.
 - **The iOS build has to change linkage**, with reported v26 problems.
 
 ### PostHog
@@ -94,8 +94,8 @@ The costs:
 - Data is hosted in the US or the EU (Frankfurt), not Australia.
 
 ### The rest, in a line each
-- **Amplitude:** strong product analytics, but its free-tier terms are unclear and it changed them in 2026.
-- **Mixpanel:** similar to PostHog for funnels and retention, but no MCP here and less tooling.
+- **Amplitude:** strong product analytics, but its free-tier terms are unclear (third-party sources disagree, and one says it was renamed in 2026, unverified).
+- **Mixpanel:** similar to PostHog for funnels and retention; I didn't check its tooling for querying from Claude.
 - **Aptabase and TelemetryDeck:** privacy-first and simple, but they don't do funnels or retention, which is the gap we're trying to fill.
 
 ## Recommendation
@@ -123,6 +123,7 @@ Firebase is the better pick if the priority is free at any scale plus BigQuery. 
 
   The existing 15 events keep their names.
 - **Session replay: off.** It would record the suburb field and the prices typed in unless masking is checked screen by screen. We can revisit for a single tester's phone if a bug needs it.
+- **Background tasks stay out:** today `track()` also runs in the Android widget's headless task and the iOS background refresh (e.g. `syncAlerts` calling `setSettings`). Counted as activity, those would inflate weekly users and retention for every install with the widget. So PostHog only gets foreground events: the client is created by the root layout, and `track()` skips it elsewhere.
 - **Delivery:** batched; offline events are queued and sent later. The SDK can't crash the app: every call goes through `track()`'s try/catch.
 - **Release:**
   - 0.9.0 native build and the `app_release.json` bump, so older phones see the update notice.
@@ -158,5 +159,5 @@ The PostHog account and project, and the MCP key, are for you to create. The app
 ## Sources
 - Expo: [analytics SDKs for React Native](https://docs.expo.dev/guides/using-analytics/)
 - PostHog: [pricing](https://posthog.com/pricing), [React Native SDK](https://posthog.com/docs/libraries/react-native), [MCP](https://posthog.com/docs/model-context-protocol)
-- Firebase: [RN Firebase Analytics](https://rnfirebase.io/analytics/usage), [RN Firebase](https://rnfirebase.io/), [v26 SPM + static linkage issue](https://github.com/invertase/react-native-firebase/issues/9161), [Android data collection](https://firebase.google.com/docs/analytics/android/configure-data-collection), [AD_ID merged by the SDK](https://github.com/firebase/firebase-android-sdk/issues/2582), [GA4 event limits](https://support.google.com/analytics/answer/9267744), [GA4 BigQuery export](https://support.google.com/analytics/answer/9823238), [Firebase to BigQuery](https://support.google.com/firebase/answer/6318765), [BigQuery sandbox](https://cloud.google.com/bigquery/docs/sandbox)
+- Firebase: [RN Firebase Analytics](https://rnfirebase.io/analytics/usage), [RN Firebase](https://rnfirebase.io/), [v26 SPM + static linkage issue](https://github.com/invertase/react-native-firebase/issues/9161), [Android data collection](https://firebase.google.com/docs/analytics/android/configure-data-collection), [AD_ID merged by the SDK](https://github.com/firebase/firebase-android-sdk/issues/2582), [GA4 event limits](https://support.google.com/analytics/answer/9267744), [GA4 granular location and device data](https://support.google.com/analytics/answer/12002752), [GA4 BigQuery export](https://support.google.com/analytics/answer/9823238), [Firebase to BigQuery](https://support.google.com/firebase/answer/6318765), [BigQuery sandbox](https://cloud.google.com/bigquery/docs/sandbox)
 - Others: [Aptabase pricing](https://aptabase.com/pricing), [TelemetryDeck pricing update July 2026](https://telemetrydeck.com/blog/pricing-update-2026/), Amplitude and Mixpanel free tiers from third-party summaries ([Amplitude](https://agentdeals.dev/vendor/amplitude), [Mixpanel](https://rybbit.com/blog/mixpanel-pricing)), unverified against the vendors' own pages.
