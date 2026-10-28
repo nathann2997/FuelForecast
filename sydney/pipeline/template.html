@@ -60,10 +60,11 @@ header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:1
 .brandline svg{display:block;height:26px;width:120px}
 .tagline{color:var(--fg);font-weight:600;font-size:15px}
 h2.q{font-size:20px}
+#stTitle{font-size:14px;font-weight:600;color:var(--fg2)}
 .controls{display:flex;gap:8px;flex-wrap:wrap}
 .chip-select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background-color:var(--surface);color:var(--fg);font-weight:700;font-size:14px;border-radius:999px;padding:8px 30px 8px 14px;min-height:38px;cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;background-size:5px 5px;background-repeat:no-repeat}
-.banner{border-radius:12px;padding:12px 16px;background:var(--act-bg);color:var(--act-fg);font-size:13px}
+.asof.late{display:inline-block;align-self:flex-start;border-radius:10px;padding:3px 10px;background:var(--act-bg);color:var(--act-fg);font-weight:600}
 
 /* cards, sections, disclosures, segmented controls, chips, badges, buttons (components/ui.tsx) */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
@@ -89,7 +90,8 @@ details.disc[open]>summary::after{content:"\2212"}
 
 /* Today: hero on the left, stations on the right on wide screens */
 .today{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
-@media (min-width:960px){.today{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}}
+@media (min-width:960px){.today{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}
+  .today>.col{position:sticky;top:16px}}   /* the call stays beside the prices while the list scrolls */
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .hero{border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:8px;background:var(--t-bg);color:var(--t-fg)}
 .hero .median{font-size:13px;font-weight:600}
@@ -184,6 +186,8 @@ ul.clean b{color:var(--fg)}
 .fresh b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:middle}
 .ok{background:var(--down)} .warn{background:var(--up)}
+.folds{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+@media (min-width:960px){.folds{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 @media (min-width:960px){.grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}}
 /* the map (MapLibre + OpenFreeMap, loaded when the Map view first opens): price tags as in app/src/components/station-map.tsx */
@@ -221,7 +225,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
         <path transform="translate(79 5)" style="stroke:var(--fg)" fill="none" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" d="M6 64V6H20A14 14 0 0 1 20 34H6M20 34H23A15 15 0 0 1 23 64H6M55 46A18 18 0 1 0 91 46A18 18 0 1 0 55 46M107 28L118 64L128.5 37L139 64L150 28M194 32.32C190 28 186 28 180.5 28C172 28 167 32.32 167 37.72C167 44.2 175 45 180.5 46C187 47 195 49 195 55C195 61.12 188 64 180.5 64C173 64 168 61.84 166 58.24M211 46H247A18 18 0 1 0 241.73 58.73M263 64V28M263 45C263 34 270 28 281 28H283"/>
       </svg>
       <p class="tagline">When to fill up in Sydney, and where it’s cheapest.</p>
-      <div class="small" id="asofLine"></div>
+      <div class="small asof" id="asofLine"></div>
       <h1 class="sr">Bowser: when to fill up in Sydney, and where it’s cheapest</h1>
     </div>
     <div class="controls">
@@ -230,7 +234,6 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
     </div>
   </header>
 
-  <div class="banner" id="stale" hidden></div>
 
   <div class="today">
     <div class="col">
@@ -277,17 +280,19 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
         <div class="maplegend"><span aria-hidden="true">Cheaper</span> <i style="background:var(--cheap)"></i><i style="background:var(--chip)"></i><i style="background:var(--dear)"></i> <span aria-hidden="true">Dearer</span><span class="sr">Price colours: green is the cheapest third of the stations in view, amber the middle, red the dearest third.</span> <i style="background:var(--calm-strong);margin-left:10px"></i> Price over 7 days old</div>
       </div>
       <p class="small" id="stNote"></p>
+      <details class="disc" id="whenBox"><summary>How the “when to fill” advice works</summary><div class="disc-body"><p class="small" style="color:var(--fg2)" id="whenText"></p></div></details>
     </section>
   </div>
 
   <section class="section" id="trends" aria-labelledby="trH">
-    <div><div class="eyebrow" id="trEyebrow"></div><h2 class="q" id="trH">Where are prices heading?</h2></div>
+    <h2 class="q" id="trH">Where are prices heading?</h2>
     <p id="cycle" style="color:var(--fg);font-size:17px;font-weight:600;max-width:70ch"></p>
     <div class="card" style="display:flex;flex-direction:column;gap:12px">
       <div class="sec-head"><div class="seg" id="range" role="group" aria-label="Time range"></div><div class="legend" id="legend"></div></div>
       <div class="chartbox"><canvas id="main" role="img" aria-label="Sydney pump price and wholesale price over time with forecast"></canvas></div>
     </div>
     <div class="cards" id="insights"></div>
+    <div class="folds">
     <details class="disc"><summary>Cheapest brands today</summary><div class="disc-body">
       <div style="display:flex;flex-direction:column;gap:8px" id="brands"></div>
       <button class="btn" type="button" id="allBrands" hidden></button>
@@ -295,6 +300,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
     </div></details>
     <details class="disc"><summary>More facts</summary><div class="disc-body facts" id="facts"></div></details>
     <details class="disc"><summary>About this chart</summary><div class="disc-body"><p class="small" style="color:var(--fg2)">Sydney median vs the wholesale price. The band shows the middle 80% of station prices; the dashed line is the forecast and the shaded fan its likely range. Hover to read any day.</p><p class="small" id="gapNote"></p></div></details>
+    </div>
   </section>
 
   <section class="section" aria-labelledby="mh">
@@ -437,7 +443,7 @@ tankEl.innerHTML = TANKS.map(t => `<option value="${t}">${t} L tank</option>`).j
 fuelEl.value = state.fuel; tankEl.value = state.tank;
 fuelEl.addEventListener("change", () => { state.fuel = fuelEl.value; store.set("fuel", state.fuel); state.shown = PAGE; render(); });
 tankEl.addEventListener("change", () => { state.tank = +tankEl.value; store.set("tank", state.tank); renderHero(); renderInsights(); });
-if (CTX.asof < sydToday()) { $("stale").hidden = false; $("stale").textContent = `Showing prices as of ${nice(CTX.asof)}. Today’s update hasn’t arrived yet.`; }
+if (CTX.asof < sydToday()) { $("asofLine").classList.add("late"); $("asofLine").textContent = `Prices as of ${nice(CTX.asof)} · today’s update hasn’t arrived yet`; }
 
 // ---- stations
 const SUBS = {}; D.stations.forEach(s => { const k = s.s+"|"+s.pc; (SUBS[k] = SUBS[k] || {s:s.s, pc:s.pc, la:[], lo:[]}); SUBS[k].la.push(s.la); SUBS[k].lo.push(s.lo); });
@@ -610,12 +616,14 @@ function renderStations(){
   if (onMap) showMap();
 }
 function stationNote(){
+  $("whenText").textContent = WHEN;
   const onMap = state.view === "map" && MAP_OK, area = areaSet();
   const tip = (MAP_OK || !mapLoading ? "" : "The map couldn’t load here, so stations are shown as a list. ")
     + (pins.length ? "" : `Tip: open a station and select Pin to keep it at the top${canStore ? " (saved in this browser)" : ""}. `);
   $("stNote").textContent = onMap
     ? `${tip}Select a price for details. Colours compare the stations in view; grey prices haven’t been updated for over a week, so check before driving.`
-    : tip + (area && !area.gps ? "Distance is straight-line from the suburb’s centre. " : "") + WHEN;
+    : tip + (area && !area.gps ? "Distance is straight-line from the suburb’s centre." : "");
+  $("whenBox").hidden = onMap;
 }
 
 // ---- hero: the decision, the saving, the next 14 days
@@ -801,7 +809,7 @@ function renderBTTable(){
   $("accStats").innerHTML = [[`${r7[prod].toFixed(1)}c`, "average miss, 7 days ahead"], [`${Math.round(r7.dir*100)}%`, "right direction"], [`${r7.naive.toFixed(1)}c`, "if you assumed no change"]]
     .map(([b,l]) => `<div><div class="bignum">${b}</div><div class="small">${l}</div></div>`).join("");
   const better = Math.round((1 - r7[prod]/r7.naive)*100);
-  $("accLine").textContent = `Tested on every month since ${month(D.bt.test_from)} using only the data available at the time: a week ahead, Bowser’s ${fuelName(f)} forecast was off by ${r7[prod].toFixed(1)}c a litre on average${better > 0 ? `, ${better}% closer than assuming prices stay put` : ""}, and called the direction right ${Math.round(r7.dir*100)}% of the time.`;
+  $("accLine").textContent = `${better > 0 ? `About ${better}% closer than assuming prices stay put. ` : ""}Tested on every month since ${month(D.bt.test_from)} for ${fuelName(f)}, using only the data available at the time.`;
   $("btNote").textContent = `${fuelName(f)}: the average miss in cents a litre, forecasting each month from ${month(D.bt.test_from)} to ${month(D.bt.test_to)} with only the data before it. “No change” assumes today’s price holds. Direction is how often Bowser called the move right, for moves of 1c or more. Jump warnings score ${D.bt.auc[f].toFixed(2)} out of 1, where 0.5 is a coin toss.`;
 }
 function renderFresh(){
@@ -1046,7 +1054,6 @@ document.addEventListener("click", e => {
 
 function renderToday(){ renderStations(); renderPins(); renderHero(); }
 function render(){
-  $("trEyebrow").textContent = `Sydney ${fuelName(state.fuel)}`;
   brandOptions(); renderToday(); renderWhy(); renderInsights(); renderMain(); renderBrands(); renderBTTable();
 }
 render(); renderFresh();

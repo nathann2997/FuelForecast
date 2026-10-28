@@ -2,6 +2,18 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-28 — Web dashboard design pass (`template.html` only)
+
+A designer's review of the live page, at 1280 and 390 px.
+- **Dead zone on desktop:** a large blank area sat under "Should I fill up?" beside the station list. The verdict column now stays in view (sticky) while the list scrolls, and stops at the end of that section.
+- **Date shown twice:** "Prices as of…" was in both the header and a yellow banner. Now there's one line, which becomes a small amber label when today's update is late.
+- **Two headings in a row:** "Where's it cheapest?" was followed by "Cheapest near Lidcombe 2141". The second is now a quiet subtitle.
+- **Small print under the list:** the "when to fill" explanation moved into a fold-out, "How the “when to fill” advice works". The tip and the distance note stay.
+- **Inconsistent eyebrow:** "SYDNEY UNLEADED 91" sat above "Where are prices heading?" only. Removed; the chart legend names the fuel.
+- **Repeated numbers:** "Can I trust it?" repeated its three numbers in the sentence below. The sentence now says only what's new: how much closer than "no change", and how it was tested.
+- **Fold-outs under the chart:** they sit three across on desktop instead of stacked full width.
+- **Checks:** a scratch export and headless Chrome. No console errors, the sticky column was measured, and the credit strings are untouched.
+
 ## 2026-10-28 — Claude automation off; bigger web map; Costco on both maps
 
 - **Claude scheduled task switched off** (owner: "kill off the claude automation"):
