@@ -239,16 +239,18 @@ for old, new in DASHBOARD_CREDITS:
     else: print(f"export_api: WARNING dashboard credit not found: {old[:60]!r}")
 # Content-Security-Policy for the published copy only (the template is shared with the Claude scheduled task, whose
 # artifact host wraps the page). Added after the credit rewrite, so it can pin the page's own inline script by hash:
-# an injected <script> or on*= handler won't run, nothing loads from anywhere but cdnjs (Chart.js, which also carries
-# SRI) and Google Fonts, and the page can't make network requests, frames or form posts.
+# an injected <script> or on*= handler won't run, and scripts and styles load only from cdnjs (Chart.js, and MapLibre for the
+# stations map when it opens, both with SRI) and Google Fonts. The map's tiles, styles and fonts come from OpenFreeMap
+# (its only network requests), MapLibre runs its worker from a blob: URL, and there are no frames or form posts.
 inline = re.findall(r"<script>(.*?)</script>", html, re.S)
 # Any inline <script ...> with attributes would be blocked by the CSP: refuse to publish rather than ship a dead page
 n_inline = len(re.findall(r"<script(?![^>]*\bsrc=)[^>]*>", html))
 if len(inline) != 1 or n_inline != 1: raise RuntimeError(f"dashboard: expected 1 inline script, found {n_inline}")
 sha = base64.b64encode(hashlib.sha256(inline[0].encode()).digest()).decode()
 csp = (f"default-src 'none'; script-src 'sha256-{sha}' https://cdnjs.cloudflare.com; style-src 'unsafe-inline' "
-       "https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; connect-src 'none'; "
-       "base-uri 'none'; form-action 'none'; object-src 'none'")
+       "https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com; "
+       "img-src data: blob: https://tiles.openfreemap.org; connect-src https://tiles.openfreemap.org; worker-src blob:; "
+       "child-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'")
 if html.count("<title>") != 1: raise RuntimeError("dashboard: no <title> to put the CSP after")
 html = html.replace("<title>", f'<meta http-equiv="Content-Security-Policy" content="{csp}">\n<title>', 1)
 open(f"{OUT}/index.html", "w", encoding="utf-8").write(html)   # UTF-8 bytes: what the CSP hash was taken over

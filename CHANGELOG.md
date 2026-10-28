@@ -2,6 +2,57 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-28 — Web dashboard: stations map, and a simpler page (`template.html`, `export_api.py` CSP)
+
+The owner asked for the map on the online dashboard too, and for the content to be cleaned up and made "super simple to understand and use".
+- **The page as four plain questions:** "Should I fill up?" (the verdict), "Where’s it cheapest?" (stations), "Where are prices heading?" (the trend chart) and "Can I trust it?" (accuracy). There's a one-line tagline under the wordmark: "When to fill up in Sydney, and where it’s cheapest."
+- **What moved:**
+  - **Filters:** sort, members-only, older prices and brands sit behind one "Filters (n)" button. The area box and the radius stay visible.
+  - **Your stations:** shown only when you have pins. The "how to pin" hint is one line under the list.
+  - **"Price trends and the cycle →" link:** removed, since the next section is directly below.
+  - **Trends:** the three "Know the cycle" cards sit in a row. "Cheapest brands today" folds into a disclosure, next to "More facts" and "About this chart".
+  - **Accuracy:** the three numbers plus one plain sentence. The table and its note go under "Accuracy by days ahead", and "How it works", "Predicted vs actual" and "Data freshness" stay folded.
+  - **Station rows:** the old "Show on map →" (Google Maps) is now "Directions →". A new "Show on map" opens the in-page map on that station.
+- **Removed:** nothing else. All the wording from the 24 Oct copy review is kept, and the `DASHBOARD_CREDITS` source strings are untouched.
+- **The map** (a List/Map switch on "Where’s it cheapest?", remembered in the browser):
+  - It's drawn with MapLibre GL 4.7.1, loaded from cdnjs with SRI only when the Map view first opens, so List users don't download it.
+  - Tiles come from OpenFreeMap: free, no key, no usage limits, commercial use allowed, run on donations. Light (positron) and dark styles follow the theme.
+  - CARTO was rejected: it now requires an API key and limits free use to its grantees. OSM's own tiles were rejected because the page sends no Referer, which OSM's tile policy expects.
+  - It works like the app's map:
+    - Every station passing the filters is shown as you pan and zoom (no radius).
+    - Price tags are coloured by the cheapest, middle and dearest third of the stations in view, recalculated after a real move.
+    - Tags load a little past the edges.
+    - Only tags that would overlap merge into numbered circles, and nothing merges from street level in. Tapping a circle zooms in.
+    - Pinned stations are always shown.
+    - "◎" returns to your area.
+    - The "you" dot comes from the page's own location fix.
+  - Selecting a price opens a card under the map rather than a popup, so it can't run off a phone screen: price, gap to the median, the advice chip and reason, Pin and Directions.
+  - If MapLibre can't load, the switch disappears and the list stays.
+- **CSP (published copy only):**
+  - `style-src` adds cdnjs (MapLibre's CSS).
+  - `img-src` adds `blob:` and OpenFreeMap.
+  - `connect-src` is OpenFreeMap only, for styles, tiles and fonts.
+  - `worker-src` and `child-src` allow `blob:` for MapLibre's worker.
+  - There's still one hash-pinned inline script and no inline handlers.
+- **Claude scheduled task:** its artifact host may block OpenFreeMap. Then the map shows tags on a blank background, and the list is unaffected.
+- **Bugs caught in testing** (headless Chrome over CDP, on the CSP copy, at 400 and 1280 px, light and dark):
+  - Tags stacked down the page instead of on the map. Replacing an element's `className` dropped MapLibre's `maplibregl-marker` class, so the code toggles classes now.
+  - Too many small clusters at first, then a wall of overlapping tags on a phone. It settled on a 36 px merge radius up to zoom 12.
+  - The map credits started expanded over the tags.
+  - An invisible ◎ in dark mode.
+  - The pin tip stayed after a pin.
+- **Checks:** a full export on a scratch copy with no credit warnings. Under the CSP there are no console errors besides OpenFreeMap's own style warnings (a missing "wood-pattern" sprite, and a null in one style expression).
+- **QA audit** (subagent, in headless Chrome against the CSP copy):
+  - **Blank map with no list (high):** this happened when OpenFreeMap was blocked, as it may be on the Claude artifact host. Fixed: a style error, or no style within 15 s, now falls back to the list, saves List as the view and removes the "Show on map" buttons. Tested by blocking OpenFreeMap in the test browser.
+  - **Filters panel on phones:** it opened at the bottom of the viewport. It's now anchored under the controls.
+  - **Page jumps:** an open card no longer scrolls the page to itself when the fuel or filters change.
+  - **Unmatched suburb:** typing one in Map view now says "No Sydney suburb matches…".
+  - **Keyboard:** Escape closes the card and the Filters panel, and focus returns to the tag.
+  - **Headings:** a page h1 (screen readers only), and the verdict is an h3 under "Should I fill up?".
+  - **Labels:** the map and legend labels are accurate.
+  - **Passed:** XSS escaping, a single inline script with no handlers, the credit strings, CSP (no violations, including the theme switch and the blob worker), pin, unpin and orphan pins from the map card, "Show on map" from pins and rows, paging, and no horizontal scroll at 360–1280 px.
+  - **Left:** the "Show N older prices" chip counts within the list's radius, while the map has none.
+
 ## 2026-10-27 — Premium 95 (P95) as a fifth fuel (pipeline + app JS, runtime 0.8.0)
 
 A user asked for E85 and 95. NSW FuelCheck carries both. **P95 is built in full; E85 is not added.** E85 has 17 Sydney stations, below the 20-station floor in `build_history.py`; it has 1–57 price changes a month, and only 4 of 17 stations moved over 13–27 Oct. Its Sydney median is about 23c above U91.
