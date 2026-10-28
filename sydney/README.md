@@ -3,7 +3,7 @@
 Daily forecast of Sydney pump prices (U91, E10, Premium 95, Premium 98, diesel; the list is `pipeline/fuels.py`): a "fill up now or wait" signal, a 14-day outlook, a station finder and the evidence behind it.
 
 ## Daily flow
-A Claude scheduled task runs every morning (6:52am Sydney):
+**Switched off 2026-10-28 (owner's request):** the claude.ai routine "Sydney pump price refresh" (trigger trig_01SMwjzj84uqLfyaspwsXFic) is disabled, not deleted. The GitHub Actions run below is now the only pipeline, and the dashboard lives at https://nathann2997.github.io/FuelForecast/. What it did, for reference: a Claude scheduled task ran every morning (6:52am Sydney):
 1. Pulls today's inputs through Chrome: NSW FuelCheck live prices (`pipeline/pull_nsw.js`), any newly published NSW monthly history (`pipeline/pull_history.js`), AIP terminal gate prices (`pipeline/find_aip.js`), and Brent + AUD/USD from FRED.
 2. Runs `pipeline/run_daily.sh`: rebuilds history when a new month arrives (`build_history.py`), adds today's snapshot (`update.py`), retrains and forecasts (`model.py`), renders the dashboard (`build.py`).
 3. Republishes `out/sydney-pump-outlook.html` as the dashboard (a claude.ai artifact).

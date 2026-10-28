@@ -87,7 +87,7 @@ export function StationMap({ rows, pinned, footer, home, live, radiusKm, median 
   };
   const tierOf = useMemo(() => {
     const b = bboxOf(tierRegion);
-    return priceTiers(all.filter((r) => inBox(b, r.la, r.lo)).map((r) => r.price));
+    return priceTiers(all.filter((r) => !isOld(r) && inBox(b, r.la, r.lo)).map((r) => r.price));   // old prices don't set the colours
   }, [all, tierRegion]);
 
   const index = useMemo(() => {
@@ -175,12 +175,12 @@ export function StationMap({ rows, pinned, footer, home, live, radiusKm, median 
             if (!r) return null;
             const tier = tierOf(r.price);
             const isSel = r.id === selected;
-            return <PriceMarker key={`${r.id}|${tier}|${isSel}|${r.price}|${c.bg}`} r={r} tier={tier} selected={isSel} pinned={false} c={c} onPress={setSelected} />;
+            return <PriceMarker key={`${r.id}|${tier}|${isSel}|${r.price}|${r.age}|${c.bg}`} r={r} tier={tier} selected={isSel} pinned={false} c={c} onPress={setSelected} />;
           })}
           {pinned.map((r) => {
             const tier = tierOf(r.price);
             const isSel = r.id === selected;
-            return <PriceMarker key={`p${r.id}|${tier}|${isSel}|${r.price}|${c.bg}`} r={r} tier={tier} selected={isSel} pinned c={c} onPress={setSelected} />;
+            return <PriceMarker key={`p${r.id}|${tier}|${isSel}|${r.price}|${r.age}|${c.bg}`} r={r} tier={tier} selected={isSel} pinned c={c} onPress={setSelected} />;
           })}
         </MapView>
 
@@ -217,6 +217,9 @@ export function StationMap({ rows, pinned, footer, home, live, radiusKm, median 
 
 // ---- Pieces
 
+/** A price not updated for over STALE_DAYS: shown grey, as a check-before-you-drive */
+const isOld = (r: StationRow) => r.age != null && r.age > STALE_DAYS;
+
 /** Price text on a tier colour: white on the light theme's deep fills, dark on the dark theme's bright ones (contrast) */
 const tierColors = (c: Palette, t: Tier) => {
   const on = c.bg === Colors.dark.bg ? c.onChip : '#ffffff';
@@ -238,7 +241,8 @@ const PriceMarker = memo(function PriceMarker({
   r, tier, selected, pinned, c, onPress,
 }: { r: StationRow; tier: Tier; selected: boolean; pinned: boolean; c: Palette; onPress: (id: string) => void }) {
   const tracking = useFirstPaint();
-  const col = tierColors(c, tier);
+  const old = isOld(r);
+  const col = old ? { bg: c.calmBg, fg: c.calmFg } : tierColors(c, tier);
   const name = stationName(r.n);
   const edge = selected || pinned ? c.fg : c.line;
   return (
@@ -246,9 +250,9 @@ const PriceMarker = memo(function PriceMarker({
       coordinate={{ latitude: r.la, longitude: r.lo }}
       anchor={{ x: 0.5, y: 1 }}
       tracksViewChanges={tracking}
-      zIndex={selected ? 30 : pinned ? 20 : tier === 'low' ? 12 : tier === 'mid' ? 11 : 10}   // cheaper on top where they overlap
+      zIndex={selected ? 30 : pinned ? 20 : old ? 9 : tier === 'low' ? 12 : tier === 'mid' ? 11 : 10}   // cheaper on top where they overlap
       onPress={() => onPress(r.id)}
-      accessibilityLabel={`${name}, ${r.price.toFixed(1)} cents${pinned ? ', pinned' : ''}`}>
+      accessibilityLabel={`${name}, ${r.price.toFixed(1)} cents${old ? `, ${updatedText(r.age).toLowerCase()}` : ''}${pinned ? ', pinned' : ''}`}>
       {/* Selection is a thicker outline, not a scale: Android draws the marker at its layout size, so a scaled tag is clipped */}
       <View style={styles.tagWrap}>
         <View style={[styles.tag, { backgroundColor: c.surface, borderColor: edge, borderWidth: selected ? 3 : pinned ? 2 : 1 }]}>
@@ -307,12 +311,14 @@ export function MapLegend() {
     <View
       style={styles.legend}
       accessible
-      accessibilityLabel="Price colours: green is the cheapest third of the stations in view, amber the middle, red the dearest third">
+      accessibilityLabel="Price colours: green is the cheapest third of the stations in view, amber the middle, red the dearest third, grey a price over 7 days old">
       <Text style={[styles.legendText, { color: c.muted }]}>Cheaper</Text>
       {(['low', 'mid', 'high'] as const).map((t) => (
         <View key={t} style={[styles.legendDot, { backgroundColor: tierColors(c, t).bg }]} />
       ))}
       <Text style={[styles.legendText, { color: c.muted }]}>Dearer</Text>
+      <View style={[styles.legendDot, { backgroundColor: c.calmStrong, marginLeft: 6 }]} />
+      <Text style={[styles.legendText, { color: c.muted }]}>Old</Text>
     </View>
   );
 }

@@ -2,6 +2,26 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-28 — Claude automation off; bigger web map; Costco on both maps
+
+- **Claude scheduled task switched off** (owner: "kill off the claude automation"):
+  - The claude.ai routine "Sydney pump price refresh" (trig_01SMwjzj84uqLfyaspwsXFic, daily 6:52am) is disabled, not deleted, so it can be switched back on.
+  - The GitHub Actions pipeline on the `data` branch is now the only one.
+  - The claude.ai artifact copy of the dashboard stops updating. The GitHub Pages site is the dashboard.
+  - `sydney/README.md` notes this.
+- **Bigger map on the web:**
+  - In Map view the stations section spans the full page width on desktop, under the verdict.
+  - The map is the screen height less 150 px, between 420 and 860 px.
+- **Why Costco was missing:**
+  - Costco's three Sydney sites (Auburn, Casula, Marsden Park) only report E10 and Premium 98. They're members-only, which is included by default.
+  - Their prices change rarely: today P98 was last updated 8 days ago, so the "older than 7 days" filter hid them on both maps.
+  - Both maps now show prices over 7 days old as **grey tags** instead of hiding them. They're drawn under the others, left out of the cheapest/dearest colours, and their accessibility label says how old they are. The legend adds "Price over 7 days old" ("Old" in the app).
+  - The list keeps hiding them behind "Show older prices", and that filter is hidden in the web Map view because it no longer applies there.
+  - Costco still won't appear on Unleaded 91 or diesel, because it doesn't sell them.
+- **Checks:**
+  - Web: a scratch export, then headless Chrome on the CSP copy with P98 at Auburn showed "Costco Auburn, 254.7 cents, updated 8 days ago" as a grey tag, with the full-width map at 1280 px.
+  - App: typecheck, lint and jest pass (410).
+
 ## 2026-10-28 — Web dashboard: stations map, and a simpler page (`template.html`, `export_api.py` CSP)
 
 The owner asked for the map on the online dashboard too, and for the content to be cleaned up and made "super simple to understand and use".
