@@ -2,7 +2,7 @@
 import Storage from './storage';
 import { useSyncExternalStore } from 'react';
 
-import { setContext, settingsAttributes, settingsContext, track } from './analytics';
+import { setContext, setSharingFlag, settingsAttributes, settingsContext, track } from './analytics';
 
 import { cleanDiscounts, type Discounts } from './discounts';
 import { ADVICE_GROUPS, FILTER_DEFAULTS, RADII, type FilterSettings } from './filters';
@@ -70,6 +70,7 @@ export function loadSettings(): Settings {
 
 let state = loadSettings();
 const listeners = new Set<() => void>();
+setSharingFlag(state.analytics);   // before anything logs, in the app and in the widget task alike
 setContext(settingsContext(state));
 
 // Changes within a moment of each other (typing a max price, tapping several chips) are logged as one event
@@ -94,6 +95,7 @@ export function setSettings(patch: Partial<Settings>, { silent = false } = {}) {
     // settings still apply for this session
   }
   listeners.forEach((l) => l());
+  setSharingFlag(state.analytics);
   if (!silent) logChange(patch);
   setContext(settingsContext(state));
 }

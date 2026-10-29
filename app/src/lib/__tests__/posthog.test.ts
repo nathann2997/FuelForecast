@@ -87,6 +87,14 @@ describe('starting PostHog', () => {
 });
 
 describe('events', () => {
+  it('respect Share anonymous usage outside the app too (the flag the saved settings set at load)', () => {
+    const a = load();
+    a.startProductAnalytics(true);
+    a.setSharingFlag(false);   // what settings.ts does when the saved setting is off, e.g. in the widget task
+    a.track('settings.changed', { keys: ['alerts'] });
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
   it('logged before start are sent on start; after that they go straight through', () => {
     const a = load();
     a.track('station.pinned', { pins: 1 });

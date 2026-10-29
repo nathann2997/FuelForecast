@@ -106,8 +106,12 @@ export function setContext(patch: ObserveAttributes) {
   ph?.register(patch).catch(() => {});
 }
 
-// More → Share anonymous usage; off also stops Observe's events at once (its crash reports need a fresh launch)
+// More → Share anonymous usage; off also stops Observe's events at once (its crash reports need a fresh launch). Set
+// from the saved settings as soon as they load (settings.ts), so the widget task and background refresh respect it too.
 let sharing = true;
+export function setSharingFlag(on: boolean) {
+  sharing = on;
+}
 // Events logged before PostHog starts, sent once it does (only if it starts: dropped with the process otherwise)
 const early: [string, ObserveAttributes | undefined][] = [];
 let bgTasks = 0;
