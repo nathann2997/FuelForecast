@@ -12,18 +12,10 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 ## Plan status
 - [~] **Bowser 0.9.0: PostHog product analytics** (2026-10-29, 48a9c27 + 3cc0acc; CHANGELOG "Bowser 0.9.0"; metrics and design in `docs/ANALYTICS_PLAN.md`).
   - Built and committed. Preview APK: EAS build ffab4b04, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/ffab4b04-76dc-4c51-88b0-7ee5ac3eb066 (built from 48a9c27).
-  - **Analytics is OFF until the owner sends the PostHog project key.** It's inlined at bundle time from EAS env vars.
-  - 3cc0acc (the sharing flag in background tasks) isn't in the APK; it goes out with the key's OTA update.
-  - **Owner, in this order:**
-    1. Create the PostHog project (US or EU).
-    2. Turn on "Discard client IP data".
-    3. Add `internal = true` to the internal and test users filter.
-    4. Send the `phc_` key and host.
-    5. After installing 0.9.0, tap the version in More 5 times on their own phone.
-  - **When the key arrives:**
-    1. `npx eas-cli env:create --environment preview --name EXPO_PUBLIC_POSTHOG_KEY --value <phc_…> --visibility plaintext`, and the same for `EXPO_PUBLIC_POSTHOG_HOST` (also `production` if used).
-    2. `eas update --channel preview --environment preview --platform android --upload-source-maps` at runtime 0.9.0.
-    3. Confirm in PostHog's live view from a real phone. Open one raw event and check:
+  - **Analytics switched on 2026-10-29.** The owner sent the key; the project is on US cloud (the key authenticates at us.i.posthog.com, not EU). `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com` are in EAS `preview` (plaintext: it's a public client key, inlined at bundle time). OTA to `preview` at runtime 0.9.0: update group 52e64cd9-f548-4e43-8b78-fc3d196e52e4, which also carries 3cc0acc. Key and host confirmed in the published bundle. Not set for `production` (unused so far).
+  - **Not yet confirmed:** that the owner turned on "Discard client IP data" and added `internal = true` to the internal and test users filter before sending the key, and tapped the version 5 times on their own phone.
+  - **Next:**
+    1. Confirm in PostHog's live view from a real phone (the OTA applies on the second launch). Open one raw event and check:
        - `$geoip_disable: true`;
        - no `$ip`, `$geoip_*` or `$timezone`;
        - a person profile exists;

@@ -1,6 +1,6 @@
 # Bowser analytics plan (2026-10-29)
 
-Product owner: Nathan. PM: Claude. Status: **PostHog chosen (2026-10-29) and built into 0.9.0.** Defaults taken: a Share anonymous usage switch (on by default), session replay off, its own native build. The original evaluation follows the metrics.
+Product owner: Nathan. PM: Claude. Status: **PostHog chosen (2026-10-29), built into 0.9.0 and switched on by OTA the same day (US cloud).** Defaults taken: a Share anonymous usage switch (on by default), session replay off, its own native build. The original evaluation follows the metrics.
 
 ## Key metrics (what the dashboard shows)
 Small numbers: at about 10 installs, read counts and per-install tables, not percentages. All metrics leave out test phones (`internal = true`: dev builds, and any phone whose version number in More was tapped 5 times) and events marked `background = true`.

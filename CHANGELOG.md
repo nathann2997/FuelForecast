@@ -29,7 +29,7 @@ The owner chose PostHog after the evaluation in `docs/ANALYTICS_PLAN.md`, which 
   - a "Share anonymous usage" switch (setting `analytics`, on by default). PostHog stops straight away, Observe at the next launch.
   - The About text names PostHog and Expo.
   - Tapping the version 5 times marks a test phone (`internal`, shown as "· test phone"); dev builds are always internal.
-- **Key:** `EXPO_PUBLIC_POSTHOG_KEY` / `EXPO_PUBLIC_POSTHOG_HOST` are EAS environment variables, inlined at bundle time. Without them PostHog stays off. An OTA update at runtime 0.9.0 switches it on once the owner sends the key.
+- **Key:** `EXPO_PUBLIC_POSTHOG_KEY` / `EXPO_PUBLIC_POSTHOG_HOST` are EAS environment variables, inlined at bundle time. Without them PostHog stays off. An OTA update at runtime 0.9.0 switches it on once the owner sends the key. Switched on 2026-10-29: US cloud, OTA update group 52e64cd9 (also ships the background-task sharing fix).
 - **QA audit, and fixed from it:**
   - **(high)** The privacy filter deleted the SDK's `$geoip_disable` flag, which would have switched IP-based location back on. It's now kept and forced on, with a test.
   - **(high)** Android reports "background" for permission dialogs, the share sheet and Maps opening on top. Those caused fake opens and marked real Map taps as background.
