@@ -1,8 +1,8 @@
 {
   "android": {
-    "version": "0.8.0",
-    "url": "https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/69dad55d-48de-4f95-90db-ade6fb1bbbf1",
-    "notes": "What’s new: a map of nearby stations. Tap Map on the Stations tab to see prices on a map, coloured from cheapest to dearest. Tap a price for the fill-up call and directions, or search another area before you drive there."
+    "version": "0.9.0",
+    "url": "https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/ffab4b04-76dc-4c51-88b0-7ee5ac3eb066",
+    "notes": "What’s new: a map of nearby stations on the Stations tab, and a Share anonymous usage switch in More. Bowser now sends anonymous usage reports so we can see what helps, never your location, your area or what you paid."
   },
   "ios": null
 }
