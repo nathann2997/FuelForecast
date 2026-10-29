@@ -25,6 +25,17 @@ FrL = Fr.reindex(cal).ffill().shift(1)
 FrL["brent_aud"] = FrL.DCOILBRENTEU / FrL.DEXUSAL         # Brent in AUD per barrel
 
 
+def vol_ratio(col):
+    """Wholesale volatility now vs normal: 28-day mean |daily TGP change| over its trailing-year mean, capped 0.75-3.
+    Scales the forecast ranges, which otherwise under-cover in shock months (walk-forward 2021-26: 7-day 0.69, 14-day 0.61)."""
+    a = TL[col].diff().abs()
+    return (a.rolling(28, 20).mean() / a.rolling(365, 200).mean()).clip(0.75, 3).fillna(1.0)
+VOL = {f: vol_ratio("tgp_dl" if f == "DL" else "tgp_ulp") for f in FUELS}
+# Live: read the ratio on the day after the last real TGP (TL is lagged a day). TGP arrives in weekly batches, and the
+# filled-forward days would count as zero change and narrow the ranges just when a jump starts
+VOL_DAY = {f: min(asof, T["tgp_dl" if f == "DL" else "tgp_ulp"].dropna().index.max() + pd.Timedelta(days=1)) for f in FUELS}
+
+
 def features(D):
     out = []
     u91 = D[D.fuel == "U91"].set_index("date")["median"].reindex(cal)
@@ -119,11 +130,16 @@ if os.path.exists(f"{STORE}/backtest_preds.parquet"):
     u7 = P[(P.h == 7) & (P.fuel == "U91")]
     yearly = u7.groupby(u7.date.dt.year).apply(
         lambda g: {"naive": float(np.abs(g.actual).mean()), "model": float(np.abs(g.actual - g[PROD]).mean())}).to_dict()
-    resid = {h: float(np.quantile(np.abs(g.actual - g[PROD]), 0.8)) for h, g in P[P.date >= P.date.max() - pd.Timedelta(days=365)].groupby("h")}
+    recent = P[P.date >= P.date.max() - pd.Timedelta(days=365)]
+    resid = {h: float(np.quantile(np.abs(g.actual - g[PROD]), 0.8)) for h, g in recent.groupby("h")}
+    # 80% ranges per variant, fuel and horizon on volatility-scaled errors; the live range multiplies back by today's VOL
+    v = np.array([VOL[f].get(d, 1.0) for f, d in zip(recent.fuel, recent.date)])
+    q80n = {var: {f: {str(h): float(np.quantile(np.abs(g.actual - g[var]) / v[g.index], 0.8)) for h, g in gf.groupby("h")}
+                  for f, gf in recent.reset_index(drop=True).groupby("fuel")} for var in ["+oil & AUD", PROD]}
     auc = {f: float(roc_auc_score(g.y_jump7, g.p)) for f, g in C.groupby("fuel") if g.y_jump7.nunique() > 1}
     bt7 = P[(P.h == 7) & (P.fuel == "U91")].sort_values("date")
     bt7 = bt7[bt7.date >= bt7.date.max() - pd.Timedelta(days=730)]
-    json.dump({"summary": summ, "yearly_u91_h7": {str(k): v for k, v in yearly.items()}, "q80": resid, "auc": auc,
+    json.dump({"summary": summ, "yearly_u91_h7": {str(k): v for k, v in yearly.items()}, "q80": resid, "q80n": q80n, "auc": auc,
                "test_from": "2021-01", "test_to": str(P.date.max().date()), "variants": list(VARIANTS), "prod": PROD,
                "bt7": {"dates": [str(d.date()) for d in bt7.date], "actual": bt7.actual.round(1).tolist(),
                        "pred": bt7[PROD].round(1).tolist()}},
@@ -147,6 +163,10 @@ for f in FUELS:
     live.append(out)
 MEM = ["mom1", "mom3", "mom7", "mom14", "off_28max", "off_28min", "days_since_restore"]
 LIVE_FEATS = FD if X[MEM].notna().all().all() else FC   # memory features need ~4 weeks of unbroken daily data
+QN = bt.get("q80n", {}).get(PROD if LIVE_FEATS is FD else "+oil & AUD", {})   # ranges from the live model's own errors
+def half_width(f, h):
+    q = QN.get(f, {}).get(str(h))
+    return q80[h] if q is None else q * float(VOL[f].loc[VOL_DAY[f]])
 for h in H:
     tr = F[F[f"y{h}"].notna()]
     mdl = fit(tr, LIVE_FEATS, f"y{h}")
@@ -154,7 +174,8 @@ for h in H:
         g = pd.Series(mdl.booster_.feature_importance("gain"), index=LIVE_FEATS); imp = (g / g.sum()).sort_values(ascending=False).round(3).head(8).to_dict()
     for o in live:
         d = float(mdl.predict(X[X.fuel == o["fuel"]][LIVE_FEATS])[0])
-        o[f"d{h}"] = round(d, 1); o[f"lo{h}"] = round(d - q80[h], 1); o[f"hi{h}"] = round(d + q80[h], 1)
+        w = half_width(o["fuel"], h)
+        o[f"d{h}"] = round(d, 1); o[f"lo{h}"] = round(d - w, 1); o[f"hi{h}"] = round(d + w, 1)
 clf = lgb.LGBMClassifier(**PARAMS).fit(F[F.y_jump7.notna()][LIVE_FEATS], F[F.y_jump7.notna()].y_jump7)
 for o in live:
     o["p_jump7"] = round(float(clf.predict_proba(X[X.fuel == o["fuel"]][LIVE_FEATS])[0, 1]), 2)
@@ -163,6 +184,7 @@ ctx = {"asof": str(asof.date()), "tgp_last": str(T.dropna().index.max().date()),
        "audusd": round(float(FrL.DEXUSAL.loc[asof]), 4), "importance_h7": imp,
        "history_last": str(D[D.source == "history"].date.max().date()),
        "live_model": "full (with cycle memory)" if LIVE_FEATS is FD else "no cycle memory (daily history has a gap)",
-       "snapshot_days": int(D[D.source == "snapshot"].date.nunique())}
+       "snapshot_days": int(D[D.source == "snapshot"].date.nunique()),
+       "range_vol": {f: round(float(VOL[f].loc[VOL_DAY[f]]), 2) for f in FUELS}}   # wholesale volatility ratio behind lo/hi
 json.dump({"live": live, "ctx": ctx}, open(f"{STORE}/forecast.json", "w"))
 print(json.dumps(live, indent=0)[:1500]); print(ctx)

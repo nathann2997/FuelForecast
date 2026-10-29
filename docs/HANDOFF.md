@@ -10,6 +10,15 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [~] **Forecast ranges per fuel, scaled by wholesale volatility** (2026-10-29; branch `model/ranges-per-fuel`, committed locally, **not pushed**; CHANGELOG same title).
+  - `model.py` only. QA audited; its one defect (stale TGP narrowing ranges) is fixed.
+  - **The owner must decide whether to ship.** Walk-forward evidence improves on today's ranges on every measure but misses the pre-set bar in shock months.
+  - Same session's research and experiments (owner asked 2026-10-29):
+    - Tested and rejected as model inputs: excise features, NSW public holidays, national stocks, fuel on ships, Brisbane prices (QLD open data, Dec 2018 onward).
+    - Diesel-only crack spread (EIA NY Harbor ULSD): diesel MAE −0.05 c/L, jump AUC 0.84 → 0.90, diesel verdicts right 85.6% → 86.9%. Proposed; not built.
+    - Jump-chance recalibration: no gain.
+    - VIC Servo Saver API works (key from the owner; kept out of the repo) but has no history. Archiving it daily was proposed, not built.
+  - Scripts and results are in that session's scratchpad (`exp/RESULTS.md`), not the repo.
 - [x] **Verdict rule analysis** (2026-10-29; `docs/RULE_ANALYSIS_2026-10.md`). Analysis only, nothing changed. Cut-offs are fine (87% of perfect hindsight); 2026 wholesale-driven swings are the weakness (64%); live calls use the no-cycle-memory model until October history fills the gap. **Next:** a model experiment for sustained wholesale trends; confirm October history is pulled.
 - [~] **Bowser 0.9.0: PostHog product analytics** (2026-10-29, 48a9c27 + 3cc0acc; CHANGELOG "Bowser 0.9.0"; metrics and design in `docs/ANALYTICS_PLAN.md`).
   - Built and committed. Preview APK: EAS build ffab4b04, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/ffab4b04-76dc-4c51-88b0-7ee5ac3eb066 (built from 48a9c27).

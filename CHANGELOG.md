@@ -2,6 +2,28 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-29 — Forecast ranges per fuel, scaled by wholesale volatility (`model.py` only; branch `model/ranges-per-fuel`, not shipped)
+
+The "likely between" ranges (`lo{h}`/`hi{h}`) were one width per horizon for every fuel, taken from the full model's errors over the last year.
+- **Problems:**
+  - Diesel's range held about 92% of outcomes (too wide); petrol's held about 72–76% (too narrow).
+  - In shock months, coverage fell to 0.69 at 7 days and 0.61 at 14 days.
+  - Live ranges came from the full model's errors even while the reduced model was running.
+- **Change:**
+  - The 80% width is now per fuel and per horizon, built from errors divided by a wholesale volatility ratio (`vol_ratio`: 28-day mean daily TGP move over its trailing-year mean, capped 0.75–3). Today's ratio multiplies it back.
+  - Widths come from the variant that is live (`+oil & AUD` while cycle memory is off).
+  - The ratio is read on the day after the last real TGP, because TGP arrives in weekly batches and the filled-forward days would read as calm (found in QA).
+  - `backtest.json` gains `q80n`; `q80` is unchanged and remains the fallback; `ctx.range_vol` records the ratio used.
+- **Evidence** (walk-forward 2021–26; method and figures in the session's RESULTS.md, summarised here):
+  - Fuels in the 0.77–0.83 band went from 0/5 to 4/5 (diesel 0.75).
+  - Shock-month 7-day coverage went from 0.69 to 0.73, and 14-day from 0.61 to 0.69. Calm months stayed at about 0.79 with the same width.
+  - It does not pass the pre-set bar of 0.77–0.83 everywhere: shock months still under-cover, and misses lean upward (about 17% above vs 9% below).
+- **Before/after on the data branch (160d2bd):**
+  - Every non-range field is identical. Today's ranges are narrower, because October is calmer than the trailing year (petrol ratio 0.95, diesel at the 0.75 floor).
+  - U91 half-width: 7-day 13.0 → 9.0, 14-day 26.5 → 16.4. Diesel: 7-day 13.0 → 6.4, 14-day 26.5 → 13.1.
+- **Also checked, no change made:** recalibrating the jump chance. Its mid-range overconfidence is a 2021–24 effect (2025–26 is honest there, as `docs/RULE_ANALYSIS_2026-10.md` found), and walk-forward recalibration earned nothing on the money metric (2025–26: 5.49 → 5.46 c/L). Low values are too low in 2025–26 (shown about 1%, actual about 8%), which recalibration doesn't fix.
+- **Follow-up:** the "about 8 in 10" copy (`template.html:321`, `app/src/app/(tabs)/more.tsx:25`) holds overall but not for diesel or shock months.
+
 ## 2026-10-29 — Bowser 0.9.0: product analytics with PostHog (native, runtime 0.9.0)
 
 The owner chose PostHog after the evaluation in `docs/ANALYTICS_PLAN.md`, which also defines the key metrics.
