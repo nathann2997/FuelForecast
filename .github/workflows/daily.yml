@@ -84,6 +84,7 @@ jobs:
         env:
           NSW_API_KEY: ${{ secrets.NSW_API_KEY }}
           NSW_API_SECRET: ${{ secrets.NSW_API_SECRET }}
+          VIC_API_KEY: ${{ secrets.VIC_API_KEY }}   # optional: VIC snapshots archived to archive/vic/
         run: python state/pipeline/fetch.py state state/inbox
 
       - name: Update store, model, dashboard

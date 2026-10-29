@@ -4,7 +4,9 @@ AUD/USD come from the US EIA and the RBA rather than FRED (see pull_macro).
 usage: python fetch.py BASE INBOX
 Writes into INBOX the same files the Chrome pulls download, so run_daily.sh / update.py consume them unchanged:
   nsw_snapshot_YYYYMMDD.json   NSW FuelCheck live prices (Sydney date)          -- required, exits 1 if it fails
-  brent_audusd_eia_rba.csv     Brent (US EIA) + AUD/USD (RBA F11.1), FRED ids  -- optional (replaces the FRED pull)
+  brent_audusd_eia_rba.csv     Brent (US EIA) + AUD/USD (RBA F11.1), FRED ids, + ULSD_NYH (EIA) when available
+                               -- optional (replaces the FRED pull)
+And straight into BASE/archive/vic/: vic_prices_YYYYMMDD.csv.gz (VIC Servo Saver, once a day; optional, env VIC_API_KEY)
   AIP_TGP_Data_*.xlsx          AIP terminal gate price workbook                -- optional
   syd_events_YYYYMM.csv        NSW monthly history after ctx.history_last       -- optional
 Credentials: env NSW_API_KEY / NSW_API_SECRET (GitHub Secrets), else pipeline/credentials.py.
@@ -27,7 +29,7 @@ log, failed = [], []
 
 # Downloads: https only, from these sites and their subdomains (scraped links included, checked again after redirects),
 # and at most MAX_BYTES each. The largest real file is a ~7 MB monthly history workbook.
-ALLOWED_DOMAINS = ("nsw.gov.au", "aip.com.au", "eia.gov", "rba.gov.au")
+ALLOWED_DOMAINS = ("nsw.gov.au", "aip.com.au", "eia.gov", "rba.gov.au", "service.vic.gov.au")
 MAX_BYTES = 100 * 1024 * 1024
 
 
@@ -97,6 +99,7 @@ def pull_nsw():
 # relicensed by this repo: see DATA-LICENSE.md. Columns keep FRED's ids
 # (DCOILBRENTEU, DEXUSAL) so update.py and model.py read them unchanged; update.py replaces store/fred.csv with it.
 EIA_BRENT = "https://www.eia.gov/dnav/pet/hist_xls/RBRTEd.xls"
+EIA_ULSD = "https://www.eia.gov/dnav/pet/hist_xls/EER_EPD2DXL0_PF4_Y35NY_DPGd.xls"   # NY Harbor ULSD spot, USD/gal (diesel crack)
 RBA_FX = ["https://www.rba.gov.au/statistics/tables/xls-hist/2018-2022.xls",   # closed years (the file never changes)
           "https://www.rba.gov.au/statistics/tables/csv/f11.1-data.csv"]      # 2023 to date
 
@@ -127,7 +130,17 @@ def pull_macro():
         parts.append(rba_usd(t))
     aud = pd.concat(parts).sort_index()
     aud = aud[~aud.index.duplicated(keep="last")]
-    F = pd.concat({"DCOILBRENTEU": brent, "DEXUSAL": aud}, axis=1).sort_index()
+    # Best effort: without it model.py's diesel crack features go blank and diesel falls back to the other features
+    ulsd, note = None, ""
+    try:
+        u = pd.read_excel(io.BytesIO(get(EIA_ULSD, headers=UA).content), sheet_name="Data 1", header=2)
+        ulsd = pd.Series(pd.to_numeric(u.iloc[:, 1], errors="coerce").values, index=pd.to_datetime(u.iloc[:, 0], errors="coerce")).dropna()
+        ulsd = ulsd[~ulsd.index.duplicated(keep="last")]
+        if not 0.5 < ulsd.iloc[-1] < 15: raise RuntimeError(f"implausible {ulsd.iloc[-1]}")
+        note = f"; ulsd (EIA) to {ulsd.index[-1].date()} {ulsd.iloc[-1]:g}"
+    except Exception as e:
+        ulsd, note = None, f"; ulsd skipped: {type(e).__name__}: {str(e)[:100]}"
+    F = pd.concat({"DCOILBRENTEU": brent, "DEXUSAL": aud, **({"ULSD_NYH": ulsd} if ulsd is not None else {})}, axis=1).sort_index()
     F = F[F.index >= "2018-06-01"]
     # Don't feed the model a broken parse: plausible ranges, recent data, and the full history back to 2018
     lb, la = brent[brent.index >= "2018-06-01"], aud[aud.index >= "2018-06-01"]
@@ -137,7 +150,44 @@ def pull_macro():
     if (now - lb.index[-1]).days > 30 or (now - la.index[-1]).days > 30:
         raise RuntimeError(f"stale series: brent to {lb.index[-1].date()}, aud to {la.index[-1].date()}")
     F.to_csv(f"{INBOX}/brent_audusd_eia_rba.csv", index_label="date")
-    return f"brent (EIA) to {lb.index[-1].date()} {lb.iloc[-1]:g}; aud (RBA) to {la.index[-1].date()} {la.iloc[-1]:g}"
+    return f"brent (EIA) to {lb.index[-1].date()} {lb.iloc[-1]:g}; aud (RBA) to {la.index[-1].date()} {la.iloc[-1]:g}{note}"
+
+
+# ---- Victoria: Service Victoria Servo Saver Open Data API (24h delayed, no history endpoint), archived once a day to
+# archive/vic/ so a Melbourne vs Sydney comparison can be tested later. Not used by the model or published. Licence and
+# attribution: DATA-LICENSE.md. Key: env VIC_API_KEY (GitHub secret), else pipeline/credentials.py; limit 10 calls/min.
+VIC_API = "https://api.fuel.service.vic.gov.au/open-data/v1/fuel/prices"
+
+
+def pull_vic():
+    import csv, gzip
+    key = os.environ.get("VIC_API_KEY")
+    if not key:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        try: import credentials as c; key = getattr(c, "VIC_API_KEY", None) or getattr(c, "VIC_CONSUMER_ID", None)
+        except ImportError: pass
+    if not key: return "skipped (no VIC_API_KEY)"
+    out = f"{BASE}/archive/vic"; path = f"{out}/vic_prices_{TODAY}.csv.gz"
+    if os.path.exists(path): return "already archived today"
+    r = get(VIC_API, tries=2, headers=lambda: {"User-Agent": "Bowser/1.0 (FuelForecast)", "x-consumer-id": key,
+                                            "x-transactionid": str(uuid.uuid4())}, allow_redirects=False)
+    if not r.ok: raise RuntimeError(f"HTTP {r.status_code}")
+    d = r.json().get("fuelPriceDetails", [])
+    if len(d) < 1000: raise RuntimeError(f"only {len(d)} stations")
+    os.makedirs(out, exist_ok=True)
+    st = [s.get("fuelStation") or {} for s in d]
+    def write(name, header, rows):   # temp file then rename: a failed write must not leave a file that blocks the day
+        tmp = f"{out}/{name}.tmp"
+        with open(tmp, "wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz, io.TextIOWrapper(gz, newline="") as fh:
+            w = csv.writer(fh); w.writerow(header); w.writerows(rows)   # mtime=0: an unchanged station list is byte-identical
+        os.replace(tmp, f"{out}/{name}")
+    write("vic_stations.csv.gz", ["station_id", "name", "brand_id", "address", "lat", "lon"],   # latest list, overwritten
+          [[s.get(k) for k in ["id", "name", "brandId", "address"]] + [(s.get("location") or {}).get(k) for k in ["latitude", "longitude"]]
+           for s in st if s.get("id")])
+    write(os.path.basename(path), ["station_id", "fuel", "price", "available", "updated_at"],
+          [[s.get("id"), p.get("fuelType"), p.get("price"), int(bool(p.get("isAvailable"))), p.get("updatedAt")]
+           for s, x in zip(st, d) if s.get("id") for p in x.get("fuelPrices") or []])
+    return f"{len(d)} stations -> {os.path.basename(path)}"
 
 
 # ---- AIP terminal gate prices (find_aip.js)
@@ -236,7 +286,8 @@ def pull_history():
     return "; ".join(done)
 
 
-for name, fn, required in [("nsw", pull_nsw, True), ("macro", pull_macro, False), ("aip", pull_aip, False), ("history", pull_history, False)]:
+for name, fn, required in [("nsw", pull_nsw, True), ("macro", pull_macro, False), ("aip", pull_aip, False), ("history", pull_history, False),
+                           ("vic", pull_vic, False)]:
     try:
         log.append(f"{name}: {fn()}")
     except Exception as e:

@@ -316,9 +316,9 @@ footer{border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:va
         <details class="disc"><summary>How it works</summary><div class="disc-body">
           <ul class="clean">
             <li><b>What it predicts:</b> how the Sydney median price of each fuel will move over the next 1, 3, 7 and 14 days, and the chance of a jump of 5c or more within a week.</li>
-            <li><b>What it looks at:</b> how far pump prices sit above the wholesale price compared with the past year, recent wholesale moves, the oil price in Australian dollars, how spread out and how fresh station prices are, and where we are in the price cycle.</li>
+            <li><b>What it looks at:</b> how far pump prices sit above the wholesale price compared with the past year, recent wholesale moves, the oil price in Australian dollars (and for diesel, the international diesel price), how spread out and how fresh station prices are, and where we are in the price cycle.</li>
             <li><b>How it learns:</b> a machine-learning model (gradient-boosted trees) trained on Sydney prices for all five fuels, with a separate model for price jumps.</li>
-            <li><b>How it’s tested:</b> every month since Jan 2021 was forecast using only the data before it, including the 2022 and 2026 oil shocks. Across the fuels, the likely ranges covered about 8 in 10 of the past year’s outcomes.</li>
+            <li><b>How it’s tested:</b> every month since Jan 2021 was forecast using only the data before it, including the 2022 and 2026 oil shocks. The likely ranges held about 8 in 10 outcomes in normal months and about 7 in 10 in shock months.</li>
             <li><b>Limits:</b> it reacts to oil and wholesale moves as they happen, but it can’t see wars, OPEC decisions or excise changes coming.</li>
           </ul>
         </div></details>

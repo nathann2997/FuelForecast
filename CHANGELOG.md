@@ -2,7 +2,30 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
-## 2026-10-29 — Forecast ranges per fuel, scaled by wholesale volatility (`model.py` only; branch `model/ranges-per-fuel`, not shipped)
+## 2026-10-29 — Diesel crack signal; VIC prices archived daily; range wording
+
+The owner approved these after the feature experiments (summarised in `docs/HANDOFF.md`).
+- **Diesel crack (`fetch.py`, `update.py`, `model.py`):**
+  - `pull_macro` also fetches EIA NY Harbor ULSD spot (best effort) as `ULSD_NYH` in `store/fred.csv`.
+  - `model.py` builds 7 crack features from it against Brent (`CRACK`), lagged 1 day and blank if over 10 days stale.
+  - The features feed a second model, fit on all fuels, that predicts **diesel only**; petrol keeps exactly the model it had.
+    - Adding them to the shared model helped diesel but cost every petrol fuel 0.02–0.06 c/L per call, so they don't go there.
+    - It applies to the backtest, the jump classifier and the live forecast. The backtest fits about 1.7× as many models.
+  - **Walk-forward** (local run on the data branch, 2026-10-29):
+    - Petrol unchanged.
+    - Diesel 7-day MAE 2.598 → 2.519; jump AUC 0.838 → 0.899.
+    - Diesel verdict value per call: 0.75 → 0.88 c/L (live model), 0.79 → 0.94 (full model).
+    - All fuels 2025–26: 5.31 → 5.39 c/L (live model), 5.50 → 5.58 (full model).
+- **VIC archive (`fetch.py` `pull_vic`, `daily.yml`):**
+  - Once a day it saves the Servo Saver Open Data snapshot (24 hours delayed) to `archive/vic/` on the data branch (`vic_prices_YYYYMMDD.csv.gz`, about 80 KB, plus `vic_stations.csv.gz`).
+  - It's there so a Melbourne vs Sydney comparison can be backtested once there's history. Not used by the model or published.
+  - Needs the `VIC_API_KEY` repo secret; without it the step logs "skipped".
+  - Attribution and terms are in `DATA-LICENSE.md` (CC BY 4.0, credit Service Victoria).
+- **Wording (`template.html`, `app/src/app/(tabs)/more.tsx`):**
+  - The ranges now say "about 8 in 10 outcomes in normal months and about 7 in 10 in shock months".
+  - The inputs mention the international diesel price.
+
+## 2026-10-29 — Forecast ranges per fuel, scaled by wholesale volatility (`model.py` only)
 
 The "likely between" ranges (`lo{h}`/`hi{h}`) were one width per horizon for every fuel, taken from the full model's errors over the last year.
 - **Problems:**

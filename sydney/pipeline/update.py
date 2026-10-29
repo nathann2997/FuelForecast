@@ -99,9 +99,10 @@ er = newest("brent_audusd_eia_rba*.csv")
 fr_chrome = newest("fredgraph*.csv") or newest("fred_brent_aud*.csv")
 if er and fr_chrome and os.path.getmtime(fr_chrome) > os.path.getmtime(er): er = None   # a newer Chrome FRED pull wins
 if er:
-    Fr = pd.read_csv(er, parse_dates=["date"]).set_index("date")[["DCOILBRENTEU", "DEXUSAL"]].sort_index()
+    Fr = pd.read_csv(er, parse_dates=["date"]).set_index("date")
+    Fr = Fr[[c for c in ["DCOILBRENTEU", "DEXUSAL", "ULSD_NYH"] if c in Fr]].sort_index()   # ULSD_NYH: diesel crack, optional
     Fr.to_csv(f"{STORE}/fred.csv", index_label="date")
-    log.append(f"brent/aud (EIA/RBA) to {Fr.dropna().index.max().date()}")
+    log.append(f"brent/aud (EIA/RBA) to {Fr[['DCOILBRENTEU', 'DEXUSAL']].dropna().index.max().date()}")
 
 # ---- FRED Brent (USD/bbl) and AUD/USD (the Chrome pull, pull_fred.js); skipped when the EIA/RBA file is there
 fr = None if er else fr_chrome

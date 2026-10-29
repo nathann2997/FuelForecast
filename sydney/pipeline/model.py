@@ -23,6 +23,10 @@ cal = pd.date_range("2018-06-01", asof + pd.Timedelta(days=20))
 TL = T.reindex(cal).ffill().shift(1)                    # wholesale known with a 1-day lag
 FrL = Fr.reindex(cal).ffill().shift(1)
 FrL["brent_aud"] = FrL.DCOILBRENTEU / FrL.DEXUSAL         # Brent in AUD per barrel
+# Diesel crack: EIA NY Harbor ULSD (USD/gal) against Brent, same 1-day lag; blank if missing or over 10 days stale.
+# Diesel rows only: it helped diesel and hurt petrol in the walk-forward test (2026-10, diesel 7-day jump AUC 0.84 -> 0.90)
+ULSD = (Fr.ULSD_NYH.reindex(cal).ffill(limit=10).shift(1) * 42) if "ULSD_NYH" in Fr else pd.Series(np.nan, index=cal)
+CRACK = ["prod_pct7", "prod_pct14", "prod_pct28", "crack", "crack_chg14", "crack_chg28", "crack_vs90"]
 
 
 def vol_ratio(col):
@@ -64,6 +68,12 @@ def features(D):
             x[f"brent_pct{k}"] = 100 * (FrL.brent_aud / FrL.brent_aud.shift(k) - 1)
         x["brent_vs90"] = 100 * (FrL.brent_aud / FrL.brent_aud.rolling(90, 30).mean() - 1)
         x["audusd_chg28"] = 100 * (FrL.DEXUSAL / FrL.DEXUSAL.shift(28) - 1)
+        prod_aud, crack = ULSD / FrL.DEXUSAL, ULSD - FrL.DCOILBRENTEU
+        for k in [7, 14, 28]:
+            x[f"prod_pct{k}"] = 100 * (prod_aud / prod_aud.shift(k) - 1)
+        x["crack"], x["crack_chg14"], x["crack_chg28"] = crack, crack - crack.shift(14), crack - crack.shift(28)
+        x["crack_vs90"] = crack - crack.rolling(90, 30).mean()
+        if f != "DL": x[CRACK] = np.nan
         x["margin_vs_365"] = x.margin - x.margin.rolling(365, 120).median()
         for k in [1, 3, 7, 14]:
             x[f"mom{k}"] = g["median"] - g["median"].shift(k)
@@ -88,6 +98,19 @@ FD = FC + ["mom1", "mom3", "mom7", "mom14", "off_28max", "off_28min", "days_sinc
 VARIANTS = {"snapshot+wholesale": FA, "+oil & AUD": FC, "+cycle memory": FD}
 PROD = "+cycle memory"
 fit = lambda tr, feats, y: lgb.LGBMRegressor(objective="huber", alpha=3.0, **PARAMS).fit(tr[feats], tr[y])
+fit_clf = lambda tr, feats: lgb.LGBMClassifier(**PARAMS).fit(tr[feats], tr.y_jump7)
+
+
+def predict(make, tr, te, feats, proba=False):
+    """Petrol rows from a model on `feats`; diesel rows from a second model on `feats` + CRACK, both fit on every fuel.
+    Adding CRACK to the shared model helped diesel but cost every petrol fuel (walk-forward 2026-10), so petrol keeps
+    exactly the model it had."""
+    out = []
+    for fs, rows in [(feats, te.fuel != "DL"), (feats + CRACK, te.fuel == "DL")]:
+        if not rows.any(): continue
+        m = make(tr, fs); x = te.loc[rows, fs]
+        out.append(pd.Series(m.predict_proba(x)[:, 1] if proba else m.predict(x), index=x.index))
+    return pd.concat(out).reindex(te.index).values
 
 if DO_BT:
     preds, cls = [], []
@@ -101,13 +124,13 @@ if DO_BT:
             if te.empty: continue
             rec = te[["date", "fuel", y]].rename(columns={y: "actual"}).assign(h=h)
             for name, feats in VARIANTS.items():
-                rec[name] = fit(tr, feats, y).predict(te[feats])
+                rec[name] = (fit(tr, feats, y).predict(te[feats]) if feats is FA   # the baseline variant stays one model
+                             else predict(lambda t, fs: fit(t, fs, y), tr, te, feats))
             preds.append(rec)
         tr = F[(F.date + pd.Timedelta(days=7) < t0) & F.y_jump7.notna()]
         te = te_all[te_all.y_jump7.notna()]
         if len(te):
-            clf = lgb.LGBMClassifier(**PARAMS).fit(tr[FD], tr.y_jump7)
-            cls.append(te[["date", "fuel", "y_jump7"]].assign(p=clf.predict_proba(te[FD])[:, 1]))
+            cls.append(te[["date", "fuel", "y_jump7"]].assign(p=predict(fit_clf, tr, te, FD, proba=True)))
     P = pd.concat(preds, ignore_index=True); C = pd.concat(cls, ignore_index=True)
     P.to_parquet(f"{STORE}/backtest_preds.parquet"); C.to_parquet(f"{STORE}/backtest_cls.parquet")
 
@@ -172,14 +195,17 @@ for h in H:
     mdl = fit(tr, LIVE_FEATS, f"y{h}")
     if h == 7:
         g = pd.Series(mdl.booster_.feature_importance("gain"), index=LIVE_FEATS); imp = (g / g.sum()).sort_values(ascending=False).round(3).head(8).to_dict()
+    pred = dict(zip(X.fuel, predict(lambda t, fs: mdl if fs is LIVE_FEATS else fit(t, fs, f"y{h}"), tr, X, LIVE_FEATS)))
     for o in live:
-        d = float(mdl.predict(X[X.fuel == o["fuel"]][LIVE_FEATS])[0])
+        d = float(pred[o["fuel"]])
         w = half_width(o["fuel"], h)
         o[f"d{h}"] = round(d, 1); o[f"lo{h}"] = round(d - w, 1); o[f"hi{h}"] = round(d + w, 1)
-clf = lgb.LGBMClassifier(**PARAMS).fit(F[F.y_jump7.notna()][LIVE_FEATS], F[F.y_jump7.notna()].y_jump7)
+trc = F[F.y_jump7.notna()]
+clf = fit_clf(trc, LIVE_FEATS)
+pj = dict(zip(X.fuel, predict(lambda t, fs: clf if fs is LIVE_FEATS else fit_clf(t, fs), trc, X, LIVE_FEATS, proba=True)))
 for o in live:
-    o["p_jump7"] = round(float(clf.predict_proba(X[X.fuel == o["fuel"]][LIVE_FEATS])[0, 1]), 2)
-ctx = {"asof": str(asof.date()), "tgp_last": str(T.dropna().index.max().date()), "fred_last": str(Fr.dropna().index.max().date()),
+    o["p_jump7"] = round(float(pj[o["fuel"]]), 2)
+ctx = {"asof": str(asof.date()), "tgp_last": str(T.dropna().index.max().date()), "fred_last": str(Fr[["DCOILBRENTEU", "DEXUSAL"]].dropna().index.max().date()),
        "brent_aud": round(float(FrL.brent_aud.loc[asof]), 1), "brent_usd": round(float(FrL.DCOILBRENTEU.loc[asof]), 1),
        "audusd": round(float(FrL.DEXUSAL.loc[asof]), 4), "importance_h7": imp,
        "history_last": str(D[D.source == "history"].date.max().date()),
