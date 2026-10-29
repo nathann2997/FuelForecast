@@ -6,14 +6,14 @@ import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
 import { syncAlerts } from '@/lib/alerts';
-import { reportError } from '@/lib/analytics';
+import { inBackgroundTask, reportError } from '@/lib/analytics';
 
 import { pushWidgetTimeline } from './render.ios';
 
 export const REFRESH_TASK = 'bowser-refresh';
 const MIN_INTERVAL_MIN = 4 * 60;   // same as the Android widget's updatePeriodMillis
 
-TaskManager.defineTask(REFRESH_TASK, async () => {
+TaskManager.defineTask(REFRESH_TASK, () => inBackgroundTask(async () => {
   try {
     const snap = await pushWidgetTimeline({ allowFetch: true });
     await syncAlerts(snap?.forecast?.live, snap?.forecast?.asof);
@@ -23,7 +23,7 @@ TaskManager.defineTask(REFRESH_TASK, async () => {
     reportError(e);
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
-});
+}));
 
 /** Schedule the refresh once (it persists across launches). Skipped when Background App Refresh is off. */
 async function schedule() {

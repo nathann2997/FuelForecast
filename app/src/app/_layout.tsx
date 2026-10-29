@@ -8,8 +8,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import Storage from '@/lib/storage';
 import { initAlerts } from '@/lib/alerts';
 import { configureAnalytics, reportError, track } from '@/lib/analytics';
+import { loadSettings } from '@/lib/settings';
+import { AnalyticsTracker } from '@/components/analytics-tracker';
 import { API_BASE, HttpError, isNotFound } from '@/lib/api';
-import { applyIfQuick, LAUNCH_WAIT_MS, launchCheck, RESUME_WAIT_MS, resumeWorthChecking } from '@/lib/ota';
+import { LAUNCH_WAIT_MS, launchCheck, resumeCheck, RESUME_WAIT_MS, resumeWorthChecking } from '@/lib/ota';
 import { UpdateNotice } from '@/components/update-notice';
 import { useWidgetSync } from '@/widget/sync';
 import { StatusBar } from 'expo-status-bar';
@@ -23,7 +25,7 @@ export function ErrorBoundary(props: ErrorBoundaryProps) {
   return <RouterErrorBoundary {...props} />;
 }
 
-configureAnalytics();   // before any screen mounts
+configureAnalytics(loadSettings().analytics);   // before any screen mounts
 SplashScreen.preventAutoHideAsync();
 initAlerts();
 launchCheck();   // look for an OTA update while the splash is up (lib/ota.ts); it never rejects
@@ -68,7 +70,7 @@ function RootLayout() {
       if (s === 'background') away = Date.now();
       else if (s === 'active') {
         // Back after a long time away: a restart into a new update reads as a fresh open, not an interruption
-        if (resumeWorthChecking(away, Date.now())) applyIfQuick(RESUME_WAIT_MS);
+        if (resumeWorthChecking(away, Date.now())) resumeCheck(RESUME_WAIT_MS);
         away = null;
       }
     });
@@ -96,6 +98,7 @@ function RootLayout() {
           <Stack.Screen name="track" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
         </Stack>
+        <AnalyticsTracker />
         <UpdateNotice releaseUrl={`${API_BASE}/app.json`} onAction={(action, latest) => track('update.notice', { action, latest })} />
       </ThemeProvider>
     </PersistQueryClientProvider>

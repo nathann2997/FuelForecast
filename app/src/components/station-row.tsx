@@ -12,7 +12,8 @@ import { useStationDetail } from '@/lib/api';
 import { openInMaps } from '@/lib/directions';
 import { offText } from '@/lib/discounts';
 import { STALE_DAYS } from '@/lib/filters';
-import { togglePin, usePins } from '@/lib/pins';
+import { track } from '@/lib/analytics';
+import { isPinned, togglePin, usePins } from '@/lib/pins';
 import { echoesSydney } from '@/lib/copy';
 import { brandSuburb, stationName, updatedText } from '@/lib/format';
 import type { StationRow } from '@/lib/geo';
@@ -23,7 +24,11 @@ export const ADVICE_TONE: Record<AdviceCode, Tone> = { now: 'act', by: 'act', wa
 
 export { STALE_DAYS };
 
-export const openStation = (id: string) => router.push({ pathname: '/station/[id]', params: { id } });
+/** Open a station's page; `from` says where (the screen is on the event too) */
+export function openStation(id: string, from: 'list' | 'map' | 'fill' = 'list') {
+  track('station.opened', { from, pinned: isPinned(id) });
+  router.push({ pathname: '/station/[id]', params: { id } });
+}
 
 /** React key for a row; rows from an old cached stations.json have no id */
 export const rowKey = (r: { id?: string; n: string; la: number; lo: number }) => r.id || `${r.n}|${r.la}|${r.lo}`;

@@ -34,7 +34,7 @@ describe('settingsAttributes', () => {
 describe('settingsContext', () => {
   it('has no location, only whether there is one', () => {
     const c = settingsContext({ ...DEFAULTS, home: { ...home, gps: true } });
-    expect(c).toEqual({ fuel: 'U91', alerts: false, hasArea: true, areaGps: true, discountBrands: 0 });
+    expect(c).toEqual({ fuel: 'U91', alerts: false, hasArea: true, areaGps: true, discountBrands: 0, internal: true });   // __DEV__ in tests
   });
 });
 

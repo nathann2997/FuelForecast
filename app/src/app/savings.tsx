@@ -115,7 +115,7 @@ function FillRow({ f, h, last }: { f: Fill; h: History | undefined; last: boolea
   return (
     <View style={[styles.row, !last && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
       <Pressable
-        onPress={f.stationId ? () => openStation(f.stationId!) : undefined}
+        onPress={f.stationId ? () => openStation(f.stationId!, 'fill') : undefined}
         disabled={!f.stationId}
         accessibilityRole={f.stationId ? 'button' : undefined}
         accessibilityLabel={`${f.name}, ${line}, ${s.total == null ? 'saving unknown' : money(s.total)}${s.pending ? ', timing still counting' : ''}`}

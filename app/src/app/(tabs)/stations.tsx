@@ -11,7 +11,7 @@ import { Button, Card, Disclosure, FuelChip, Loading, Screen, StaleBanner, T } f
 import { Radius, Spacing } from '@/constants/theme';
 import { useArea, useAreaLive } from '@/hooks/use-area';
 import { useTheme } from '@/hooks/use-theme';
-import { useReady } from '@/lib/analytics';
+import { track, useReady } from '@/lib/analytics';
 import { useForecast, useStations } from '@/lib/api';
 import { WHEN_NOTE } from '@/lib/copy';
 import { applyFilters, brandCounts, filterCount, pinnedRows } from '@/lib/filters';
@@ -40,6 +40,10 @@ export default function Stations() {
   const [editing, setEditing] = useState(false);
   const [sheet, setSheet] = useState(false);
   const view = MAPS_ON ? s.view : 'list';
+  const openFilters = () => {
+    track('filters.opened', { view });
+    setSheet(true);
+  };
   // Paging resets whenever the list itself changes (fuel, area, sort or any filter)
   const sig = [s.fuel, home?.la, home?.lo, s.radiusKm, s.sort, s.members, s.showStale, s.brands.join(','), s.advice.join(','), s.maxPrice, s.pinnedOnly, JSON.stringify(s.discounts)].join('|');
   const [page, setPage] = useState({ sig, n: PAGE });
@@ -93,7 +97,7 @@ export default function Stations() {
   );
   const filtersBtn = (
     <Pressable
-      onPress={() => setSheet(true)}
+      onPress={openFilters}
       accessibilityRole="button"
       accessibilityLabel={nFilters ? `Filters, ${nFilters} on` : 'Filters'}
       style={({ pressed }) => [
@@ -138,7 +142,7 @@ export default function Stations() {
               <T kind="small" color={c.tgp} style={{ fontWeight: '700' }}>Change</T>
             </Pressable>
             <Pressable
-              onPress={() => setSheet(true)}
+              onPress={openFilters}
               accessibilityRole="button"
               accessibilityLabel={nFilters ? `Filters, ${nFilters} on` : 'Filters'}
               style={({ pressed }) => [

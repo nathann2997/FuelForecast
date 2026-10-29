@@ -11,8 +11,9 @@ export const STALE_DAYS = 7;
 /** Stations in the medium widget's scrollable list: every pin (lib/pins.ts MAX_PINS = 10), or the top 10 nearby. */
 export const MAX_ROWS = 10;
 /** Deep links: the scheme stays `fuelforecast` (see BOWSER_PLAN §1). */
-export const TODAY_URI = 'fuelforecast://';
-export const stationUri = (id: string) => `fuelforecast://station/${encodeURIComponent(id)}`;
+// ?src=widget: analytics counts opens from the widget (lib/analytics.ts linkSource); the router ignores the query
+export const TODAY_URI = 'fuelforecast://?src=widget';
+export const stationUri = (id: string) => `fuelforecast://station/${encodeURIComponent(id)}?src=widget`;
 
 const ADVICE_TONE: Record<AdviceCode, Tone> = { now: 'act', by: 'act', wait: 'wait', hi: 'wait', any: 'calm', ok: 'calm', chk: 'calm' };
 const FUEL_SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P95: 'P95', P98: 'P98', DL: 'Diesel' };

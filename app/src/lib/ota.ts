@@ -39,6 +39,15 @@ export const resumeWorthChecking = (backgroundedAt: number | null, now: number) 
 
 // The launch check starts as soon as the app's JS loads, in parallel with restoring the cached data
 let launch: Promise<boolean> | null = null;
+let resume: Promise<boolean> = Promise.resolve(false);
+/** The check when the app comes back after a long time away (true: restarting into an update) */
+export function resumeCheck(waitMs: number): Promise<boolean> {
+  resume = applyIfQuick(waitMs);
+  return resume;
+}
+/** The latest resume check, for analytics to wait on (lib/analytics.ts logOpen) */
+export const lastResumeCheck = () => resume;
+
 export function launchCheck(): Promise<boolean> {
   launch ??= applyIfQuick(LAUNCH_WAIT_MS);
   return launch;

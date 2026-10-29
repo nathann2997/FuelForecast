@@ -2,6 +2,48 @@
 
 All notable changes to the FuelForecast pipeline and app. Newest first.
 
+## 2026-10-29 — Bowser 0.9.0: product analytics with PostHog (native, runtime 0.9.0)
+
+The owner chose PostHog after the evaluation in `docs/ANALYTICS_PLAN.md`, which also defines the key metrics.
+- **PostHog alongside EAS Observe,** both behind `track()` in `lib/analytics.ts`. Observe still handles crashes and load times.
+  - Packages: `posthog-react-native` ~4.84.3, plus `expo-application`, `expo-device`, `expo-localization` and `expo-file-system`. They're native, so `version` goes from 0.8.0 to **0.9.0** and needs a new APK.
+  - Expo SDK 58 patch updates were applied (`npx expo install --fix`); expo-doctor passes 20/20.
+- **Privacy:**
+  - person profiles for anonymous installs, no `identify`;
+  - `disableGeoip`;
+  - a `before_send` that strips location, area, price and IP fields;
+  - no session replay, feature flags, surveys or error autocapture;
+  - device name is the phone model, not the name the owner gave it.
+  - Tests in `posthog.test.ts` cover these.
+- **Foreground only:**
+  - PostHog starts from the root layout when the app is in front (`components/analytics-tracker.tsx`), never from the widget task or a background refresh.
+  - An event sent while the app isn't in front carries `background: true`.
+- **Opens:**
+  - one `app.opened` per time the app comes to the front, with `source`;
+  - widget links now carry `?src=widget` (`widget/logic.ts`), and the share page's "Open it" link carries `?src=share` (`share.html`);
+  - a tapped rise alert is counted once;
+  - PostHog's own lifecycle events are off.
+- **Context on every event:** the current Sydney `verdict` (act / wait / calm) for your fuel, the channel, `internal`, and the existing settings context. Screens are sent by route pattern; Stations also says list or map.
+- **New events:** `station.opened` (from list / map / fill, pinned), `filters.opened`, `analytics.internal`.
+- **More:**
+  - a "Share anonymous usage" switch (setting `analytics`, on by default). PostHog stops straight away, Observe at the next launch.
+  - The About text names PostHog and Expo.
+  - Tapping the version 5 times marks a test phone (`internal`, shown as "· test phone"); dev builds are always internal.
+- **Key:** `EXPO_PUBLIC_POSTHOG_KEY` / `EXPO_PUBLIC_POSTHOG_HOST` are EAS environment variables, inlined at bundle time. Without them PostHog stays off. An OTA update at runtime 0.9.0 switches it on once the owner sends the key.
+- **QA audit, and fixed from it:**
+  - **(high)** The privacy filter deleted the SDK's `$geoip_disable` flag, which would have switched IP-based location back on. It's now kept and forced on, with a test.
+  - **(high)** Android reports "background" for permission dialogs, the share sheet and Maps opening on top. Those caused fake opens and marked real Map taps as background.
+    - Background is now set only by `inBackgroundTask`, which wraps the widget task and the iOS refresh.
+    - A return counts as an open only after a minute away, or when a link or alert brought it back.
+  - No double open when the app restarts into an OTA update: it waits for the launch or resume check (`ota.ts` `resumeCheck`/`lastResumeCheck`).
+  - The first time in front is the cold open, whatever state the app started in. Events and the screen from before start are sent once it starts.
+  - Sharing off: PostHog is never constructed, so no remote-config call. Observe's events stop at once, and the More text says crash reports stop once Bowser is fully closed.
+  - A `station.opened` from widget and share links (from the `src` param).
+  - An `update` (OTA id) super property; `$timezone` dropped; `$set`/`$set_once` cleared.
+  - The open source is cleared on background; the verdict is `none` without a forecast row; unhandled rejections are caught.
+  - Funnel 4 reordered (area is set before Start).
+- **Checks:** tsc, lint, jest and expo-doctor (20/20) pass. The Android and web bundles export.
+
 ## 2026-10-28 — Web dashboard design pass (`template.html` only)
 
 A designer's review of the live page, at 1280 and 390 px.

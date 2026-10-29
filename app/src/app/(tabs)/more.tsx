@@ -10,7 +10,7 @@ import { DiscountsEditor } from '@/components/discounts-editor';
 import { Button, Card, Disclosure, FuelPicker, Loading, Screen, Section, Segmented, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useReady } from '@/lib/analytics';
+import { track, useReady } from '@/lib/analytics';
 import { useForecast, useMeta, useStations } from '@/lib/api';
 import { backtestNote, backtestRows, plainWarnings, widgetLocationCopy } from '@/lib/copy';
 import { daysBetween, nice, refreshedText } from '@/lib/format';
@@ -194,13 +194,41 @@ export default function More() {
           <BowserMark size={40} />
           <View style={{ flex: 1, gap: 2 }}>
             <T kind="h2">Bowser</T>
-            <T kind="small">Version {Constants.expoConfig?.version ?? '–'}</T>
+            <VersionLine />
           </View>
         </View>
         <T kind="small">Forecasts are estimates for planning, not financial advice.</T>
-        <T kind="small">Bowser sends anonymous usage and crash reports (which screens you open, how fast they load) so problems get found and fixed. They never include your location, your area or what you paid.</T>
+        <View style={styles.between}>
+          <T color={c.fg} style={{ flex: 1 }}>Share anonymous usage</T>
+          <Switch value={s.analytics} onValueChange={(v) => setSettings({ analytics: v })} accessibilityLabel="Share anonymous usage and crash reports" />
+        </View>
+        <T kind="small">
+          Usage and crash reports help find and fix problems. Usage is linked to this install, not to you, and goes to PostHog; crash
+          reports go to Expo. They never include your location, your area or what you paid.
+          {s.analytics ? '' : ' Usage sharing has stopped. Crash reports stop once Bowser has been fully closed and opened again.'}
+        </T>
       </Section>
     </Screen>
+  );
+}
+
+/** The version; tapping it 5 times marks this phone as a test phone (the owner's or a tester's), left out of the usage
+ *  numbers in PostHog (`internal` on every event) */
+function VersionLine() {
+  const { internal } = useSettings();
+  const [taps, setTaps] = useState<number[]>([]);
+  const onPress = () => {
+    const now = Date.now();
+    const recent = [...taps.filter((t) => now - t < 3000), now];
+    if (recent.length < 5) return setTaps(recent);
+    setTaps([]);
+    setSettings({ internal: !internal });
+    track('analytics.internal', { on: !internal });
+  };
+  return (
+    <Pressable onPress={onPress} accessible={false}>
+      <T kind="small">Version {Constants.expoConfig?.version ?? '–'}{internal ? ' · test phone' : ''}</T>
+    </Pressable>
   );
 }
 

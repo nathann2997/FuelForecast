@@ -84,7 +84,7 @@ describe('widget station rows', () => {
     const r = chooseRows(snap(), prefs(), ['4', '7', 'gone', '1', '3', '8'], 3);
     expect(r.mode).toBe('pinned');
     expect(r.rows.map((x) => x.id)).toEqual(['4', '1', '3']);
-    expect(r.rows[0]).toMatchObject({ price: '245.9', note: '+8.0c', noteTone: 'dear', uri: 'fuelforecast://station/4' });
+    expect(r.rows[0]).toMatchObject({ price: '245.9', note: '+8.0c', noteTone: 'dear', uri: 'fuelforecast://station/4?src=widget' });
     expect(r.rows[1]).toMatchObject({ note: '−8.0c', noteTone: 'cheap' });
   });
   it('pinned rows have no caption (the mode row says Pinned) and tidy ALL-CAPS names', () => {
@@ -128,7 +128,7 @@ describe('widget station rows', () => {
     expect(chooseRows(s, prefs(), ['2']).rows[0]).toMatchObject({ note: '12 days old' });
   });
   it('encodes station ids in deep links', () => {
-    expect(stationUri('12/3')).toBe('fuelforecast://station/12%2F3');
+    expect(stationUri('12/3')).toBe('fuelforecast://station/12%2F3?src=widget');
   });
 });
 
@@ -261,7 +261,7 @@ describe('medium widget list modes', () => {
     expect(r.caption).toBe('Near Parramatta 2150');
     expect(r.rows.map((x) => x.id)).toEqual(['a', 'b', 'c']);
     // the distance follows the advice; without a forecast the right-hand note is the gap (not the distance again)
-    expect(r.rows[0]).toMatchObject({ advice: 'Fill by Fri', dist: '1.1 km', adviceTone: 'act', note: '+2.0c', fc: null, price: '239.9', uri: 'fuelforecast://station/a' });
+    expect(r.rows[0]).toMatchObject({ advice: 'Fill by Fri', dist: '1.1 km', adviceTone: 'act', note: '+2.0c', fc: null, price: '239.9', uri: 'fuelforecast://station/a?src=widget' });
     expect(chooseRows(s, prefs(), [], 3, 'cheapest').rows[0].dist).toBeNull();
     expect(chooseRows(s, prefs({ radiusKm: 2 }), [], 3, 'nearest').rows.map((x) => x.id)).toEqual(['a']);
   });

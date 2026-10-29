@@ -345,7 +345,7 @@ function StationCard({
       style={[styles.card, { backgroundColor: c.surface, borderColor: c.line, paddingBottom: Spacing.four + bottom }]}>
       <View style={styles.cardHead}>
         <Pressable
-          onPress={() => openStation(r.id)}
+          onPress={() => openStation(r.id, 'map')}
           accessibilityRole="button"
           accessibilityLabel={`${name}, ${r.price.toFixed(1)} cents${r.off ? ` with your ${offText(r.off)} off` : ''}, ${label}`}
           accessibilityHint="Opens the station’s prices and forecast"
@@ -381,7 +381,7 @@ function StationCard({
       <View style={styles.cardActions}>
         <CardButton label="Directions" onPress={() => openInMaps(r.la, r.lo, name)} c={c} primary icon={<MapPinIcon color={c.bg} size={18} />} />
         <CardButton label={pinned ? 'Unpin' : 'Pin'} onPress={pin} c={c} icon={<PinIcon filled={!pinned} color={c.fg} size={16} />} />
-        <CardButton label="Details" onPress={() => openStation(r.id)} c={c} />
+        <CardButton label="Details" onPress={() => openStation(r.id, 'map')} c={c} />
       </View>
     </View>
   );

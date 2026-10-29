@@ -32,9 +32,9 @@ describe('iosProps', () => {
   it('flattens the model, caps the rows and labels the list', () => {
     const p = iosProps(buildModel(snap, prefs, [], TODAY, IOS_MAX_ROWS));
     expect(p.rows).toHaveLength(IOS_MAX_ROWS);
-    expect(p.rows[0]).toMatchObject({ name: expect.any(String), price: '230.0', url: 'fuelforecast://station/1' });
+    expect(p.rows[0]).toMatchObject({ name: expect.any(String), price: '230.0', url: 'fuelforecast://station/1?src=widget' });
     expect(p.caption).toBe('Cheapest near Parramatta 2150');
-    expect(p.best?.url).toBe('fuelforecast://station/1');
+    expect(p.best?.url).toBe('fuelforecast://station/1?src=widget');
     expect(p.tone).toBe('act');
     expect(p.asOf).toBeNull();
   });

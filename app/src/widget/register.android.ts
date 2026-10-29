@@ -4,7 +4,7 @@
 import { registerWidgetTaskHandler, type WidgetTaskHandler } from 'react-native-android-widget';
 
 import { syncAlerts } from '@/lib/alerts';
-import { reportError } from '@/lib/analytics';
+import { inBackgroundTask, reportError } from '@/lib/analytics';
 import type { Fuel } from '@/lib/types';
 
 import { clearWidget, loadSnapshot, readCache, saveFuel, saveMode } from './data';
@@ -70,4 +70,5 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
   }
 };
 
-registerWidgetTaskHandler(widgetTaskHandler);
+// Anything the task logs is marked background (lib/analytics.ts), so it never counts as use of the app
+registerWidgetTaskHandler((props) => inBackgroundTask(() => widgetTaskHandler(props)));

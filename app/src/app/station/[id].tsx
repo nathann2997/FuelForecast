@@ -14,13 +14,13 @@ import { TickerChart } from '@/components/ticker-chart';
 import { Badge, Card, Section, StaleBanner, T } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useReady } from '@/lib/analytics';
+import { track, useReady } from '@/lib/analytics';
 import { isNotFound, isStationId, useForecast, useHistory, useStationDetail, useStations } from '@/lib/api';
 import { offFor, offText, yourPrice } from '@/lib/discounts';
 import { brandSuburb, fmt, fuelName, nice, stationName, sydneyToday, updatedText } from '@/lib/format';
 import { km } from '@/lib/geo';
 import { dayLabel, toneOf } from '@/lib/outlook';
-import { MAX_PINS, togglePin, usePins } from '@/lib/pins';
+import { isPinned, MAX_PINS, togglePin, usePins } from '@/lib/pins';
 import { useSettings } from '@/lib/settings';
 import { canShare, dealMessage, shareText } from '@/lib/share';
 import {
@@ -32,7 +32,11 @@ import type { Fuel, Station } from '@/lib/types';
 const SHORT: Record<Fuel, string> = { U91: 'U91', E10: 'E10', P95: 'P95', P98: 'P98', DL: 'Diesel' };
 
 export default function StationPage() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, src } = useLocalSearchParams<{ id: string; src?: string }>();
+  // Opened from the widget or a shared link (fuelforecast://station/<id>?src=…): in-app opens log in openStation()
+  useEffect(() => {
+    if (src) track('station.opened', { from: src === 'widget' || src === 'share' ? src : 'link', pinned: isPinned(id ?? '') });
+  }, [src, id]);
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const s = useSettings();

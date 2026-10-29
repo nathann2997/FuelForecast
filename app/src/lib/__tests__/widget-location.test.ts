@@ -67,7 +67,7 @@ const walk = (n: Node, out: Node[] = []): Node[] => (out.push(n), n.children?.fo
 const drawn = (rep: unknown) => walk(buildWidgetTree((rep as { light: never }).light) as Node);
 const rowIds = (nodes: Node[]) =>
   nodes.filter((n) => String((n.props?.clickActionData as { uri?: string })?.uri ?? '').includes('/station/'))
-    .map((n) => String((n.props?.clickActionData as { uri: string }).uri).split('/').pop());
+    .map((n) => String((n.props?.clickActionData as { uri: string }).uri).split('/').pop()!.split('?')[0]);
 const hasLocate = (nodes: Node[]) => nodes.some((n) => n.props?.clickAction === 'LOCATE');
 const texts = (nodes: Node[]) => nodes.map((n) => n.props?.text).filter(Boolean);
 

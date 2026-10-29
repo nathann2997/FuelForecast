@@ -144,7 +144,7 @@
       i.textContent = SHORT[f]; el.appendChild(i); el.appendChild(document.createTextNode(s.p[f][0].toFixed(1)));
       $('fuels').appendChild(el);
     });
-    $('open').href = 'fuelforecast://station/' + encodeURIComponent(id);
+    $('open').href = 'fuelforecast://station/' + encodeURIComponent(id) + '?src=share';
     if (num(s.la) && num(s.lo)) $('dir').href = 'https://www.google.com/maps/dir/?api=1&destination=' + s.la.toFixed(5) + ',' + s.lo.toFixed(5);
     else show('dir', false);
     if (st.asof) $('foot').textContent = 'Prices from NSW FuelCheck for ' + nice(st.asof) + '. Advice is an estimate for planning, not financial advice.';
