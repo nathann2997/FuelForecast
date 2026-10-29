@@ -10,6 +10,7 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [x] **Verdict rule analysis** (2026-10-29; `docs/RULE_ANALYSIS_2026-10.md`). Analysis only, nothing changed. Cut-offs are fine (87% of perfect hindsight); 2026 wholesale-driven swings are the weakness (64%); live calls use the no-cycle-memory model until October history fills the gap. **Next:** a model experiment for sustained wholesale trends; confirm October history is pulled.
 - [~] **Bowser 0.9.0: PostHog product analytics** (2026-10-29, 48a9c27 + 3cc0acc; CHANGELOG "Bowser 0.9.0"; metrics and design in `docs/ANALYTICS_PLAN.md`).
   - Built and committed. Preview APK: EAS build ffab4b04, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/ffab4b04-76dc-4c51-88b0-7ee5ac3eb066 (built from 48a9c27).
   - **Analytics switched on 2026-10-29.** The owner sent the key; the project is on US cloud (the key authenticates at us.i.posthog.com, not EU). `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com` are in EAS `preview` (plaintext: it's a public client key, inlined at bundle time). OTA to `preview` at runtime 0.9.0: update group 52e64cd9-f548-4e43-8b78-fc3d196e52e4, which also carries 3cc0acc. Key and host confirmed in the published bundle. Not set for `production` (unused so far).
