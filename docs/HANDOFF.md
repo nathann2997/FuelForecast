@@ -10,6 +10,31 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 - Constraint: keep the existing Claude-task flow working; the app is a parallel "clone and rebuild".
 
 ## Plan status
+- [~] **Bowser 0.9.0: PostHog product analytics** (2026-10-29, 48a9c27 + 3cc0acc; CHANGELOG "Bowser 0.9.0"; metrics and design in `docs/ANALYTICS_PLAN.md`).
+  - Built and committed. Preview APK: EAS build ffab4b04, https://expo.dev/accounts/nathann97/projects/fuel-forecast/builds/ffab4b04-76dc-4c51-88b0-7ee5ac3eb066 (built from 48a9c27).
+  - **Analytics is OFF until the owner sends the PostHog project key.** It's inlined at bundle time from EAS env vars.
+  - 3cc0acc (the sharing flag in background tasks) isn't in the APK; it goes out with the key's OTA update.
+  - **Owner, in this order:**
+    1. Create the PostHog project (US or EU).
+    2. Turn on "Discard client IP data".
+    3. Add `internal = true` to the internal and test users filter.
+    4. Send the `phc_` key and host.
+    5. After installing 0.9.0, tap the version in More 5 times on their own phone.
+  - **When the key arrives:**
+    1. `npx eas-cli env:create --environment preview --name EXPO_PUBLIC_POSTHOG_KEY --value <phc_…> --visibility plaintext`, and the same for `EXPO_PUBLIC_POSTHOG_HOST` (also `production` if used).
+    2. `eas update --channel preview --environment preview --platform android --upload-source-maps` at runtime 0.9.0.
+    3. Confirm in PostHog's live view from a real phone. Open one raw event and check:
+       - `$geoip_disable: true`;
+       - no `$ip`, `$geoip_*` or `$timezone`;
+       - a person profile exists;
+       - `app.opened` has a `source`.
+  - **Device checks:**
+    - A cold open from the launcher, the widget, a rise-alert tap and a share link: one `app.opened` each, with the right source.
+    - Back from Maps or a permission dialog within a minute: no new open.
+    - A widget tap to a station: `station.opened` with `from: widget`.
+    - Switching sharing off: events stop.
+  - **Next:** build the dashboard from the 8 metric definitions once events arrive. It needs a personal API key (MCP Server preset), kept out of the repo.
+  - After the APK finishes: `app_release.json` → 0.9.0 / ffab4b04, push, then `gh workflow run daily.yml` (that run also publishes the share page's `?src=share`).
 - [x] **Claude automation off; bigger web map; Costco shown** (2026-10-28; CHANGELOG same title). The claude.ai routine trig_01SMwjzj84uqLfyaspwsXFic is disabled, so GitHub Actions is the only pipeline and `main`'s `sydney/store` no longer gets daily commits from it. Both maps show prices over 7 days old as grey tags. Web live via run 40628073519; app OTA to `preview` at runtime 0.8.0, update group adcddf37-4150-4ec7-b496-9cbe2ca2a851.
 - [x] **Web dashboard: stations map and a simpler page** (2026-10-28; CHANGELOG same title). `template.html` and the CSP in `export_api.py` only; `build.py` is untouched. MapLibre plus OpenFreeMap (no key), loaded lazily, falling back to the list if blocked. The page is now four plain questions. **Next:** check the live map on a phone, and look at the Claude task's artifact the next morning (OpenFreeMap may be blocked there, in which case it shows the list).
 - [~] **Premium 95 (P95) as a fifth fuel** (2026-10-27, bee2d9d + data 09ce0be; CHANGELOG same title). A user asked for E85 and 95. P95 is built in full: pipeline, model, dashboard, share page and app (JS only, runtime 0.8.0). E85 is left out (17 stations, too few to forecast). QA audited and fixed. **Live:**
