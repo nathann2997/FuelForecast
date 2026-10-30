@@ -12,6 +12,11 @@ Working notes so a fresh session can resume. Update before ending a session (or 
 ## Plan status
 - [~] **Ranges per fuel, diesel crack signal, VIC archive** (2026-10-29; CHANGELOG entries "Forecast ranges per fuel…" and "Diesel crack signal…").
   - The owner approved shipping all of it ("go ahead with everything").
+  - **Live:**
+    - Pushed: 30e1f64 + 8bb5b84.
+    - Workflow run 40852466824, with backtest: build 11 min; API has no warnings, diesel AUC 0.899, `bt.q80n` present, `ctx.range_vol` present, `ULSD_NYH` in `fred.csv`.
+    - OTA to `preview` at runtime 0.9.0: update group af466a26-d0b5-4cdc-b8f1-fd6c6819ccae (the More-tab wording).
+    - Use `npx eas-cli@27.1.0`: 27.2.0 fails to install (its `@expo/logger@27.2.0` is missing from npm, 2026-10-30).
   - **Research behind it**, all walk-forward 2021–26:
     - Rejected as model inputs: excise features, NSW public holidays, national stocks, fuel on ships, Brisbane prices (QLD open data).
     - Jump-chance recalibration earned nothing on the money metric.
